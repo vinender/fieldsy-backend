@@ -16,7 +16,8 @@ class PaymentController {
     async createPaymentIntent(req, res) {
         try {
             const { fieldId, numberOfDogs, date, timeSlots, // Array of selected time slots (e.g., ["9:00AM - 10:00AM", "10:00AM - 11:00AM"])
-            repeatBooking, amount, paymentMethodId // Optional: use saved payment method
+            repeatBooking, amount, paymentMethodId, // Optional: use saved payment method
+            duration // Optional: booking duration ('30min' or '60min')
              } = req.body;
             // Normalize timeSlots - ensure it's always an array
             const normalizedTimeSlots = Array.isArray(timeSlots) ? timeSlots : (timeSlots ? [timeSlots] : []);
@@ -162,6 +163,7 @@ class PaymentController {
                     timeSlots: JSON.stringify(normalizedTimeSlots), // Store as JSON array
                     timeSlotCount: normalizedTimeSlots.length.toString(),
                     repeatBooking: repeatBooking || 'none',
+                    duration: duration || '60min', // Booking duration (30min or 60min)
                     type: 'field_booking',
                     platformCommission: platformCommission.toString(),
                     fieldOwnerAmount: fieldOwnerAmount.toString(),
@@ -484,7 +486,8 @@ class PaymentController {
                         payoutStatus,
                         payoutHeldReason,
                         repeatBooking: normalizedRepeatBooking || repeatBooking || 'none',
-                        subscriptionId: subscriptionId // Link to subscription if created
+                        subscriptionId: subscriptionId, // Link to subscription if created
+                        bookingDuration: duration || '60min' // Booking duration (30min or 60min)
                     }
                 });
             }));
@@ -985,10 +988,15 @@ class PaymentController {
                     // via API before the intent is confirmed, or via webhook on success
                     break;
                 case 'transfer.created':
-                    const transfer = event.data.object;
-                    console.log('Transfer created:', transfer.id);
-                    // This occurs when funds are moved to a connected account
-                    // You could log this to a 'Transfers' table if you need to track them separately from Payouts
+                case 'transfer.paid':
+                case 'transfer.failed':
+                case 'transfer.reversed':
+                    await syncStripeTransferEvent(event);
+                    break;
+                case 'refund.created':
+                case 'refund.updated':
+                case 'refund.failed':
+                    await syncStripeRefundEvent(event);
                     break;
                 default:
                     console.log(`Unhandled event type ${event.type}`);
@@ -1174,5 +1182,236 @@ async function syncStripePayoutEvent(event) {
                 ...(payoutStatus === 'COMPLETED' ? { payoutReleasedAt: new Date() } : {})
             }
         });
+        // Update Transaction lifecycle when payout completes
+        if (payoutStatus === 'COMPLETED' && bookingIds.length > 0) {
+            await database_1.default.transaction.updateMany({
+                where: { bookingId: { in: bookingIds } },
+                data: {
+                    lifecycleStage: 'PAYOUT_COMPLETED',
+                    stripePayoutId: payoutObject.id,
+                    payoutCompletedAt: new Date()
+                }
+            });
+            console.log(`[StripeWebhook] Updated transaction lifecycle to PAYOUT_COMPLETED for bookings: ${bookingIds.join(', ')}`);
+        }
+        else if (payoutStatus === 'PROCESSING' && bookingIds.length > 0) {
+            await database_1.default.transaction.updateMany({
+                where: { bookingId: { in: bookingIds } },
+                data: {
+                    lifecycleStage: 'PAYOUT_INITIATED',
+                    stripePayoutId: payoutObject.id,
+                    payoutInitiatedAt: new Date()
+                }
+            });
+        }
+    }
+}
+/**
+ * Sync Stripe transfer events to update booking and transaction records
+ */
+async function syncStripeTransferEvent(event) {
+    const transfer = event.data.object;
+    console.log(`[StripeWebhook] Processing ${event.type} event:`, {
+        eventId: event.id,
+        transferId: transfer.id,
+        amount: transfer.amount,
+        destination: transfer.destination,
+        metadata: transfer.metadata
+    });
+    const bookingIds = extractBookingIdsFromMetadata(transfer.metadata);
+    if (bookingIds.length === 0) {
+        console.log('[StripeWebhook] No booking IDs found in transfer metadata');
+        return;
+    }
+    // Update bookings based on transfer status
+    if (event.type === 'transfer.created') {
+        // Transfer created - funds are being moved to connected account
+        console.log(`[StripeWebhook] Transfer created for bookings: ${bookingIds.join(', ')}`);
+        // Update transaction lifecycle
+        await database_1.default.transaction.updateMany({
+            where: { bookingId: { in: bookingIds } },
+            data: {
+                lifecycleStage: 'TRANSFERRED',
+                stripeTransferId: transfer.id,
+                transferredAt: new Date(),
+                connectedAccountId: typeof transfer.destination === 'string' ? transfer.destination : transfer.destination?.id
+            }
+        });
+    }
+    else if (event.type === 'transfer.paid') {
+        // Transfer completed successfully
+        console.log(`[StripeWebhook] Transfer paid for bookings: ${bookingIds.join(', ')}`);
+        // Mark transfer as complete in booking (if not already processing payout)
+        await database_1.default.booking.updateMany({
+            where: {
+                id: { in: bookingIds },
+                payoutStatus: { in: ['PENDING', 'HELD', null] }
+            },
+            data: {
+                payoutStatus: 'PROCESSING'
+            }
+        });
+    }
+    else if (event.type === 'transfer.failed' || event.type === 'transfer.reversed') {
+        // Transfer failed or was reversed
+        console.log(`[StripeWebhook] Transfer ${event.type} for bookings: ${bookingIds.join(', ')}`);
+        await database_1.default.booking.updateMany({
+            where: { id: { in: bookingIds } },
+            data: {
+                payoutStatus: 'FAILED'
+            }
+        });
+        // Update transaction with failure info
+        await database_1.default.transaction.updateMany({
+            where: { bookingId: { in: bookingIds } },
+            data: {
+                lifecycleStage: 'TRANSFER_FAILED',
+                failureCode: event.type === 'transfer.reversed' ? 'REVERSED' : 'FAILED',
+                failureMessage: event.type === 'transfer.reversed' ? 'Transfer was reversed' : 'Transfer failed'
+            }
+        });
+        // Notify admins about failed transfer
+        const adminUsers = await database_1.default.user.findMany({
+            where: { role: 'ADMIN' }
+        });
+        for (const admin of adminUsers) {
+            await database_1.default.notification.create({
+                data: {
+                    userId: admin.id,
+                    type: 'PAYOUT_FAILED',
+                    title: `Transfer ${event.type === 'transfer.reversed' ? 'Reversed' : 'Failed'}`,
+                    message: `Transfer ${transfer.id} ${event.type === 'transfer.reversed' ? 'was reversed' : 'failed'} for bookings: ${bookingIds.join(', ')}`,
+                    data: {
+                        transferId: transfer.id,
+                        bookingIds,
+                        eventType: event.type
+                    }
+                }
+            });
+        }
+    }
+}
+/**
+ * Sync Stripe refund events to update booking and transaction records
+ */
+async function syncStripeRefundEvent(event) {
+    const refund = event.data.object;
+    console.log(`[StripeWebhook] Processing ${event.type} event:`, {
+        eventId: event.id,
+        refundId: refund.id,
+        amount: refund.amount,
+        status: refund.status,
+        paymentIntent: refund.payment_intent,
+        metadata: refund.metadata
+    });
+    // Find booking by payment intent
+    const paymentIntentId = typeof refund.payment_intent === 'string'
+        ? refund.payment_intent
+        : refund.payment_intent?.id;
+    if (!paymentIntentId) {
+        console.log('[StripeWebhook] No payment intent found in refund');
+        return;
+    }
+    const booking = await database_1.default.booking.findFirst({
+        where: { paymentIntentId },
+        include: {
+            field: { select: { ownerId: true, name: true } },
+            user: { select: { name: true, email: true } }
+        }
+    });
+    if (!booking) {
+        console.log(`[StripeWebhook] No booking found for payment intent: ${paymentIntentId}`);
+        return;
+    }
+    const refundAmount = refund.amount / 100;
+    if (event.type === 'refund.created' || event.type === 'refund.updated') {
+        // Update transaction record
+        const existingTransaction = await database_1.default.transaction.findFirst({
+            where: { bookingId: booking.id, type: 'REFUND' }
+        });
+        if (existingTransaction) {
+            // Update existing refund transaction
+            await database_1.default.transaction.update({
+                where: { id: existingTransaction.id },
+                data: {
+                    status: refund.status === 'succeeded' ? 'COMPLETED' : refund.status === 'failed' ? 'FAILED' : 'PROCESSING',
+                    stripeRefundId: refund.id,
+                    refundedAt: refund.status === 'succeeded' ? new Date() : null,
+                    failureCode: refund.failure_reason || null,
+                    failureMessage: refund.failure_reason || null
+                }
+            });
+        }
+        else {
+            // Create new refund transaction record
+            await database_1.default.transaction.create({
+                data: {
+                    bookingId: booking.id,
+                    userId: booking.userId,
+                    fieldOwnerId: booking.field.ownerId,
+                    amount: refundAmount,
+                    netAmount: refundAmount,
+                    type: 'REFUND',
+                    status: refund.status === 'succeeded' ? 'COMPLETED' : refund.status === 'failed' ? 'FAILED' : 'PROCESSING',
+                    lifecycleStage: 'REFUNDED',
+                    stripePaymentIntentId: paymentIntentId,
+                    stripeRefundId: refund.id,
+                    refundedAt: refund.status === 'succeeded' ? new Date() : null,
+                    description: `Refund for booking ${booking.id}`
+                }
+            });
+        }
+        // Also update the original payment transaction
+        await database_1.default.transaction.updateMany({
+            where: { bookingId: booking.id, type: 'PAYMENT' },
+            data: {
+                lifecycleStage: 'REFUNDED',
+                stripeRefundId: refund.id,
+                refundedAt: refund.status === 'succeeded' ? new Date() : null
+            }
+        });
+        // Update booking status
+        if (refund.status === 'succeeded') {
+            await database_1.default.booking.update({
+                where: { id: booking.id },
+                data: {
+                    status: 'CANCELLED',
+                    paymentStatus: 'REFUNDED',
+                    payoutStatus: 'REFUNDED'
+                }
+            });
+            console.log(`[StripeWebhook] Booking ${booking.id} marked as refunded`);
+        }
+    }
+    else if (event.type === 'refund.failed') {
+        // Update transaction with failure
+        await database_1.default.transaction.updateMany({
+            where: { bookingId: booking.id, type: 'REFUND' },
+            data: {
+                status: 'FAILED',
+                failureCode: refund.failure_reason || 'UNKNOWN',
+                failureMessage: refund.failure_reason || 'Refund failed'
+            }
+        });
+        // Notify admins about failed refund
+        const adminUsers = await database_1.default.user.findMany({
+            where: { role: 'ADMIN' }
+        });
+        for (const admin of adminUsers) {
+            await database_1.default.notification.create({
+                data: {
+                    userId: admin.id,
+                    type: 'REFUND_FAILED',
+                    title: 'Refund Failed',
+                    message: `Refund of £${refundAmount.toFixed(2)} failed for booking ${booking.id}. Reason: ${refund.failure_reason || 'Unknown'}`,
+                    data: {
+                        bookingId: booking.id,
+                        refundId: refund.id,
+                        amount: refundAmount,
+                        failureReason: refund.failure_reason
+                    }
+                }
+            });
+        }
     }
 }

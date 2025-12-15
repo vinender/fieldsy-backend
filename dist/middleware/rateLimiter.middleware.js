@@ -70,7 +70,7 @@ exports.createRateLimiter = createRateLimiter;
 // Base rate limiters (internal use)
 const _generalLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 9000060000, // 60 requests per minute
+    max: 100, // 60 requests per minute
     message: 'Too many requests from this IP/user, please try again after a minute.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -78,14 +78,14 @@ const _generalLimiter = (0, express_rate_limit_1.default)({
 });
 const _strictLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 9000010000, // 10 requests per minute
+    max: 20, // 10 requests per minute
     message: 'Too many requests to this endpoint, please try again after a minute.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 9000010005, // 15 requests per minute (increased from 5 to handle social login flow)
+    max: 15, // 15 requests per minute (increased from 5 to handle social login flow)
     message: 'Too many authentication attempts, please try again after a minute.',
     skipSuccessfulRequests: true, // Don't count successful login attempts
     standardHeaders: true,
@@ -93,7 +93,7 @@ const _authLimiter = (0, express_rate_limit_1.default)({
 });
 const _socialAuthLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 9000030000, // 30 requests per minute (OAuth flow involves multiple requests)
+    max: 30, // 30 requests per minute (OAuth flow involves multiple requests)
     message: 'Too many social login attempts, please try again after a minute.',
     skipSuccessfulRequests: true, // Don't count successful attempts
     standardHeaders: true,
@@ -101,49 +101,49 @@ const _socialAuthLimiter = (0, express_rate_limit_1.default)({
 });
 const _passwordResetLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60000, // 15 minutes
-    max: 900003000, // 3 requests per 15 minutes
+    max: 5, // 3 requests per 15 minutes
     message: 'Too many password reset requests, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _uploadLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 900002000, // 20 uploads per minute
+    max: 20, // 20 uploads per minute
     message: 'Too many upload requests, please slow down.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _searchLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 90000300000, // 30 searches per minute
+    max: 30, // 30 searches per minute
     message: 'Too many search requests, please try again after a minute.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _bookingLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 900005, // 5 bookings per minute
+    max: 5, // 5 bookings per minute
     message: 'Too many booking attempts, please slow down.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _reviewLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 900003, // 3 reviews per minute
+    max: 3, // 3 reviews per minute
     message: 'Too many review submissions, please wait before submitting another review.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _messageLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 9000030, // 30 messages per minute
+    max: 30, // 30 messages per minute
     message: 'Too many messages sent, please slow down.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _paymentLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 900005, // 5 payment attempts per minute
+    max: 5, // 5 payment attempts per minute
     message: 'Too many payment attempts, please try again after a minute.',
     standardHeaders: true,
     legacyHeaders: false,

@@ -196,11 +196,20 @@ class AuthController {
         try {
             // Verify refresh token
             const decoded = jsonwebtoken_1.default.verify(refreshToken, constants_1.JWT_SECRET);
-            // Generate new access token
+            // SECURITY FIX: Verify user still exists and is active
+            const user = await user_model_1.default.findById(decoded.id);
+            if (!user) {
+                throw new AppError_1.AppError('User no longer exists', 401);
+            }
+            // Check if user account is blocked or deleted
+            if (user.isBlocked) {
+                throw new AppError_1.AppError('Your account has been blocked', 403);
+            }
+            // Generate new access token with current user data (in case role changed)
             const newToken = jsonwebtoken_1.default.sign({
-                id: decoded.id,
-                email: decoded.email,
-                role: decoded.role
+                id: user.id,
+                email: user.email,
+                role: user.role
             }, constants_1.JWT_SECRET, { expiresIn: constants_1.JWT_EXPIRES_IN });
             res.json({
                 success: true,
@@ -210,6 +219,9 @@ class AuthController {
             });
         }
         catch (error) {
+            if (error instanceof AppError_1.AppError) {
+                throw error;
+            }
             throw new AppError_1.AppError('Invalid refresh token', 401);
         }
     });
@@ -274,13 +286,35 @@ class AuthController {
             }
         }
         else if (provider === 'apple') {
-            // For Apple, recommend using the dedicated endpoint
-            // But still allow if providerId is provided (backwards compatibility)
-            if (!providerId || !email) {
-                console.log('❌ VALIDATION FAILED: Apple login missing required fields');
-                throw new AppError_1.AppError('For Apple Sign In, please use the /auth/apple endpoint with idToken', 400);
+            // SECURITY FIX: Apple Sign-In must provide idToken for verification
+            // Do not allow unverified providerId/email (prevents account takeover)
+            if (!idToken) {
+                console.log('❌ VALIDATION FAILED: Apple login missing idToken');
+                throw new AppError_1.AppError('Apple Sign In requires idToken for verification. Please use the /auth/apple endpoint', 400);
             }
-            console.log('⚠️ Apple login via socialLogin - consider using /auth/apple endpoint');
+            try {
+                // Verify the Apple ID token
+                console.log('🔐 Verifying Apple ID token...');
+                const { appleSignInService } = require('../services/apple-signin.service');
+                const appleUser = await appleSignInService.verifyIdToken(idToken);
+                // Use verified values from the token (not from request body)
+                verifiedEmail = appleUser.email;
+                verifiedProviderId = appleUser.sub;
+                verifiedName = appleUser.name || name || verifiedEmail.split('@')[0];
+                verifiedImage = image; // Apple doesn't provide profile pictures
+                console.log('✅ Apple token verified successfully');
+                console.log('  - Verified Email:', verifiedEmail);
+                console.log('  - Verified Provider ID:', verifiedProviderId);
+                console.log('  - Verified Name:', verifiedName);
+                // Check if the email matches (if provided in body)
+                if (email && email !== verifiedEmail) {
+                    console.log('⚠️ Email mismatch - using verified email from token');
+                }
+            }
+            catch (error) {
+                console.error('❌ Apple token verification failed:', error.message);
+                throw new AppError_1.AppError(error.message || 'Invalid Apple ID token', 401);
+            }
         }
         // Validate that we have required fields after verification
         if (!verifiedEmail || !verifiedProviderId) {

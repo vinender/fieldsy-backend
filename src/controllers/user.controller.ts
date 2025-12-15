@@ -29,10 +29,17 @@ class UserController {
   // Get user by ID
   getUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
+    const requestingUserId = (req as any).user.id;
+    const requestingUserRole = (req as any).user.role;
 
     const user = await UserModel.findById(id);
     if (!user) {
       throw new AppError('User not found', 404);
+    }
+
+    // SECURITY FIX: Only allow users to view their own profile or admins to view any profile
+    if (requestingUserId !== id && requestingUserRole !== 'ADMIN') {
+      throw new AppError('You can only view your own profile', 403);
     }
 
     res.json({
@@ -44,18 +51,29 @@ class UserController {
   // Update user profile
   updateUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
-    const updates = req.body;
+    const requestingUserId = (req as any).user.id;
+    const requestingUserRole = (req as any).user.role;
 
     // Check if user is updating their own profile or is admin
-    if ((req as any).user.id !== id && (req as any).user.role !== 'ADMIN') {
+    if (requestingUserId !== id && requestingUserRole !== 'ADMIN') {
       throw new AppError('You can only update your own profile', 403);
     }
 
-    // Prevent updating certain fields
-    delete updates.id;
-    delete updates.email; // Email change should be done through separate verification process
-    delete updates.password; // Password change should be done through separate endpoint
-    delete updates.role; // Role can only be changed by admin
+    // SECURITY FIX: Use whitelist approach - only allow specific safe fields to be updated
+    const allowedFields = ['name', 'phone', 'image', 'googleImage', 'bio', 'address'];
+    const updates: any = {};
+
+    // Only copy whitelisted fields from request body
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    }
+
+    // Validate that at least one field is being updated
+    if (Object.keys(updates).length === 0) {
+      throw new AppError('No valid fields to update', 400);
+    }
 
     const updatedUser = await UserModel.update(id, updates);
 

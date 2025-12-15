@@ -206,6 +206,20 @@ export class PayoutService {
           }
         });
 
+        // Update Transaction lifecycle to track the transfer and payout
+        await prisma.transaction.updateMany({
+          where: { bookingId },
+          data: {
+            lifecycleStage: stripePayout?.status === 'paid' ? 'PAYOUT_COMPLETED' : 'PAYOUT_INITIATED',
+            stripeTransferId: transfer.id,
+            stripePayoutId: stripePayout?.id || null,
+            connectedAccountId: stripeAccount.stripeAccountId,
+            transferredAt: new Date(),
+            payoutInitiatedAt: new Date(),
+            ...(stripePayout?.status === 'paid' ? { payoutCompletedAt: new Date() } : {})
+          }
+        });
+
         // Send notification to field owner
         await createNotification({
           userId: fieldOwner.id,

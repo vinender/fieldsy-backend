@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authenticateAdmin = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
+const constants_1 = require("../config/constants");
 const prisma = new client_1.PrismaClient();
 const authenticateAdmin = async (req, res, next) => {
     try {
@@ -13,7 +14,8 @@ const authenticateAdmin = async (req, res, next) => {
         if (!token) {
             return res.status(401).json({ error: 'Authentication required' });
         }
-        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        // SECURITY FIX: Use consistent JWT_SECRET from constants
+        const decoded = jsonwebtoken_1.default.verify(token, constants_1.JWT_SECRET);
         const admin = await prisma.user.findUnique({
             where: { id: decoded.userId }
         });

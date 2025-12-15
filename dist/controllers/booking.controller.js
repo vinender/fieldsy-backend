@@ -1445,10 +1445,13 @@ class BookingController {
     // Get slot availability (private booking system - slot is either available or booked)
     getSlotAvailability = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
         const { fieldId } = req.params;
-        const { date } = req.query;
+        const { date, duration } = req.query;
         if (!date) {
             throw new AppError_1.AppError('Date is required', 400);
         }
+        // Duration can be '30min' or '60min' (or '1hour' for backward compatibility)
+        // If not provided, use field's default bookingDuration
+        const requestedDuration = duration;
         // Get field details
         const field = await database_1.default.field.findUnique({
             where: { id: fieldId }
@@ -1622,8 +1625,14 @@ class BookingController {
         const openingTime = parseTime(field.openingTime || '6:00AM');
         const closingTime = parseTime(field.closingTime || '9:00PM');
         const slots = [];
-        // Determine slot duration based on field's bookingDuration
-        const slotDurationMinutes = field.bookingDuration === '30min' ? 30 : 60;
+        // Determine slot duration based on requested duration or field's default
+        // Allow user to select 30min or 60min duration
+        // '1hour' is treated as '60min' for backward compatibility
+        const effectiveDuration = requestedDuration || field.bookingDuration || '1hour';
+        const slotDurationMinutes = (effectiveDuration === '30min') ? 30 : 60;
+        // Display duration with 5-minute buffer for field owner transition
+        // 30min slot shows as 25 minutes, 60min slot shows as 55 minutes
+        const displayDurationMinutes = slotDurationMinutes === 30 ? 25 : 55;
         // Helper function to format time
         const formatTime = (hour, minutes = 0) => {
             const period = hour >= 12 ? 'PM' : 'AM';
@@ -1639,36 +1648,61 @@ class BookingController {
         const closingMinutes = timeToMinutes(closingTime.hour, closingTime.minute);
         // Generate slots from opening to closing time
         let currentMinutes = openingMinutes;
+        // Helper function to check if a new slot overlaps with any existing booking
+        const checkBookingOverlap = (slotStartMinutes, slotEndMinutes) => {
+            for (const booking of bookings) {
+                // Parse booking start and end times
+                const bookingStartMinutes = timeStringToMinutes(booking.startTime);
+                const bookingEndMinutes = timeStringToMinutes(booking.endTime);
+                // Check for overlap: slots overlap if one starts before the other ends
+                const hasOverlap = (slotStartMinutes >= bookingStartMinutes && slotStartMinutes < bookingEndMinutes) ||
+                    (slotEndMinutes > bookingStartMinutes && slotEndMinutes <= bookingEndMinutes) ||
+                    (slotStartMinutes <= bookingStartMinutes && slotEndMinutes >= bookingEndMinutes);
+                if (hasOverlap) {
+                    return true;
+                }
+            }
+            return false;
+        };
         while (currentMinutes + slotDurationMinutes <= closingMinutes) {
             // Calculate start time
             const startHour = Math.floor(currentMinutes / 60);
             const startMinute = currentMinutes % 60;
-            // Calculate end time
-            const endTotalMinutes = currentMinutes + slotDurationMinutes;
-            const endHour = Math.floor(endTotalMinutes / 60);
-            const endMinute = endTotalMinutes % 60;
-            // Format times
+            // Calculate end time for display (with 5-min buffer: 25 or 55 minutes)
+            const displayEndTotalMinutes = currentMinutes + displayDurationMinutes;
+            const displayEndHour = Math.floor(displayEndTotalMinutes / 60);
+            const displayEndMinute = displayEndTotalMinutes % 60;
+            // Full slot end time for availability checking (full 30 or 60 minutes)
+            const fullEndTotalMinutes = currentMinutes + slotDurationMinutes;
+            // Format times for display (showing shortened duration)
             const startTime = formatTime(startHour, startMinute);
-            const endTime = formatTime(endHour, endMinute);
-            const slotTime = `${startTime} - ${endTime}`;
-            // Check if slot is booked (private booking system)
-            const isBookedByBooking = bookings.some(booking => booking.timeSlot === slotTime || booking.startTime === startTime);
+            const displayEndTime = formatTime(displayEndHour, displayEndMinute);
+            const slotTime = `${startTime} - ${displayEndTime}`;
+            // Also store the full slot time for internal reference
+            const fullEndHour = Math.floor(fullEndTotalMinutes / 60);
+            const fullEndMinute = fullEndTotalMinutes % 60;
+            const fullEndTime = formatTime(fullEndHour, fullEndMinute);
+            // Check if slot is booked using overlap detection (checks full slot duration)
+            const isBookedByBooking = checkBookingOverlap(currentMinutes, fullEndTotalMinutes);
             // Check if slot is reserved by recurring booking (using proper overlap detection)
-            const recurringCheck = checkRecurringOverlap(currentMinutes, endTotalMinutes);
+            const recurringCheck = checkRecurringOverlap(currentMinutes, fullEndTotalMinutes);
             const isBookedByRecurring = recurringCheck.isOverlapping;
             const isBooked = isBookedByBooking || isBookedByRecurring;
             // Note: isPast check removed from backend because server timezone may differ from client timezone
             // Frontend will calculate isPast using client's local timezone
             slots.push({
                 time: slotTime,
+                fullEndTime, // Full end time for booking creation
                 startHour: startHour,
-                startMinute: startMinute, // Add startMinute so frontend can calculate isPast
+                startMinute: startMinute,
+                displayDuration: displayDurationMinutes, // 25 or 55 minutes
+                actualDuration: slotDurationMinutes, // 30 or 60 minutes
                 isBooked,
-                isBookedByRecurring, // Add flag to indicate it's a recurring booking
-                recurringInterval: recurringCheck.interval, // Add interval type (weekly/monthly/everyday)
-                isAvailable: !isBooked // Only check if booked, not isPast (frontend handles that)
+                isBookedByRecurring,
+                recurringInterval: recurringCheck.interval,
+                isAvailable: !isBooked
             });
-            // Move to next slot
+            // Move to next slot (using full slot duration to avoid overlaps)
             currentMinutes += slotDurationMinutes;
         }
         res.json({
@@ -1678,7 +1712,9 @@ class BookingController {
                 fieldId,
                 fieldName: field.name,
                 slots,
-                bookingDuration: field.bookingDuration || '1hour',
+                bookingDuration: effectiveDuration,
+                displayDuration: displayDurationMinutes,
+                actualDuration: slotDurationMinutes,
                 operatingHours: {
                     opening: field.openingTime || '06:00',
                     closing: field.closingTime || '21:00'
