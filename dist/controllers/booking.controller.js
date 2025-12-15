@@ -547,7 +547,7 @@ class BookingController {
                             email: true,
                         },
                     },
-                    fieldReviews: {
+                    fieldReview: {
                         select: {
                             id: true,
                             rating: true,
