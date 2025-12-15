@@ -38,7 +38,7 @@ router.get('/owner/bookings', restrictTo('FIELD_OWNER'), fieldController.getFiel
 router.get('/owner/bookings/recent', restrictTo('FIELD_OWNER'), fieldController.getRecentBookings);
 router.get('/owner/bookings/today', restrictTo('FIELD_OWNER'), fieldController.getTodayBookings);
 router.get('/owner/bookings/upcoming', restrictTo('FIELD_OWNER'), fieldController.getUpcomingBookings);
-router.get('/owner/bookings/previous', restrictTo('FIELD_OWNER'), fieldController.getPreviousBookings);
+router.get('/owner/bookings/completed', restrictTo('FIELD_OWNER'), fieldController.getCompletedBookings);
 router.post('/save-progress', restrictTo('FIELD_OWNER'), fieldController.saveFieldProgress);
 router.post('/submit-for-review', restrictTo('FIELD_OWNER'), fieldController.submitFieldForReview);
 router.post('/', restrictTo('FIELD_OWNER', 'ADMIN'), fieldController.createField);

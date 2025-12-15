@@ -1770,8 +1770,8 @@ class FieldController {
             });
         }
     });
-    // Get previous bookings for field owner
-    getPreviousBookings = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    // Get completed bookings for field owner (only COMPLETED status)
+    getCompletedBookings = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
         const ownerId = req.user.id;
         const { page = 1, limit = 12 } = req.query;
         try {
@@ -1804,14 +1804,12 @@ class FieldController {
             }
             // Get all field IDs for this owner
             const fieldIds = fields.map((field) => field.id);
-            // Get past bookings
+            // Get completed bookings only (status = COMPLETED)
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const bookingFilter = {
                 fieldId: { in: fieldIds },
-                date: {
-                    lt: today
-                }
+                status: 'COMPLETED' // Only completed bookings
             };
             const pageNum = Number(page);
             const limitNum = Number(limit);
@@ -1913,10 +1911,10 @@ class FieldController {
             });
         }
         catch (error) {
-            console.error('Error fetching previous bookings:', error);
+            console.error('Error fetching completed bookings:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to fetch previous bookings',
+                message: 'Failed to fetch completed bookings',
                 bookings: [],
                 stats: {
                     todayBookings: 0,
