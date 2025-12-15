@@ -4,6 +4,11 @@ import { createNotification } from '../controllers/notification.controller';
 import { calculatePayoutAmounts } from '../utils/commission.utils';
 import { stripe } from '../config/stripe.config';
 import { createConnectedAccountPayout } from '../utils/stripe-payout.helper';
+import {
+  checkPlatformBalance,
+  checkChargeFundsAvailable,
+  safeTransferWithBalanceGate
+} from '../utils/stripe-balance.helper';
 
 const prisma = new PrismaClient();
 
@@ -137,19 +142,71 @@ export class PayoutService {
 
       const payoutAmountInCents = Math.round(payoutAmount * 100);
 
-      // Update booking to processing
+      // ============================================================================
+      // BALANCE GATE: Check if funds are available before attempting transfer
+      // Rule 2: Never create transfers without verifying available balance
+      // ============================================================================
+
+      // First, check if funds from the original payment are available
+      // This prevents "insufficient balance" errors from Stripe
+      const transaction = await prisma.transaction.findFirst({
+        where: { bookingId, type: 'PAYMENT' }
+      });
+
+      if (transaction?.stripeChargeId) {
+        const fundsCheck = await checkChargeFundsAvailable(transaction.stripeChargeId);
+        if (!fundsCheck.isAvailable) {
+          console.log(`[PayoutService] Funds not yet available for booking ${bookingId}: ${fundsCheck.message}`);
+
+          // Mark as PENDING_FUNDS instead of failing - will be retried by cron job
+          await prisma.booking.update({
+            where: { id: bookingId },
+            data: {
+              payoutStatus: 'PENDING',
+              payoutHeldReason: `Funds pending availability: ${fundsCheck.availableOn?.toISOString() || 'unknown'}`
+            }
+          });
+
+          // Update transaction lifecycle
+          await prisma.transaction.updateMany({
+            where: { bookingId },
+            data: { lifecycleStage: 'FUNDS_PENDING' }
+          });
+
+          return null; // Will be processed when funds become available
+        }
+      }
+
+      // Check platform balance can cover this transfer
+      const balanceCheck = await checkPlatformBalance(payoutAmountInCents, 'gbp');
+      if (!balanceCheck.canTransfer) {
+        console.log(`[PayoutService] Insufficient platform balance for booking ${bookingId}: ${balanceCheck.message}`);
+
+        // Mark as PENDING - will be retried by cron job when balance is available
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            payoutStatus: 'PENDING',
+            payoutHeldReason: `Insufficient platform balance: ${balanceCheck.availableAmount / 100} GBP available, need ${payoutAmountInCents / 100} GBP`
+          }
+        });
+
+        return null; // Will be processed when balance is sufficient
+      }
+
+      // Update booking to processing (only after balance checks pass)
       await prisma.booking.update({
         where: { id: bookingId },
         data: { payoutStatus: 'PROCESSING' }
-      }); 
+      });
 
       try {
-        // Create a transfer to the connected account
-        const transfer = await stripe.transfers.create({
+        // Create a transfer to the connected account using safe transfer with balance gate
+        const transferResult = await safeTransferWithBalanceGate({
           amount: payoutAmountInCents,
           currency: 'gbp',
           destination: stripeAccount.stripeAccountId,
-          transfer_group: `booking_${bookingId}`,
+          transferGroup: `booking_${bookingId}`,
           metadata: {
             bookingId,
             fieldId: field.id,
@@ -158,6 +215,27 @@ export class PayoutService {
           },
           description: `Payout for booking ${bookingId} - ${field.name}`
         });
+
+        // If transfer was deferred due to balance issues, mark for retry
+        if (!transferResult.success && transferResult.shouldDefer) {
+          console.log(`[PayoutService] Transfer deferred for booking ${bookingId}: ${transferResult.reason}`);
+
+          await prisma.booking.update({
+            where: { id: bookingId },
+            data: {
+              payoutStatus: 'PENDING',
+              payoutHeldReason: transferResult.reason
+            }
+          });
+
+          return null; // Will be retried later
+        }
+
+        if (!transferResult.success) {
+          throw new Error(transferResult.reason);
+        }
+
+        const transfer = transferResult.transfer;
 
         let stripePayout = null;
         try {

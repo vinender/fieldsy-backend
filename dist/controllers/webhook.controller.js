@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -260,7 +293,7 @@ class WebhookController {
                     await this.handleTransferReversed(event);
                     break;
                 case 'balance.available':
-                    console.log('[PayoutWebhook] Balance available event received:', event.id);
+                    await this.handleBalanceAvailable(event);
                     break;
                 default:
                     console.log(`[PayoutWebhook] Unhandled event type: ${event.type}`);
@@ -533,6 +566,33 @@ class WebhookController {
                     : charge.balance_transaction.id)
                 : undefined;
             await transaction_lifecycle_service_1.transactionLifecycleService.updateFundsPending(paymentIntentId, balanceTransactionId);
+            // ============================================================================
+            // Track when funds will be available (Rule 3: Delayed payouts)
+            // Stripe typically makes funds available in 2 business days
+            // ============================================================================
+            if (balanceTransactionId) {
+                try {
+                    const balanceTransaction = await stripe_config_1.stripe.balanceTransactions.retrieve(balanceTransactionId);
+                    // available_on is a Unix timestamp
+                    if (balanceTransaction.available_on) {
+                        const fundsAvailableAt = new Date(balanceTransaction.available_on * 1000);
+                        console.log(`[PaymentWebhook] Funds for charge ${charge.id} will be available at: ${fundsAvailableAt.toISOString()}`);
+                        // Store the expected availability date in the transaction
+                        await database_1.default.transaction.updateMany({
+                            where: { stripePaymentIntentId: paymentIntentId },
+                            data: {
+                                metadata: {
+                                    expectedFundsAvailableAt: fundsAvailableAt.toISOString(),
+                                    balanceTransactionStatus: balanceTransaction.status
+                                }
+                            }
+                        });
+                    }
+                }
+                catch (error) {
+                    console.error('[PaymentWebhook] Error fetching balance transaction details:', error);
+                }
+            }
         }
     }
     async handleChargeFailed(event) {
@@ -913,6 +973,121 @@ class WebhookController {
                     description: `Transfer ${transfer.id} was reversed`
                 }
             });
+        }
+    }
+    /**
+     * Handle balance.available webhook event
+     *
+     * This is the CORRECT signal to trigger payouts (Rule 1 & 2)
+     * When Stripe notifies us that balance has changed, we check for pending payouts
+     * that can now be processed.
+     */
+    async handleBalanceAvailable(event) {
+        const balance = event.data.object;
+        const connectedAccountId = event.account;
+        // Find available balance for GBP
+        const gbpAvailable = balance.available.find(b => b.currency === 'gbp');
+        const gbpPending = balance.pending?.find(b => b.currency === 'gbp');
+        console.log('[PayoutWebhook] Balance available event:', {
+            eventId: event.id,
+            connectedAccountId: connectedAccountId || 'platform',
+            availableGBP: gbpAvailable?.amount ? gbpAvailable.amount / 100 : 0,
+            pendingGBP: gbpPending?.amount ? gbpPending.amount / 100 : 0
+        });
+        // If this is a platform balance event (not connected account), process pending payouts
+        if (!connectedAccountId && gbpAvailable && gbpAvailable.amount > 0) {
+            console.log('[PayoutWebhook] Platform balance available - checking for pending payouts...');
+            try {
+                // Import the auto-payout service dynamically to avoid circular dependencies
+                const { automaticPayoutService } = await Promise.resolve().then(() => __importStar(require('../services/auto-payout.service')));
+                // Find bookings that are PENDING due to insufficient balance
+                const pendingBookings = await database_1.default.booking.findMany({
+                    where: {
+                        payoutStatus: 'PENDING',
+                        payoutHeldReason: {
+                            contains: 'Insufficient platform balance'
+                        },
+                        status: 'CONFIRMED',
+                        paymentStatus: 'PAID'
+                    },
+                    take: 10, // Process in batches to avoid overwhelming the system
+                    orderBy: { createdAt: 'asc' } // Process oldest first
+                });
+                if (pendingBookings.length > 0) {
+                    console.log(`[PayoutWebhook] Found ${pendingBookings.length} bookings pending due to balance issues`);
+                    // Process each booking (balance will be re-checked in the service)
+                    for (const booking of pendingBookings) {
+                        try {
+                            await automaticPayoutService.processBookingPayoutAfterCancellationWindow(booking.id);
+                            console.log(`[PayoutWebhook] Processed pending payout for booking: ${booking.id}`);
+                        }
+                        catch (error) {
+                            console.error(`[PayoutWebhook] Failed to process booking ${booking.id}:`, error);
+                        }
+                    }
+                }
+                // Also process bookings waiting for funds availability
+                const fundsWaitingBookings = await database_1.default.booking.findMany({
+                    where: {
+                        payoutStatus: 'PENDING',
+                        payoutHeldReason: {
+                            contains: 'Funds pending availability'
+                        },
+                        status: 'CONFIRMED',
+                        paymentStatus: 'PAID'
+                    },
+                    take: 10,
+                    orderBy: { createdAt: 'asc' }
+                });
+                if (fundsWaitingBookings.length > 0) {
+                    console.log(`[PayoutWebhook] Found ${fundsWaitingBookings.length} bookings waiting for funds availability`);
+                    for (const booking of fundsWaitingBookings) {
+                        try {
+                            await automaticPayoutService.processBookingPayoutAfterCancellationWindow(booking.id);
+                            console.log(`[PayoutWebhook] Processed funds-waiting payout for booking: ${booking.id}`);
+                        }
+                        catch (error) {
+                            console.error(`[PayoutWebhook] Failed to process booking ${booking.id}:`, error);
+                        }
+                    }
+                }
+                // Update transactions that were in FUNDS_PENDING to FUNDS_AVAILABLE
+                // This is done by checking which transactions now have available funds
+                const pendingTransactions = await database_1.default.transaction.findMany({
+                    where: {
+                        lifecycleStage: 'FUNDS_PENDING',
+                        stripeChargeId: { not: null }
+                    },
+                    take: 20
+                });
+                for (const transaction of pendingTransactions) {
+                    try {
+                        const charge = await stripe_config_1.stripe.charges.retrieve(transaction.stripeChargeId);
+                        if (charge.balance_transaction) {
+                            const balanceTransactionId = typeof charge.balance_transaction === 'string'
+                                ? charge.balance_transaction
+                                : charge.balance_transaction.id;
+                            const balanceTransaction = await stripe_config_1.stripe.balanceTransactions.retrieve(balanceTransactionId);
+                            if (balanceTransaction.status === 'available') {
+                                await database_1.default.transaction.update({
+                                    where: { id: transaction.id },
+                                    data: {
+                                        lifecycleStage: 'FUNDS_AVAILABLE',
+                                        fundsAvailableAt: new Date()
+                                    }
+                                });
+                                console.log(`[PayoutWebhook] Updated transaction ${transaction.id} to FUNDS_AVAILABLE`);
+                            }
+                        }
+                    }
+                    catch (error) {
+                        console.error(`[PayoutWebhook] Error checking transaction ${transaction.id}:`, error);
+                    }
+                }
+            }
+            catch (error) {
+                console.error('[PayoutWebhook] Error processing pending payouts on balance available:', error);
+            }
         }
     }
     // ============================================================================

@@ -301,7 +301,7 @@ export class WebhookController {
           break;
 
         case 'balance.available':
-          console.log('[PayoutWebhook] Balance available event received:', event.id);
+          await this.handleBalanceAvailable(event);
           break;
 
         default:
@@ -613,6 +613,35 @@ export class WebhookController {
         : undefined;
 
       await transactionLifecycleService.updateFundsPending(paymentIntentId, balanceTransactionId);
+
+      // ============================================================================
+      // Track when funds will be available (Rule 3: Delayed payouts)
+      // Stripe typically makes funds available in 2 business days
+      // ============================================================================
+      if (balanceTransactionId) {
+        try {
+          const balanceTransaction = await stripe.balanceTransactions.retrieve(balanceTransactionId);
+
+          // available_on is a Unix timestamp
+          if (balanceTransaction.available_on) {
+            const fundsAvailableAt = new Date(balanceTransaction.available_on * 1000);
+            console.log(`[PaymentWebhook] Funds for charge ${charge.id} will be available at: ${fundsAvailableAt.toISOString()}`);
+
+            // Store the expected availability date in the transaction
+            await prisma.transaction.updateMany({
+              where: { stripePaymentIntentId: paymentIntentId },
+              data: {
+                metadata: {
+                  expectedFundsAvailableAt: fundsAvailableAt.toISOString(),
+                  balanceTransactionStatus: balanceTransaction.status
+                }
+              }
+            });
+          }
+        } catch (error) {
+          console.error('[PaymentWebhook] Error fetching balance transaction details:', error);
+        }
+      }
     }
   }
 
@@ -1035,6 +1064,133 @@ export class WebhookController {
           description: `Transfer ${transfer.id} was reversed`
         }
       });
+    }
+  }
+
+  /**
+   * Handle balance.available webhook event
+   *
+   * This is the CORRECT signal to trigger payouts (Rule 1 & 2)
+   * When Stripe notifies us that balance has changed, we check for pending payouts
+   * that can now be processed.
+   */
+  private async handleBalanceAvailable(event: Stripe.Event) {
+    const balance = event.data.object as Stripe.Balance;
+    const connectedAccountId = (event as any).account;
+
+    // Find available balance for GBP
+    const gbpAvailable = balance.available.find(b => b.currency === 'gbp');
+    const gbpPending = balance.pending?.find(b => b.currency === 'gbp');
+
+    console.log('[PayoutWebhook] Balance available event:', {
+      eventId: event.id,
+      connectedAccountId: connectedAccountId || 'platform',
+      availableGBP: gbpAvailable?.amount ? gbpAvailable.amount / 100 : 0,
+      pendingGBP: gbpPending?.amount ? gbpPending.amount / 100 : 0
+    });
+
+    // If this is a platform balance event (not connected account), process pending payouts
+    if (!connectedAccountId && gbpAvailable && gbpAvailable.amount > 0) {
+      console.log('[PayoutWebhook] Platform balance available - checking for pending payouts...');
+
+      try {
+        // Import the auto-payout service dynamically to avoid circular dependencies
+        const { automaticPayoutService } = await import('../services/auto-payout.service');
+
+        // Find bookings that are PENDING due to insufficient balance
+        const pendingBookings = await prisma.booking.findMany({
+          where: {
+            payoutStatus: 'PENDING',
+            payoutHeldReason: {
+              contains: 'Insufficient platform balance'
+            },
+            status: 'CONFIRMED',
+            paymentStatus: 'PAID'
+          },
+          take: 10, // Process in batches to avoid overwhelming the system
+          orderBy: { createdAt: 'asc' } // Process oldest first
+        });
+
+        if (pendingBookings.length > 0) {
+          console.log(`[PayoutWebhook] Found ${pendingBookings.length} bookings pending due to balance issues`);
+
+          // Process each booking (balance will be re-checked in the service)
+          for (const booking of pendingBookings) {
+            try {
+              await automaticPayoutService.processBookingPayoutAfterCancellationWindow(booking.id);
+              console.log(`[PayoutWebhook] Processed pending payout for booking: ${booking.id}`);
+            } catch (error) {
+              console.error(`[PayoutWebhook] Failed to process booking ${booking.id}:`, error);
+            }
+          }
+        }
+
+        // Also process bookings waiting for funds availability
+        const fundsWaitingBookings = await prisma.booking.findMany({
+          where: {
+            payoutStatus: 'PENDING',
+            payoutHeldReason: {
+              contains: 'Funds pending availability'
+            },
+            status: 'CONFIRMED',
+            paymentStatus: 'PAID'
+          },
+          take: 10,
+          orderBy: { createdAt: 'asc' }
+        });
+
+        if (fundsWaitingBookings.length > 0) {
+          console.log(`[PayoutWebhook] Found ${fundsWaitingBookings.length} bookings waiting for funds availability`);
+
+          for (const booking of fundsWaitingBookings) {
+            try {
+              await automaticPayoutService.processBookingPayoutAfterCancellationWindow(booking.id);
+              console.log(`[PayoutWebhook] Processed funds-waiting payout for booking: ${booking.id}`);
+            } catch (error) {
+              console.error(`[PayoutWebhook] Failed to process booking ${booking.id}:`, error);
+            }
+          }
+        }
+
+        // Update transactions that were in FUNDS_PENDING to FUNDS_AVAILABLE
+        // This is done by checking which transactions now have available funds
+        const pendingTransactions = await prisma.transaction.findMany({
+          where: {
+            lifecycleStage: 'FUNDS_PENDING',
+            stripeChargeId: { not: null }
+          },
+          take: 20
+        });
+
+        for (const transaction of pendingTransactions) {
+          try {
+            const charge = await stripe.charges.retrieve(transaction.stripeChargeId!);
+            if (charge.balance_transaction) {
+              const balanceTransactionId = typeof charge.balance_transaction === 'string'
+                ? charge.balance_transaction
+                : charge.balance_transaction.id;
+
+              const balanceTransaction = await stripe.balanceTransactions.retrieve(balanceTransactionId);
+
+              if (balanceTransaction.status === 'available') {
+                await prisma.transaction.update({
+                  where: { id: transaction.id },
+                  data: {
+                    lifecycleStage: 'FUNDS_AVAILABLE',
+                    fundsAvailableAt: new Date()
+                  }
+                });
+                console.log(`[PayoutWebhook] Updated transaction ${transaction.id} to FUNDS_AVAILABLE`);
+              }
+            }
+          } catch (error) {
+            console.error(`[PayoutWebhook] Error checking transaction ${transaction.id}:`, error);
+          }
+        }
+
+      } catch (error) {
+        console.error('[PayoutWebhook] Error processing pending payouts on balance available:', error);
+      }
     }
   }
 
