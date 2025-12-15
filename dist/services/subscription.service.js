@@ -226,14 +226,42 @@ class SubscriptionService {
             ? subscription.timeSlots
             : [subscription.timeSlot]; // Fallback to single slot format
         const bookings = [];
+        // Helper to parse time to minutes
+        const parseTimeToMinutes = (timeStr) => {
+            const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
+            if (!match)
+                return 0;
+            let hours = parseInt(match[1]);
+            const minutes = parseInt(match[2]);
+            const period = match[3].toUpperCase();
+            if (period === 'PM' && hours !== 12)
+                hours += 12;
+            if (period === 'AM' && hours === 12)
+                hours = 0;
+            return hours * 60 + minutes;
+        };
+        // Helper to convert minutes to time string
+        const minutesToTimeStr = (totalMinutes) => {
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+            return `${displayHour}:${minutes.toString().padStart(2, '0')}${period}`;
+        };
+        // Determine actual duration in minutes (30 or 60)
+        const actualDurationMinutes = field.bookingDuration === '30min' ? 30 : 60;
         for (const slot of timeSlots) {
             // Parse start and end time from slot format "X:XXAM - Y:YYAM" or use stored times
             let slotStart = subscription.startTime;
-            let slotEnd = subscription.endTime;
+            let slotEnd = subscription.endTime; // This is already the actual end time (full duration)
             if (slot.includes(' - ')) {
-                const [start, end] = slot.split(' - ').map(t => t.trim());
+                const [start, displayEnd] = slot.split(' - ').map(t => t.trim());
                 slotStart = start;
-                slotEnd = end;
+                // Calculate actual end time based on start time + full duration
+                // The display end time has 5-min buffer removed, we need full duration for overlap checks
+                const startMinutes = parseTimeToMinutes(start);
+                const actualEndMinutes = startMinutes + actualDurationMinutes;
+                slotEnd = minutesToTimeStr(actualEndMinutes);
             }
             // Check if this specific slot is available
             const availabilityCheck = await BookingModel.checkFullAvailability(subscription.fieldId, bookingDate, slotStart, slotEnd, undefined, // No booking to exclude

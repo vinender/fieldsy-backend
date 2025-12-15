@@ -337,9 +337,36 @@ export class PaymentController {
       }
 
       // Parse the first time slot to extract start and end times for subscription
-      // Expected format: "4:00PM - 5:00PM"
+      // Expected format: "4:00PM - 4:55PM" (display time with 5-min buffer)
       const firstTimeSlot = normalizedTimeSlots[0];
-      const [startTimeStr, endTimeStr] = firstTimeSlot.split(' - ').map((t: string) => t.trim());
+      const [startTimeStr, displayEndTimeStr] = firstTimeSlot.split(' - ').map((t: string) => t.trim());
+
+      // Helper function to parse time string to minutes (for subscription end time calculation)
+      const parseTimeForSubscription = (timeStr: string): number => {
+        const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
+        if (!match) return 0;
+        let hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const period = match[3].toUpperCase();
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return hours * 60 + minutes;
+      };
+
+      // Helper function to convert minutes to time string (for subscription end time calculation)
+      const minutesToTimeForSubscription = (totalMinutes: number): string => {
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+        return `${displayHour}:${minutes.toString().padStart(2, '0')}${period}`;
+      };
+
+      // Calculate actual end time for subscription (full duration, not display time)
+      const subscriptionDurationMinutes = duration === '30min' ? 30 : 60;
+      const subscriptionStartMinutes = parseTimeForSubscription(startTimeStr);
+      const subscriptionActualEndMinutes = subscriptionStartMinutes + subscriptionDurationMinutes;
+      const endTimeStr = minutesToTimeForSubscription(subscriptionActualEndMinutes);
 
       // Create a booking record with appropriate status
       const bookingStatus = paymentIntent.status === 'succeeded' ? 'CONFIRMED' : 'PENDING';
@@ -528,17 +555,48 @@ export class PaymentController {
       const platformCommissionPerSlot = platformCommission / normalizedTimeSlots.length;
       const fieldOwnerAmountPerSlot = fieldOwnerAmount / normalizedTimeSlots.length;
 
+      // Helper function to parse time string to minutes
+      const parseTimeToMinutes = (timeStr: string): number => {
+        const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
+        if (!match) return 0;
+        let hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const period = match[3].toUpperCase();
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return hours * 60 + minutes;
+      };
+
+      // Helper function to convert minutes back to time string
+      const minutesToTimeStr = (totalMinutes: number): string => {
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+        return `${displayHour}:${minutes.toString().padStart(2, '0')}${period}`;
+      };
+
+      // Determine actual slot duration in minutes (30 or 60)
+      const actualDurationMinutes = duration === '30min' ? 30 : 60;
+
       const bookings = await Promise.all(
         normalizedTimeSlots.map(async (slot: string) => {
-          const [slotStart, slotEnd] = slot.split(' - ').map((t: string) => t.trim());
+          const [slotStart, displaySlotEnd] = slot.split(' - ').map((t: string) => t.trim());
+
+          // Calculate the ACTUAL end time based on start time + full duration
+          // The display end time has 5-min buffer removed, we need the full duration for availability checks
+          const startMinutes = parseTimeToMinutes(slotStart);
+          const actualEndMinutes = startMinutes + actualDurationMinutes;
+          const actualSlotEnd = minutesToTimeStr(actualEndMinutes);
+
           return prisma.booking.create({
             data: {
               fieldId,
               userId,
               date: new Date(date),
               startTime: slotStart,
-              endTime: slotEnd,
-              timeSlot: slot,
+              endTime: actualSlotEnd, // Use actual end time (full duration) for proper overlap detection
+              timeSlot: slot, // Keep display slot for UI
               numberOfDogs: parseInt(numberOfDogs),
               totalPrice: pricePerSlot,
               platformCommission: platformCommissionPerSlot,
