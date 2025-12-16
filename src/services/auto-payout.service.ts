@@ -82,11 +82,13 @@ export class AutomaticPayoutService {
       // 1. Payment is completed (PAID)
       // 2. Payout hasn't been processed yet
       // 3. Based on the payout release schedule from admin settings
+      // Note: Use isSet: false to handle missing fields (Prisma MongoDB quirk)
       const eligibleBookings = await prisma.booking.findMany({
         where: {
           status: 'CONFIRMED',
           paymentStatus: 'PAID',
           OR: [
+            { payoutStatus: { isSet: false } },
             { payoutStatus: null },
             { payoutStatus: 'PENDING' },
             { payoutStatus: 'HELD' }

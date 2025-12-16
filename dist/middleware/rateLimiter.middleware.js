@@ -85,7 +85,7 @@ const _strictLimiter = (0, express_rate_limit_1.default)({
 });
 const _authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 15, // 15 requests per minute (increased from 5 to handle social login flow)
+    max: 20, // 15 requests per minute (increased from 5 to handle social login flow)
     message: 'Too many authentication attempts, please try again after a minute.',
     skipSuccessfulRequests: true, // Don't count successful login attempts
     standardHeaders: true,

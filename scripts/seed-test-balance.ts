@@ -11,9 +11,10 @@
 
 import Stripe from 'stripe';
 import dotenv from 'dotenv';
+import path from 'path';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from the backend directory
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-12-18.acacia' as any,
@@ -34,7 +35,7 @@ async function seedTestBalance() {
 
     // Create a PaymentIntent with the special test card that makes funds immediately available
     // Card 4000000000000077 - Charge succeeds and funds are immediately available
-    const amounts = [5000, 10000, 15000]; // £50, £100, £150 in pence
+    const amounts = [50000000, 10000000, 15000000]; // £50, £100, £150 in pence
 
     for (const amount of amounts) {
       console.log(`Creating charge for £${(amount / 100).toFixed(2)}...`);

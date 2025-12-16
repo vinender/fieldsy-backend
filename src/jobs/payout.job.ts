@@ -74,14 +74,18 @@ export const initPayoutJobs = () => {
       // Now trigger payouts for newly completed bookings
       if (completedCount > 0) {
         // Get the bookings that were just marked as completed
+        // Use OR with isSet: false to handle both null values and missing fields (Prisma MongoDB quirk)
         const newlyCompletedBookings = await prisma.booking.findMany({
           where: {
             status: 'COMPLETED',
-            payoutStatus: null,
             paymentStatus: 'PAID',
             updatedAt: {
               gte: new Date(Date.now() - 5 * 60 * 1000) // Updated in last 5 minutes
-            }
+            },
+            OR: [
+              { payoutStatus: { isSet: false } },
+              { payoutStatus: null }
+            ]
           }
         });
 
@@ -373,13 +377,17 @@ async function calculateFieldOwnerEarnings() {
  */
 export async function processAutomaticTransfers() {
   try {
+    // Use OR with isSet: false to handle both null values and missing fields (Prisma MongoDB quirk)
     const eligibleBookings = await prisma.booking.findMany({
       where: {
         status: 'COMPLETED',
-        payoutStatus: null,
         date: {
           lte: new Date(Date.now() - 24 * 60 * 60 * 1000) // 24 hours after booking date
-        }
+        },
+        OR: [
+          { payoutStatus: { isSet: false } },
+          { payoutStatus: null }
+        ]
       },
       include: {
         payment: true,

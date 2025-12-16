@@ -308,12 +308,17 @@ class PayoutService {
                 select: { id: true }
             });
             const fieldIds = userFields.map(f => f.id);
+            // Use OR with isSet: false to handle missing fields (Prisma MongoDB quirk)
             const pendingBookings = await prisma.booking.findMany({
                 where: {
                     fieldId: { in: fieldIds },
                     status: 'COMPLETED',
                     paymentStatus: 'PAID',
-                    payoutStatus: { in: ['PENDING', 'PENDING_ACCOUNT'] }
+                    OR: [
+                        { payoutStatus: { isSet: false } },
+                        { payoutStatus: null },
+                        { payoutStatus: { in: ['PENDING', 'PENDING_ACCOUNT'] } }
+                    ]
                 }
             });
             console.log(`Processing ${pendingBookings.length} pending payouts for user ${userId}`);
