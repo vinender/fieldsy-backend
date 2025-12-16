@@ -1676,6 +1676,8 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
           cancellationReason: booking.cancellationReason,
           cancelledAt: booking.cancelledAt,
           createdAt: booking.createdAt,
+          repeatBooking: booking.repeatBooking,
+          subscriptionId: booking.subscriptionId,
           field: booking.field
         },
         // Refund info (if exists)

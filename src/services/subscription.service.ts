@@ -539,8 +539,25 @@ export class SubscriptionService {
       return null;
     }
 
+    const stripeId = booking.subscription.stripeSubscriptionId;
+
+    // Check if this is a PaymentIntent ID (pi_...) instead of a Subscription ID (sub_...)
+    // Fieldsy uses a custom recurring booking system with individual payment intents,
+    // so the stripeSubscriptionId field may contain a payment intent ID
+    if (stripeId.startsWith('pi_')) {
+      // It's already a payment intent ID, return it directly
+      return stripeId;
+    }
+
+    // It's not a subscription ID either, return null
+    if (!stripeId.startsWith('sub_')) {
+      console.log(`[SubscriptionService] stripeSubscriptionId is neither pi_ nor sub_: ${stripeId}`);
+      return null;
+    }
+
+    // It's a real Stripe subscription ID, fetch invoices
     const invoices = await stripe.invoices.list({
-      subscription: booking.subscription.stripeSubscriptionId,
+      subscription: stripeId,
       limit: 50
     });
 

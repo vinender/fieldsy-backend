@@ -1535,6 +1535,8 @@ router.get('/transactions', admin_middleware_1.authenticateAdmin, async (req, re
                     cancellationReason: booking.cancellationReason,
                     cancelledAt: booking.cancelledAt,
                     createdAt: booking.createdAt,
+                    repeatBooking: booking.repeatBooking,
+                    subscriptionId: booking.subscriptionId,
                     field: booking.field
                 },
                 // Refund info (if exists)
