@@ -1489,10 +1489,24 @@ router.get('/transactions', admin_middleware_1.authenticateAdmin, async (req, re
                 stripePaymentIntentId: paymentTransaction?.stripePaymentIntentId,
                 stripeChargeId: paymentTransaction?.stripeChargeId,
                 stripeBalanceTransactionId: paymentTransaction?.stripeBalanceTransactionId,
+                // Transfer identifiers
+                stripeTransferId: mainTransaction.stripeTransferId,
+                connectedAccountId: mainTransaction.connectedAccountId,
                 // Refund identifiers
                 stripeRefundId: refundTransaction?.stripeRefundId,
-                // Lifecycle
-                lifecycleStage: mainTransaction.lifecycleStage,
+                // Lifecycle - compute effective lifecycle stage based on booking status
+                lifecycleStage: (() => {
+                    // If booking is cancelled and refunded, show REFUNDED
+                    if (booking.status === 'CANCELLED' && refundTransaction) {
+                        return 'REFUNDED';
+                    }
+                    // If booking is cancelled (no refund yet or not refundable), show CANCELLED
+                    if (booking.status === 'CANCELLED') {
+                        return 'CANCELLED';
+                    }
+                    // Otherwise use the transaction's lifecycle stage
+                    return mainTransaction.lifecycleStage;
+                })(),
                 paymentReceivedAt: mainTransaction.paymentReceivedAt || mainTransaction.createdAt,
                 fundsAvailableAt: mainTransaction.fundsAvailableAt,
                 transferredAt: mainTransaction.transferredAt,
