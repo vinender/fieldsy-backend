@@ -563,6 +563,20 @@ class SubscriptionService {
         });
         if (!subscription)
             return;
+        // Reset retry count on successful payment
+        if (subscription.paymentRetryCount > 0 || subscription.status === 'past_due') {
+            await database_1.default.subscription.update({
+                where: { id: subscription.id },
+                data: {
+                    status: 'active',
+                    paymentRetryCount: 0,
+                    nextRetryDate: null,
+                    failureReason: null,
+                    lastPaymentAttempt: new Date()
+                }
+            });
+            console.log(`[SubscriptionService] Reset retry count for subscription ${subscription.id} after successful payment`);
+        }
         // Get system settings for max advance booking days
         const settings = await database_1.default.systemSettings.findFirst({
             select: { maxAdvanceBookingDays: true }
@@ -619,31 +633,257 @@ class SubscriptionService {
         });
     }
     /**
-     * Handle failed invoice payment
+     * Handle failed invoice payment with retry logic
+     * - Retries up to 3 times, once per day
+     * - Cancels subscription after 3 failed attempts
      */
     async handleInvoicePaymentFailed(invoice) {
         if (!invoice.subscription)
             return;
         const subscription = await database_1.default.subscription.findUnique({
-            where: { stripeSubscriptionId: invoice.subscription }
+            where: { stripeSubscriptionId: invoice.subscription },
+            include: { field: true, user: true }
         });
         if (!subscription)
             return;
-        // Update subscription status
+        const MAX_RETRY_ATTEMPTS = 3;
+        const currentRetryCount = (subscription.paymentRetryCount || 0) + 1;
+        const failureReason = this.extractFailureReason(invoice);
+        console.log(`[SubscriptionService] Payment failed for subscription ${subscription.id}. Attempt ${currentRetryCount}/${MAX_RETRY_ATTEMPTS}`);
+        // Check if we've exceeded max retries
+        if (currentRetryCount >= MAX_RETRY_ATTEMPTS) {
+            // Cancel the subscription immediately
+            console.log(`[SubscriptionService] Max retries (${MAX_RETRY_ATTEMPTS}) reached. Cancelling subscription ${subscription.id}`);
+            await this.cancelSubscriptionDueToPaymentFailure(subscription, failureReason, currentRetryCount);
+            return;
+        }
+        // Schedule next retry for tomorrow (24 hours from now)
+        const nextRetryDate = (0, date_fns_1.addDays)(new Date(), 1);
+        // Update subscription with retry info
         await database_1.default.subscription.update({
             where: { id: subscription.id },
-            data: { status: 'past_due' }
+            data: {
+                status: 'past_due',
+                paymentRetryCount: currentRetryCount,
+                lastPaymentAttempt: new Date(),
+                nextRetryDate: nextRetryDate,
+                failureReason: failureReason
+            }
         });
-        // Send notification to user
+        // Send notification to user about failed payment and upcoming retry
+        const remainingAttempts = MAX_RETRY_ATTEMPTS - currentRetryCount;
         await (0, notification_controller_1.createNotification)({
             userId: subscription.userId,
             type: 'payment_failed',
             title: 'Payment Failed',
-            message: 'Your recurring booking payment failed. Please update your payment method to continue.',
+            message: `Your recurring booking payment failed${failureReason ? ` (${failureReason})` : ''}. We will retry in 24 hours. ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining before your subscription is cancelled.`,
             data: {
-                subscriptionId: subscription.id
+                subscriptionId: subscription.id,
+                retryCount: currentRetryCount,
+                remainingAttempts,
+                nextRetryDate: nextRetryDate.toISOString(),
+                failureReason
             }
         });
+        console.log(`[SubscriptionService] Scheduled retry ${currentRetryCount + 1} for subscription ${subscription.id} at ${nextRetryDate.toISOString()}`);
+    }
+    /**
+     * Extract failure reason from Stripe invoice
+     */
+    extractFailureReason(invoice) {
+        // Check payment intent for error
+        const paymentIntent = invoice.payment_intent;
+        if (paymentIntent && typeof paymentIntent === 'object') {
+            const lastError = paymentIntent.last_payment_error;
+            if (lastError) {
+                // Common Stripe error codes
+                switch (lastError.code) {
+                    case 'card_declined':
+                        return 'Card declined';
+                    case 'insufficient_funds':
+                        return 'Insufficient funds';
+                    case 'expired_card':
+                        return 'Card expired';
+                    case 'incorrect_cvc':
+                        return 'Incorrect CVC';
+                    case 'processing_error':
+                        return 'Processing error';
+                    case 'incorrect_number':
+                        return 'Invalid card number';
+                    default:
+                        return lastError.message || lastError.code || 'Payment failed';
+                }
+            }
+        }
+        // Check charge for failure
+        if (invoice.charge && typeof invoice.charge === 'object') {
+            const charge = invoice.charge;
+            if (charge.failure_message) {
+                return charge.failure_message;
+            }
+            if (charge.failure_code) {
+                return charge.failure_code;
+            }
+        }
+        return 'Payment could not be processed';
+    }
+    /**
+     * Cancel subscription due to payment failure after max retries
+     */
+    async cancelSubscriptionDueToPaymentFailure(subscription, failureReason, totalAttempts) {
+        const cancellationReason = `Auto-cancelled after ${totalAttempts} failed payment attempts. Last failure: ${failureReason}`;
+        // Cancel in Stripe if it's a real Stripe subscription
+        if (subscription.stripeSubscriptionId && subscription.stripeSubscriptionId.startsWith('sub_')) {
+            try {
+                await stripe_config_1.stripe.subscriptions.cancel(subscription.stripeSubscriptionId, {
+                    cancellation_details: {
+                        comment: cancellationReason
+                    }
+                });
+            }
+            catch (stripeError) {
+                console.error('[SubscriptionService] Failed to cancel Stripe subscription:', stripeError);
+            }
+        }
+        // Update subscription in database
+        await database_1.default.subscription.update({
+            where: { id: subscription.id },
+            data: {
+                status: 'canceled',
+                canceledAt: new Date(),
+                cancellationReason: cancellationReason,
+                paymentRetryCount: totalAttempts,
+                lastPaymentAttempt: new Date(),
+                nextRetryDate: null // Clear retry date since cancelled
+            }
+        });
+        // Cancel all future bookings
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        await database_1.default.booking.updateMany({
+            where: {
+                subscriptionId: subscription.id,
+                date: { gte: today },
+                status: { notIn: ['CANCELLED', 'COMPLETED'] }
+            },
+            data: {
+                status: 'CANCELLED',
+                cancelledAt: new Date(),
+                cancellationReason: 'Subscription cancelled due to payment failure'
+            }
+        });
+        // Send notification to user
+        await (0, notification_controller_1.createNotification)({
+            userId: subscription.userId,
+            type: 'subscription_cancelled_payment_failure',
+            title: 'Subscription Cancelled',
+            message: `Your recurring booking for ${subscription.field?.name || 'the field'} has been cancelled after ${totalAttempts} failed payment attempts. Please update your payment method and create a new recurring booking.`,
+            data: {
+                subscriptionId: subscription.id,
+                fieldId: subscription.fieldId,
+                fieldName: subscription.field?.name,
+                totalAttempts,
+                failureReason,
+                cancellationReason
+            }
+        });
+        // Notify field owner
+        if (subscription.field?.ownerId) {
+            await (0, notification_controller_1.createNotification)({
+                userId: subscription.field.ownerId,
+                type: 'recurring_booking_cancelled',
+                title: 'Recurring Booking Cancelled',
+                message: `A recurring booking for ${subscription.field?.name || 'your field'} has been cancelled due to payment failure.`,
+                data: {
+                    subscriptionId: subscription.id,
+                    userId: subscription.userId,
+                    userName: subscription.user?.name
+                }
+            });
+        }
+        console.log(`[SubscriptionService] Subscription ${subscription.id} cancelled due to payment failure. Reason: ${cancellationReason}`);
+    }
+    /**
+     * Retry failed payments for subscriptions that are past_due and due for retry
+     * Called by cron job daily
+     */
+    async retryFailedPayments() {
+        const now = new Date();
+        // Find subscriptions that need retry
+        const subscriptionsToRetry = await database_1.default.subscription.findMany({
+            where: {
+                status: 'past_due',
+                nextRetryDate: { lte: now },
+                paymentRetryCount: { lt: 3 } // Less than max retries
+            },
+            include: {
+                user: true,
+                field: true
+            }
+        });
+        console.log(`[SubscriptionService] Found ${subscriptionsToRetry.length} subscriptions to retry payment`);
+        for (const subscription of subscriptionsToRetry) {
+            try {
+                await this.retrySubscriptionPayment(subscription);
+            }
+            catch (error) {
+                console.error(`[SubscriptionService] Error retrying payment for subscription ${subscription.id}:`, error);
+            }
+        }
+    }
+    /**
+     * Retry payment for a specific subscription
+     */
+    async retrySubscriptionPayment(subscription) {
+        if (!subscription.stripeSubscriptionId || !subscription.stripeSubscriptionId.startsWith('sub_')) {
+            console.log(`[SubscriptionService] Subscription ${subscription.id} is not a Stripe subscription, skipping retry`);
+            return;
+        }
+        console.log(`[SubscriptionService] Attempting to retry payment for subscription ${subscription.id}`);
+        try {
+            // Get the latest unpaid invoice for this subscription
+            const invoices = await stripe_config_1.stripe.invoices.list({
+                subscription: subscription.stripeSubscriptionId,
+                status: 'open',
+                limit: 1
+            });
+            if (invoices.data.length === 0) {
+                console.log(`[SubscriptionService] No open invoices found for subscription ${subscription.id}`);
+                return;
+            }
+            const invoice = invoices.data[0];
+            // Attempt to pay the invoice
+            const paidInvoice = await stripe_config_1.stripe.invoices.pay(invoice.id);
+            if (paidInvoice.status === 'paid') {
+                // Payment succeeded - reset retry count and update status
+                await database_1.default.subscription.update({
+                    where: { id: subscription.id },
+                    data: {
+                        status: 'active',
+                        paymentRetryCount: 0,
+                        lastPaymentAttempt: new Date(),
+                        nextRetryDate: null,
+                        failureReason: null
+                    }
+                });
+                // Send success notification
+                await (0, notification_controller_1.createNotification)({
+                    userId: subscription.userId,
+                    type: 'payment_retry_success',
+                    title: 'Payment Successful',
+                    message: `Your recurring booking payment has been processed successfully. Your subscription is now active.`,
+                    data: {
+                        subscriptionId: subscription.id,
+                        invoiceId: paidInvoice.id
+                    }
+                });
+                console.log(`[SubscriptionService] Payment retry successful for subscription ${subscription.id}`);
+            }
+        }
+        catch (error) {
+            console.error(`[SubscriptionService] Payment retry failed for subscription ${subscription.id}:`, error.message);
+            // The webhook will handle the failure and increment retry count
+        }
     }
     /**
      * Handle subscription updates from Stripe

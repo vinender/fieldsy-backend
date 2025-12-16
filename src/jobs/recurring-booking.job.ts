@@ -9,8 +9,39 @@ import { addDays, addMonths, format, isBefore, isAfter } from 'date-fns';
  * Scheduled job to automatically create recurring bookings for the next billing cycle
  * Runs daily at 2 AM to check for subscriptions that need new bookings created
  * Also runs hourly to check for completed bookings that need next booking created
+ * Also runs daily at 8 AM to retry failed subscription payments
  */
 export const initRecurringBookingJobs = () => {
+  // Run daily at 8:00 AM to retry failed subscription payments
+  cron.schedule('0 8 * * *', async () => {
+    console.log('💳 Running subscription payment retry job...');
+
+    try {
+      await subscriptionService.retryFailedPayments();
+      console.log('✅ Subscription payment retry job completed');
+    } catch (error) {
+      console.error('❌ Subscription payment retry job error:', error);
+
+      // Notify admins of job failure
+      const adminUsers = await prisma.user.findMany({
+        where: { role: 'ADMIN' }
+      });
+
+      for (const admin of adminUsers) {
+        await createNotification({
+          userId: admin.id,
+          type: 'PAYMENT_RETRY_JOB_ERROR',
+          title: 'Payment Retry Job Failed',
+          message: `The automatic payment retry job encountered an error: ${(error as any).message}`,
+          data: {
+            error: (error as any).message,
+            timestamp: new Date()
+          }
+        });
+      }
+    }
+  });
+
   // Run daily at 2:00 AM to create upcoming recurring bookings
   cron.schedule('0 2 * * *', async () => {
     console.log('📅 Running recurring booking creation job...');
@@ -64,6 +95,7 @@ export const initRecurringBookingJobs = () => {
 
   console.log('✅ Recurring booking jobs initialized');
   console.log('   - Daily job: 2:00 AM (create upcoming bookings)');
+  console.log('   - Daily job: 8:00 AM (retry failed subscription payments)');
   console.log('   - Hourly job: Every hour (check past bookings)');
 };
 

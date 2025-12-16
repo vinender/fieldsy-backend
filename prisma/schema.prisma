@@ -660,6 +660,13 @@ model Subscription {
   nextBillingDate DateTime? // When the next payment will be charged
   lastBookingDate DateTime? // Last successful booking created
 
+  // Payment retry tracking
+  paymentRetryCount    Int       @default(0) // Number of failed payment attempts (resets on success)
+  lastPaymentAttempt   DateTime? // When the last payment attempt was made
+  nextRetryDate        DateTime? // When to retry the payment next
+  failureReason        String?   // Reason for the last payment failure
+  cancellationReason   String?   // Reason for cancellation (if auto-cancelled due to failed payments)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -670,6 +677,7 @@ model Subscription {
 
   @@index([userId])
   @@index([fieldId])
+  @@index([status, nextRetryDate])
   @@map("subscriptions")
 }
 
