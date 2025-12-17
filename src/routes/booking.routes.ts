@@ -9,6 +9,7 @@ const router = Router();
 router.get('/availability', bookingController.checkAvailability);
 router.get('/recurring-conflicts', bookingController.checkRecurringConflicts);
 router.get('/fields/:fieldId/slot-availability', bookingController.getSlotAvailability);
+router.post('/check-slots-availability', bookingController.checkSelectedSlotsAvailability);
 
 // All routes below require authentication
 router.use(protect);

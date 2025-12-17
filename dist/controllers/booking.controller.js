@@ -1759,6 +1759,12 @@ class BookingController {
         }
         // Check for conflicts
         const conflictCheck = await booking_model_1.default.checkRecurringSubscriptionConflicts(fieldId, new Date(date), startTime, endTime, normalizedInterval);
+        // Prevent caching - conflict data must always be fresh
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         if (conflictCheck.hasConflict) {
             // Format the conflicting dates for display
             const conflictDates = conflictCheck.conflictingDates.slice(0, 5).map(c => {
@@ -2183,6 +2189,189 @@ class BookingController {
             data: {
                 canReview: !!completedBooking
             }
+        });
+    });
+    // Check if specific selected slots are available
+    // This is a lightweight check for validating selected slots before payment
+    checkSelectedSlotsAvailability = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+        const { fieldId, date, slots, duration } = req.body;
+        // Validate required fields
+        if (!fieldId) {
+            return res.status(400).json({
+                available: false,
+                message: 'Field ID is required'
+            });
+        }
+        if (!date) {
+            return res.status(400).json({
+                available: false,
+                message: 'Date is required'
+            });
+        }
+        if (!slots || !Array.isArray(slots) || slots.length === 0) {
+            return res.status(400).json({
+                available: false,
+                message: 'At least one time slot is required'
+            });
+        }
+        // Get field details
+        const field = await database_1.default.field.findUnique({
+            where: { id: fieldId }
+        });
+        if (!field) {
+            return res.status(404).json({
+                available: false,
+                message: 'Field not found'
+            });
+        }
+        // Parse the date
+        const selectedDate = new Date(date);
+        const startOfDayDate = new Date(selectedDate);
+        startOfDayDate.setHours(0, 0, 0, 0);
+        const endOfDayDate = new Date(selectedDate);
+        endOfDayDate.setHours(23, 59, 59, 999);
+        // Get all bookings for this field on the selected date (excluding cancelled)
+        const existingBookings = await database_1.default.booking.findMany({
+            where: {
+                fieldId,
+                date: {
+                    gte: startOfDayDate,
+                    lte: endOfDayDate
+                },
+                status: {
+                    notIn: ['CANCELLED']
+                }
+            },
+            select: {
+                startTime: true,
+                endTime: true,
+                timeSlot: true,
+                subscriptionId: true
+            }
+        });
+        // Get all active subscriptions for recurring booking checks
+        const activeSubscriptions = await database_1.default.subscription.findMany({
+            where: {
+                fieldId,
+                status: 'active',
+                cancelAtPeriodEnd: false
+            },
+            select: {
+                id: true,
+                interval: true,
+                dayOfWeek: true,
+                dayOfMonth: true,
+                timeSlot: true,
+                startTime: true,
+                endTime: true
+            }
+        });
+        // Helper to convert time string to minutes
+        const timeStringToMinutes = (time) => {
+            if (time.includes('AM') || time.includes('PM')) {
+                const match = time.match(/(\d+):(\d+)(AM|PM)/i);
+                if (match) {
+                    let hours = parseInt(match[1]);
+                    const minutes = parseInt(match[2]);
+                    const period = match[3].toUpperCase();
+                    if (period === 'PM' && hours !== 12)
+                        hours += 12;
+                    if (period === 'AM' && hours === 12)
+                        hours = 0;
+                    return hours * 60 + minutes;
+                }
+            }
+            const [hours, mins] = time.split(':').map(Number);
+            return hours * 60 + (mins || 0);
+        };
+        // Filter subscriptions that apply to the selected date
+        const recurringSubscriptions = [];
+        for (const subscription of activeSubscriptions) {
+            let isRecurringDay = false;
+            if (subscription.interval === 'everyday') {
+                isRecurringDay = true;
+            }
+            else if (subscription.interval === 'weekly') {
+                const selectedDayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+                if (subscription.dayOfWeek && selectedDayOfWeek.toLowerCase() === subscription.dayOfWeek.toLowerCase()) {
+                    isRecurringDay = true;
+                }
+            }
+            else if (subscription.interval === 'monthly') {
+                if (subscription.dayOfMonth && selectedDate.getDate() === subscription.dayOfMonth) {
+                    isRecurringDay = true;
+                }
+            }
+            if (isRecurringDay && subscription.startTime && subscription.endTime) {
+                // Check if booking doesn't already exist for this subscription
+                const hasExistingBooking = existingBookings.some(b => b.subscriptionId === subscription.id);
+                if (!hasExistingBooking) {
+                    recurringSubscriptions.push({
+                        startMinutes: timeStringToMinutes(subscription.startTime),
+                        endMinutes: timeStringToMinutes(subscription.endTime)
+                    });
+                }
+            }
+        }
+        // Determine actual slot duration
+        const effectiveDuration = duration || field.bookingDuration || '1hour';
+        const actualDurationMinutes = effectiveDuration === '30min' ? 30 : 60;
+        // Check each selected slot
+        const unavailableSlots = [];
+        for (const slot of slots) {
+            // Parse slot time - format is "HH:MMAM/PM - HH:MMAM/PM" (display time with 5-min buffer)
+            const [slotStart] = slot.split(' - ').map((t) => t.trim());
+            const slotStartMinutes = timeStringToMinutes(slotStart);
+            // Use actual duration (30 or 60 min) for overlap checking, not display duration
+            const slotEndMinutes = slotStartMinutes + actualDurationMinutes;
+            // Check for overlap with existing bookings
+            let isUnavailable = false;
+            for (const booking of existingBookings) {
+                const bookingStartMinutes = timeStringToMinutes(booking.startTime);
+                const bookingEndMinutes = timeStringToMinutes(booking.endTime);
+                // Check for overlap
+                const hasOverlap = (slotStartMinutes >= bookingStartMinutes && slotStartMinutes < bookingEndMinutes) ||
+                    (slotEndMinutes > bookingStartMinutes && slotEndMinutes <= bookingEndMinutes) ||
+                    (slotStartMinutes <= bookingStartMinutes && slotEndMinutes >= bookingEndMinutes);
+                if (hasOverlap) {
+                    isUnavailable = true;
+                    break;
+                }
+            }
+            // Check for overlap with recurring subscriptions
+            if (!isUnavailable) {
+                for (const recurring of recurringSubscriptions) {
+                    const hasOverlap = (slotStartMinutes >= recurring.startMinutes && slotStartMinutes < recurring.endMinutes) ||
+                        (slotEndMinutes > recurring.startMinutes && slotEndMinutes <= recurring.endMinutes) ||
+                        (slotStartMinutes <= recurring.startMinutes && slotEndMinutes >= recurring.endMinutes);
+                    if (hasOverlap) {
+                        isUnavailable = true;
+                        break;
+                    }
+                }
+            }
+            if (isUnavailable) {
+                unavailableSlots.push(slot);
+            }
+        }
+        // Prevent caching
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+        if (unavailableSlots.length > 0) {
+            return res.status(200).json({
+                available: false,
+                message: unavailableSlots.length === 1
+                    ? `The slot ${unavailableSlots[0]} is no longer available. Another user has already booked it.`
+                    : `${unavailableSlots.length} slots are no longer available. Another user has already booked them.`,
+                unavailableSlots
+            });
+        }
+        return res.status(200).json({
+            available: true,
+            message: 'All selected slots are available'
         });
     });
 }

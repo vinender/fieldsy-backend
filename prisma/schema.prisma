@@ -253,6 +253,11 @@ model Booking {
   @@index([userId])
   @@index([fieldId])
   @@index([date, status])
+  // Compound index for efficient slot availability checks
+  // Note: Cannot add unique constraint on (fieldId, date, startTime) because
+  // cancelled bookings should not prevent new bookings. The transaction-based
+  // availability check in payment.controller.ts enforces uniqueness at runtime.
+  @@index([fieldId, date, startTime, status])
   @@map("bookings")
 }
 

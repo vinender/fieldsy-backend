@@ -63,6 +63,100 @@ class PaymentController {
                 // isBlocked field doesn't exist in production yet, skip check
                 console.warn('Warning: isBlocked field not found in User model.');
             }
+            // ============================================================
+            // SLOT AVAILABILITY CHECK - Prevent race conditions
+            // Check availability BEFORE creating payment intent
+            // ============================================================
+            const bookingDate = new Date(date);
+            bookingDate.setHours(0, 0, 0, 0);
+            // Parse time slots and check availability for each
+            const actualDurationMinutes = duration === '30min' ? 30 : 60;
+            // Helper function to parse time string to minutes
+            const parseTimeToMinutesLocal = (timeStr) => {
+                const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
+                if (!match)
+                    return 0;
+                let hours = parseInt(match[1]);
+                const minutes = parseInt(match[2]);
+                const period = match[3].toUpperCase();
+                if (period === 'PM' && hours !== 12)
+                    hours += 12;
+                if (period === 'AM' && hours === 12)
+                    hours = 0;
+                return hours * 60 + minutes;
+            };
+            // Helper function to convert minutes to time string
+            const minutesToTimeStrLocal = (totalMinutes) => {
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                const period = hours >= 12 ? 'PM' : 'AM';
+                const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+                return `${displayHour}:${minutes.toString().padStart(2, '0')}${period}`;
+            };
+            // Check availability for ALL slots atomically before proceeding
+            for (const slot of normalizedTimeSlots) {
+                const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
+                const startMinutes = parseTimeToMinutesLocal(slotStart);
+                const actualEndMinutes = startMinutes + actualDurationMinutes;
+                const actualSlotEnd = minutesToTimeStrLocal(actualEndMinutes);
+                // Check for conflicting bookings
+                const conflictingBookings = await database_1.default.booking.findMany({
+                    where: {
+                        fieldId,
+                        date: bookingDate,
+                        status: {
+                            notIn: ['CANCELLED']
+                        }
+                    },
+                    select: {
+                        id: true,
+                        startTime: true,
+                        endTime: true,
+                        timeSlot: true,
+                        userId: true
+                    }
+                });
+                // Check for time overlap with existing bookings
+                for (const booking of conflictingBookings) {
+                    const bookingStart = parseTimeToMinutesLocal(booking.startTime);
+                    const bookingEnd = parseTimeToMinutesLocal(booking.endTime);
+                    const requestedStart = startMinutes;
+                    const requestedEnd = actualEndMinutes;
+                    // Check if times overlap
+                    const hasOverlap = (requestedStart >= bookingStart && requestedStart < bookingEnd) ||
+                        (requestedEnd > bookingStart && requestedEnd <= bookingEnd) ||
+                        (requestedStart <= bookingStart && requestedEnd >= bookingEnd);
+                    if (hasOverlap) {
+                        console.log('[PaymentController] Slot conflict detected:', {
+                            requestedSlot: slot,
+                            conflictingBookingId: booking.id,
+                            conflictingSlot: booking.timeSlot
+                        });
+                        return res.status(409).json({
+                            error: 'One or more selected time slots are no longer available',
+                            code: 'SLOT_UNAVAILABLE',
+                            unavailableSlot: slot,
+                            message: `The slot ${slot} has already been booked. Please refresh and select a different time.`
+                        });
+                    }
+                }
+                // Also check for recurring subscription conflicts
+                const recurringConflict = await booking_model_1.default.checkRecurringSlotConflict(fieldId, bookingDate, slotStart, actualSlotEnd);
+                if (recurringConflict.hasConflict) {
+                    console.log('[PaymentController] Recurring subscription conflict detected:', {
+                        requestedSlot: slot,
+                        reason: recurringConflict.reason
+                    });
+                    return res.status(409).json({
+                        error: recurringConflict.reason || 'This slot is reserved by a recurring booking',
+                        code: 'RECURRING_SLOT_CONFLICT',
+                        unavailableSlot: slot,
+                        message: recurringConflict.reason
+                    });
+                }
+            }
+            console.log('[PaymentController] Slot availability check passed for all slots:', normalizedTimeSlots);
+            // ============================================================
             // Create idempotency key to prevent duplicate bookings
             // Use a deterministic key based on the booking parameters (NOT random!)
             // This ensures that retry attempts for the same booking use the same key
@@ -516,37 +610,106 @@ class PaymentController {
                 return `${displayHour}:${minutes.toString().padStart(2, '0')}${period}`;
             };
             // Determine actual slot duration in minutes (30 or 60)
-            const actualDurationMinutes = duration === '30min' ? 30 : 60;
-            const bookings = await Promise.all(normalizedTimeSlots.map(async (slot) => {
-                const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
-                // Calculate the ACTUAL end time based on start time + full duration
-                // The display end time has 5-min buffer removed, we need the full duration for availability checks
-                const startMinutes = parseTimeToMinutes(slotStart);
-                const actualEndMinutes = startMinutes + actualDurationMinutes;
-                const actualSlotEnd = minutesToTimeStr(actualEndMinutes);
-                return database_1.default.booking.create({
-                    data: {
-                        fieldId,
-                        userId,
-                        date: new Date(date),
-                        startTime: slotStart,
-                        endTime: actualSlotEnd, // Use actual end time (full duration) for proper overlap detection
-                        timeSlot: slot, // Keep display slot for UI
-                        numberOfDogs: parseInt(numberOfDogs),
-                        totalPrice: pricePerSlot,
-                        platformCommission: platformCommissionPerSlot,
-                        fieldOwnerAmount: fieldOwnerAmountPerSlot,
-                        status: bookingStatus,
-                        paymentStatus: paymentStatus,
-                        paymentIntentId: paymentIntent.id,
-                        payoutStatus,
-                        payoutHeldReason,
-                        repeatBooking: normalizedRepeatBooking || repeatBooking || 'none',
-                        subscriptionId: subscriptionId, // Link to subscription if created
-                        bookingDuration: duration || '60min' // Booking duration (30min or 60min)
+            const slotDuration = duration === '30min' ? 30 : 60;
+            // ============================================================
+            // ATOMIC BOOKING CREATION WITH TRANSACTION
+            // Re-check availability inside transaction to prevent race conditions
+            // ============================================================
+            let bookings;
+            try {
+                bookings = await database_1.default.$transaction(async (tx) => {
+                    // Re-check availability inside transaction for each slot
+                    for (const slot of normalizedTimeSlots) {
+                        const [slotStart] = slot.split(' - ').map((t) => t.trim());
+                        const startMinutes = parseTimeToMinutes(slotStart);
+                        const actualEndMinutes = startMinutes + slotDuration;
+                        const actualSlotEnd = minutesToTimeStr(actualEndMinutes);
+                        // Check for conflicting bookings within transaction
+                        const conflictingBookings = await tx.booking.findMany({
+                            where: {
+                                fieldId,
+                                date: new Date(date),
+                                status: {
+                                    notIn: ['CANCELLED']
+                                }
+                            },
+                            select: {
+                                id: true,
+                                startTime: true,
+                                endTime: true,
+                                timeSlot: true
+                            }
+                        });
+                        // Check for time overlap with existing bookings
+                        for (const existingBooking of conflictingBookings) {
+                            const existingStart = parseTimeToMinutes(existingBooking.startTime);
+                            const existingEnd = parseTimeToMinutes(existingBooking.endTime);
+                            const hasOverlap = (startMinutes >= existingStart && startMinutes < existingEnd) ||
+                                (actualEndMinutes > existingStart && actualEndMinutes <= existingEnd) ||
+                                (startMinutes <= existingStart && actualEndMinutes >= existingEnd);
+                            if (hasOverlap) {
+                                throw new Error(`SLOT_CONFLICT:${slot}:${existingBooking.timeSlot}`);
+                            }
+                        }
                     }
+                    // All slots are available, create bookings atomically
+                    const createdBookings = [];
+                    for (const slot of normalizedTimeSlots) {
+                        const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
+                        const startMinutes = parseTimeToMinutes(slotStart);
+                        const actualEndMinutes = startMinutes + slotDuration;
+                        const actualSlotEnd = minutesToTimeStr(actualEndMinutes);
+                        const newBooking = await tx.booking.create({
+                            data: {
+                                fieldId,
+                                userId,
+                                date: new Date(date),
+                                startTime: slotStart,
+                                endTime: actualSlotEnd,
+                                timeSlot: slot,
+                                numberOfDogs: parseInt(numberOfDogs),
+                                totalPrice: pricePerSlot,
+                                platformCommission: platformCommissionPerSlot,
+                                fieldOwnerAmount: fieldOwnerAmountPerSlot,
+                                status: bookingStatus,
+                                paymentStatus: paymentStatus,
+                                paymentIntentId: paymentIntent.id,
+                                payoutStatus,
+                                payoutHeldReason,
+                                repeatBooking: normalizedRepeatBooking || repeatBooking || 'none',
+                                subscriptionId: subscriptionId,
+                                bookingDuration: duration || '60min'
+                            }
+                        });
+                        createdBookings.push(newBooking);
+                    }
+                    return createdBookings;
+                }, {
+                    timeout: 10000 // 10 second timeout for the transaction
+                    // Note: MongoDB doesn't support isolation levels, but transactions still provide atomicity
                 });
-            }));
+            }
+            catch (txError) {
+                // Handle slot conflict error from transaction
+                if (txError.message?.startsWith('SLOT_CONFLICT:')) {
+                    const parts = txError.message.split(':');
+                    const conflictSlot = parts[1];
+                    const existingSlot = parts[2];
+                    console.log('[PaymentController] Slot conflict in transaction:', {
+                        requestedSlot: conflictSlot,
+                        existingSlot
+                    });
+                    return res.status(409).json({
+                        error: 'One or more selected time slots are no longer available',
+                        code: 'SLOT_UNAVAILABLE',
+                        unavailableSlot: conflictSlot,
+                        message: `The slot ${conflictSlot} was just booked by another user. Please refresh and select a different time.`
+                    });
+                }
+                // Re-throw other errors
+                throw txError;
+            }
+            // ============================================================
             // Use first booking as primary for backward compatibility
             const booking = bookings[0];
             const allBookingIds = bookings.map(b => b.id);

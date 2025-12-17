@@ -12,6 +12,7 @@ const router = (0, express_1.Router)();
 router.get('/availability', booking_controller_1.default.checkAvailability);
 router.get('/recurring-conflicts', booking_controller_1.default.checkRecurringConflicts);
 router.get('/fields/:fieldId/slot-availability', booking_controller_1.default.getSlotAvailability);
+router.post('/check-slots-availability', booking_controller_1.default.checkSelectedSlotsAvailability);
 // All routes below require authentication
 router.use(auth_middleware_1.protect);
 // Dog owner and field owner routes
