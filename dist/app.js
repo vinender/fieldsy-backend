@@ -79,6 +79,7 @@ app.use((0, cors_1.default)({
         }
     },
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma', 'Expires'],
 }));
 app.use((0, compression_1.default)());
 app.use((0, morgan_1.default)("dev"));

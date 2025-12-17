@@ -50,7 +50,7 @@ app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     // List of allowed origins
     const allowedOrigins = [
       process.env.FRONTEND_URL || "http://localhost:3000", // Frontend development
@@ -67,10 +67,10 @@ app.use(cors({
       "http://fieldsy-admin.indiitserver.in", // Allow HTTP as fallback
       "http://fieldsy-api.indiitserver.in", // Allow HTTP API as fallback
     ];
-    
+
     // Check if the origin is in the allowed list or is a local development URL
-    if (allowedOrigins.includes(origin) || 
-        origin.includes('localhost') || 
+    if (allowedOrigins.includes(origin) ||
+        origin.includes('localhost') ||
         origin.includes('127.0.0.1') ||
         origin.includes('192.168.') || // Local network IPs for physical devices
         origin.includes('10.0.') // Local network IPs
@@ -81,6 +81,7 @@ app.use(cors({
     }
   },
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma', 'Expires'],
 }))
 
 

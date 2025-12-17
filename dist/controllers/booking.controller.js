@@ -1705,6 +1705,12 @@ class BookingController {
             // Move to next slot (using full slot duration to avoid overlaps)
             currentMinutes += slotDurationMinutes;
         }
+        // Prevent caching - availability data must always be fresh
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         res.json({
             success: true,
             data: {
