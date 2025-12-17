@@ -42,6 +42,7 @@ const stripe_config_1 = require("../config/stripe.config");
 const database_1 = __importDefault(require("../config/database"));
 const notification_controller_1 = require("../controllers/notification.controller");
 const date_fns_1 = require("date-fns");
+const commission_utils_1 = require("../utils/commission.utils");
 class SubscriptionService {
     /**
      * Create a Stripe subscription for recurring bookings
@@ -79,10 +80,8 @@ class SubscriptionService {
                 default_payment_method: paymentMethodId
             }
         });
-        // Calculate commission
-        const PLATFORM_COMMISSION_RATE = 0.20;
-        const platformCommission = Math.round(amount * PLATFORM_COMMISSION_RATE * 100) / 100;
-        const fieldOwnerAmount = amount - platformCommission;
+        // Calculate commission dynamically based on field owner's rate or default
+        const { fieldOwnerAmount, platformCommission } = await (0, commission_utils_1.calculatePayoutAmounts)(amount, field.ownerId || '');
         // Parse the date to get day of week/month
         const bookingDate = new Date(date);
         const dayOfWeek = (0, date_fns_1.format)(bookingDate, 'EEEE'); // Monday, Tuesday, etc.
@@ -221,6 +220,9 @@ class SubscriptionService {
         const BookingModel = (await Promise.resolve().then(() => __importStar(require('../models/booking.model')))).default;
         const { field } = subscription;
         const pricePerUnit = field.price || 0;
+        // Get commission rate for this field owner
+        const { commissionRate } = await (0, commission_utils_1.calculatePayoutAmounts)(100, field.ownerId || '');
+        // Commission rate is what platform takes as percentage
         // Determine if this is a multi-slot subscription
         const timeSlots = subscription.timeSlots && subscription.timeSlots.length > 0
             ? subscription.timeSlots
@@ -350,8 +352,8 @@ class SubscriptionService {
                     subscription: {
                         connect: { id: subscription.id }
                     },
-                    platformCommission: slotPrice * 0.20,
-                    fieldOwnerAmount: slotPrice * 0.80
+                    platformCommission: slotPrice * (commissionRate / 100),
+                    fieldOwnerAmount: slotPrice * (1 - commissionRate / 100)
                 }
             });
             bookings.push(booking);

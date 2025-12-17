@@ -1465,7 +1465,7 @@ const getRecurringBookingCreatedTemplateDogOwner = (data) => {
               </div>
               <div class="booking-detail">
                 <span class="booking-icon">💰</span>
-                <strong>Amount:</strong> €${data.totalPrice.toFixed(2)}
+                <strong>Amount:</strong> £${data.totalPrice.toFixed(2)}
               </div>
             </div>
 
@@ -1641,9 +1641,9 @@ const getRecurringBookingCreatedTemplateFieldOwner = (data) => {
 
             <div class="earnings-box">
               <p><strong>💰 Your Earnings</strong></p>
-              <div class="earnings-amount">€${data.fieldOwnerAmount.toFixed(2)}</div>
+              <div class="earnings-amount">£${data.fieldOwnerAmount.toFixed(2)}</div>
               <p style="font-size: 14px; color: #666;">
-                (Total: €${data.totalPrice.toFixed(2)} - 20% platform fee)
+                (Total: £${data.totalPrice.toFixed(2)} - £${(data.totalPrice - data.fieldOwnerAmount).toFixed(2)} platform fee)
               </p>
               <p style="font-size: 13px; color: #888; margin-top: 10px;">
                 Payment will be processed after the booking is completed

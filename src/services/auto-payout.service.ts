@@ -468,7 +468,7 @@ export class AutomaticPayoutService {
           customerName: booking.user.name || booking.user.email,
           fieldName: field.name,
           totalAmount: booking.totalPrice,
-          platformFee: booking.platformCommission || (booking.totalPrice * 0.8), // Platform gets ~80% (100% - field owner's 20% commission)
+          platformFee: booking.platformCommission || (booking.totalPrice * 0.2), // Platform takes ~20% commission
           payoutAmount: payoutAmount,
           payoutDate: new Date()
         };
@@ -566,7 +566,7 @@ export class AutomaticPayoutService {
           try {
             // Create a reverse transfer (negative transfer) to recover funds from field owner
             // This includes the original payout amount plus the Stripe fee
-            const fieldOwnerAmount = booking.fieldOwnerAmount || (booking.totalPrice * 0.2); // Field owner gets ~20% commission
+            const fieldOwnerAmount = booking.fieldOwnerAmount || (booking.totalPrice * 0.8); // Field owner gets ~80% (platform takes ~20% commission)
             const fieldOwnerAmountInCents = Math.round(fieldOwnerAmount * 100);
             const totalRecoveryAmount = fieldOwnerAmountInCents + stripeFee;
 

@@ -386,7 +386,7 @@ class PayoutService {
                         fieldName: b.field.name,
                         customerName: b.user.name || b.user.email,
                         date: b.date,
-                        amount: b.fieldOwnerAmount || (b.totalPrice * 0.2) // Field owner gets ~20% commission
+                        amount: b.fieldOwnerAmount || (b.totalPrice * 0.8) // Field owner gets ~80% (platform takes ~20% commission)
                     }))
                 };
             }));

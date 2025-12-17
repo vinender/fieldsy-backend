@@ -4,6 +4,7 @@ import prisma from '../config/database';
 import Stripe from 'stripe';
 import { createNotification } from '../controllers/notification.controller';
 import { addDays, addMonths, format, parse } from 'date-fns';
+import { calculatePayoutAmounts } from '../utils/commission.utils';
 
 export class SubscriptionService {
   /**
@@ -72,10 +73,8 @@ export class SubscriptionService {
       }
     });
 
-    // Calculate commission
-    const PLATFORM_COMMISSION_RATE = 0.20;
-    const platformCommission = Math.round(amount * PLATFORM_COMMISSION_RATE * 100) / 100;
-    const fieldOwnerAmount = amount - platformCommission;
+    // Calculate commission dynamically based on field owner's rate or default
+    const { fieldOwnerAmount, platformCommission } = await calculatePayoutAmounts(amount, field.ownerId || '');
 
     // Parse the date to get day of week/month
     const bookingDate = new Date(date);
@@ -230,6 +229,10 @@ export class SubscriptionService {
     const { field } = subscription;
     const pricePerUnit = field.price || 0;
 
+    // Get commission rate for this field owner
+    const { commissionRate } = await calculatePayoutAmounts(100, field.ownerId || '');
+    // Commission rate is what platform takes as percentage
+
     // Determine if this is a multi-slot subscription
     const timeSlots = subscription.timeSlots && subscription.timeSlots.length > 0
       ? subscription.timeSlots
@@ -372,8 +375,8 @@ export class SubscriptionService {
           subscription: {
             connect: { id: subscription.id }
           },
-          platformCommission: slotPrice * 0.20,
-          fieldOwnerAmount: slotPrice * 0.80
+          platformCommission: slotPrice * (commissionRate / 100),
+          fieldOwnerAmount: slotPrice * (1 - commissionRate / 100)
         }
       });
 
