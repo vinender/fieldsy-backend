@@ -464,6 +464,29 @@ class FieldController {
             }
         }
         const updatedField = await field_model_1.default.update(id, req.body);
+        // If isClaimed is being set to false, reset any approved claims for this field
+        // This ensures the field can be claimed again
+        if (req.body.isClaimed === false && field.isClaimed === true) {
+            console.log(`📝 Field ${id} marked as unclaimed. Resetting approved claims...`);
+            try {
+                // Update any APPROVED claims to REVOKED status
+                const revokedClaims = await database_1.default.fieldClaim.updateMany({
+                    where: {
+                        fieldId: id,
+                        status: 'APPROVED'
+                    },
+                    data: {
+                        status: 'REVOKED',
+                        reviewNotes: 'Claim revoked - Field marked as unclaimed by admin'
+                    }
+                });
+                console.log(`📝 Revoked ${revokedClaims.count} approved claim(s) for field ${id}`);
+            }
+            catch (claimError) {
+                console.error('Failed to revoke approved claims:', claimError);
+                // Don't fail the update, just log the error
+            }
+        }
         // Enrich field with full amenity objects
         const enrichedField = await (0, amenity_utils_1.enrichFieldWithAmenities)(updatedField);
         if (shouldNotifyAdmin) {

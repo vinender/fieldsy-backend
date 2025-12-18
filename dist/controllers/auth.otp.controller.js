@@ -282,15 +282,25 @@ exports.loginWithOtpCheck = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
     if (!email || !password) {
         throw new AppError_1.AppError('Email and password are required', 400);
     }
-    // Find user by email only (using findFirst since email is not unique across roles)
-    // The user's role will be returned from the database
+    // Find user by email - prioritize users with password set (for email/password login)
+    // This handles the case where same email has DOG_OWNER (google) and FIELD_OWNER (password)
     let user;
     try {
+        // First, try to find a user with this email who has a password set
         user = await prisma.user.findFirst({
             where: {
                 email,
+                password: { not: null },
             },
         });
+        // If no user with password found, try to find any user with this email
+        if (!user) {
+            user = await prisma.user.findFirst({
+                where: {
+                    email,
+                },
+            });
+        }
     }
     catch (error) {
         // Log the Prisma error for debugging

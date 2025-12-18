@@ -27,30 +27,28 @@ export const submitFieldClaim = asyncHandler(async (req: Request, res: Response)
     throw new AppError('All fields are required', 400);
   }
 
-  // Check if field exists
+  // Check if field exists and get owner info
   const field = await prisma.field.findUnique({
-    where: { id: fieldId }
+    where: { id: fieldId },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          email: true,
+          name: true
+        }
+      }
+    }
   });
 
   if (!field) {
     throw new AppError('Field not found', 404);
   }
 
-  // Check if field is already claimed (approved)
+  // Check if field is already claimed
+  // isClaimed on the Field model is the source of truth for whether a field has been claimed
   if (field.isClaimed) {
     throw new AppError('This field has already been claimed and verified', 400);
-  }
-
-  // Check if there's already an APPROVED claim for this field
-  const approvedClaim = await prisma.fieldClaim.findFirst({
-    where: {
-      fieldId,
-      status: 'APPROVED'
-    }
-  });
-
-  if (approvedClaim) {
-    throw new AppError('This field has already been claimed and approved', 400);
   }
 
   // Check if this specific user already has a pending claim for this field
@@ -241,38 +239,87 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
     }
   });
 
-  // If approved, create field owner account and update field
+  // If approved, get the field's existing owner account and generate new password
   if (status === 'APPROVED') {
     try {
-      // Check if user already exists with FIELD_OWNER role
-      const existingFieldOwner = await prisma.user.findUnique({
-        where: {
-          email_role: {
-            email: claim.email,
-            role: 'FIELD_OWNER'
-          }
+      // Get the field with its current owner
+      const fieldWithOwner = await prisma.field.findUnique({
+        where: { id: claim.fieldId },
+        include: {
+          owner: true
         }
       });
 
-      if (!existingFieldOwner) {
-        // Generate a random password
+      if (fieldWithOwner?.owner) {
+        // Field has an existing owner - generate new password for them
+        fieldOwner = fieldWithOwner.owner;
+
+        // Generate a new password for the existing owner
         generatedPassword = crypto.randomBytes(8).toString('hex');
         const hashedPassword = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
 
-        // Create the field owner account
-        fieldOwner = await prisma.user.create({
+        // Update the owner's password and mark email as verified
+        await prisma.user.update({
+          where: { id: fieldOwner.id },
           data: {
-            email: claim.email,
-            name: claim.fullName,
             password: hashedPassword,
-            role: 'FIELD_OWNER',
-            phone: claim.phoneCode && claim.phoneNumber ? `${claim.phoneCode}${claim.phoneNumber}` : null,
-            provider: 'general',
-            hasField: true
+            emailVerified: new Date(), // DateTime field
+            provider: 'general' // Update provider to general since they now have password login
           }
         });
 
-        // Update the field with the new owner
+        // Mark the field as claimed
+        await prisma.field.update({
+          where: { id: claim.fieldId },
+          data: {
+            isClaimed: true
+          }
+        });
+
+        console.log(`✅ Updated password for existing field owner: ${fieldOwner.email}`);
+      } else {
+        // Field has no owner - create a new owner account using claimer's details
+        generatedPassword = crypto.randomBytes(8).toString('hex');
+        const hashedPassword = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
+
+        // Check if user already exists with FIELD_OWNER role
+        const existingFieldOwner = await prisma.user.findUnique({
+          where: {
+            email_role: {
+              email: claim.email,
+              role: 'FIELD_OWNER'
+            }
+          }
+        });
+
+        if (!existingFieldOwner) {
+          fieldOwner = await prisma.user.create({
+            data: {
+              email: claim.email,
+              name: claim.fullName,
+              password: hashedPassword,
+              role: 'FIELD_OWNER',
+              phone: claim.phoneCode && claim.phoneNumber ? `${claim.phoneCode}${claim.phoneNumber}` : null,
+              provider: 'general',
+              hasField: true,
+              emailVerified: new Date() // DateTime field
+            }
+          });
+          console.log(`✅ Created new field owner account for ${claim.email}`);
+        } else {
+          fieldOwner = existingFieldOwner;
+          // Update password for existing user
+          await prisma.user.update({
+            where: { id: existingFieldOwner.id },
+            data: {
+              password: hashedPassword,
+              emailVerified: new Date() // DateTime field
+            }
+          });
+          console.log(`✅ Updated password for existing field owner: ${existingFieldOwner.email}`);
+        }
+
+        // Update the field with the owner
         await prisma.field.update({
           where: { id: claim.fieldId },
           data: {
@@ -280,26 +327,10 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
             ownerId: fieldOwner.id
           }
         });
-
-        console.log(`✅ Created field owner account for ${claim.email}`);
-      } else {
-        // User already exists, just update the field
-        fieldOwner = existingFieldOwner;
-
-        await prisma.field.update({
-          where: { id: claim.fieldId },
-          data: {
-            isClaimed: true,
-            ownerId: existingFieldOwner.id
-          }
-        });
-
-        console.log(`ℹ️ Field owner account already exists for ${claim.email}, assigned field to existing account`);
-        console.log(`ℹ️ Existing user provider: ${existingFieldOwner.provider}`);
       }
     } catch (accountError) {
-      console.error('Failed to create field owner account:', accountError);
-      throw new AppError('Failed to create field owner account', 500);
+      console.error('Failed to process field owner account:', accountError);
+      throw new AppError('Failed to process field owner account', 500);
     }
   }
 
@@ -309,39 +340,60 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
       `${claim.field.address}${claim.field.city ? ', ' + claim.field.city : ''}${claim.field.state ? ', ' + claim.field.state : ''}` :
       'Address not specified';
 
-    // Log email sending attempt for debugging
-    console.log('📧 Sending claim status email to:', claim.email);
-    console.log('📧 Status:', status);
+    // Comprehensive logging for debugging email issues
+    console.log('========================================');
+    console.log('📧 CLAIM STATUS EMAIL - DEBUG START');
+    console.log('========================================');
+    console.log('📧 Notification email (claimer):', claim.email);
+    console.log('📧 Claimer name:', claim.fullName);
+    console.log('📧 Field name:', claim.field.name || 'Unnamed Field');
+    console.log('📧 Field address:', fieldAddress);
+    console.log('📧 Claim status:', status);
+    console.log('📧 Review notes:', reviewNotes || 'None');
     console.log('📧 Has credentials:', !!generatedPassword);
+
+    if (fieldOwner) {
+      console.log('📧 Field owner ID:', fieldOwner.id);
+      console.log('📧 Field owner email (for login):', fieldOwner.email);
+      console.log('📧 Field owner provider:', fieldOwner.provider);
+    }
+
     if (generatedPassword) {
       console.log('📧 Generated password length:', generatedPassword.length);
     }
 
+    console.log('📧 Calling emailService.sendFieldClaimStatusEmail...');
+
     const emailResult = await emailService.sendFieldClaimStatusEmail({
-      email: claim.email,
+      email: claim.email, // Send notification to claimer's email
       fullName: claim.fullName,
       fieldName: claim.field.name || 'Unnamed Field',
       fieldAddress: fieldAddress,
       status: status as 'APPROVED' | 'REJECTED',
       reviewNotes: reviewNotes,
-      documents: claim.documents, // Include the documents array
-      credentials: status === 'APPROVED' && generatedPassword ? {
-        email: claim.email,
+      documents: claim.documents,
+      // Credentials are for the FIELD OWNER's account (not the claim email)
+      credentials: status === 'APPROVED' && generatedPassword && fieldOwner ? {
+        email: fieldOwner.email, // Use field owner's email for login credentials
         password: generatedPassword
-      } : undefined,
-      // Pass existing account info for users who already have accounts
-      existingAccount: status === 'APPROVED' && !generatedPassword && fieldOwner ? {
-        email: claim.email,
-        provider: fieldOwner.provider || 'general',
-        isGoogleAccount: fieldOwner.provider === 'google'
       } : undefined
     });
 
     console.log('📧 Email send result:', emailResult ? 'SUCCESS' : 'FAILED');
+    console.log('========================================');
+    console.log('📧 CLAIM STATUS EMAIL - DEBUG END');
+    console.log('========================================');
   } catch (emailError: any) {
     // Log error but don't fail the status update
-    console.error('❌ Failed to send field claim status email:', emailError?.message || emailError);
-    console.error('❌ Full error:', JSON.stringify(emailError, null, 2));
+    console.error('========================================');
+    console.error('❌ CLAIM STATUS EMAIL - ERROR');
+    console.error('========================================');
+    console.error('❌ Error message:', emailError?.message || 'Unknown error');
+    console.error('❌ Error name:', emailError?.name);
+    console.error('❌ Error code:', emailError?.code);
+    console.error('❌ Error stack:', emailError?.stack);
+    console.error('❌ Full error object:', JSON.stringify(emailError, Object.getOwnPropertyNames(emailError), 2));
+    console.error('========================================');
   }
 
   res.json({
@@ -366,27 +418,12 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
   }
 
   // Check if field is already claimed
+  // isClaimed on the Field model is the source of truth
   if (field.isClaimed) {
     return res.json({
       success: true,
       canClaim: false,
       reason: 'This field has already been claimed and verified'
-    });
-  }
-
-  // Check if there's an approved claim
-  const approvedClaim = await prisma.fieldClaim.findFirst({
-    where: {
-      fieldId,
-      status: 'APPROVED'
-    }
-  });
-
-  if (approvedClaim) {
-    return res.json({
-      success: true,
-      canClaim: false,
-      reason: 'This field has already been claimed and approved'
     });
   }
 
