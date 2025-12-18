@@ -247,6 +247,31 @@ const getFieldClaimStatusTemplate = (statusData) => {
               </div>
             ` : ''}
 
+            ${isApproved && statusData.existingAccount ? `
+              <div class="info-box" style="background-color: #e3f2fd; border-left-color: #2196F3;">
+                <h3 style="color: #2196F3; margin-top: 0;">🔐 Your Existing Account</h3>
+                <p style="margin-bottom: 15px;">Good news! You already have a Fieldsy account. Your field has been linked to your existing account.</p>
+                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                  <p style="margin: 5px 0;"><strong>Email:</strong> <code style="background-color: #f5f5f5; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${statusData.existingAccount.email}</code></p>
+                  ${statusData.existingAccount.isGoogleAccount ? `
+                    <p style="margin: 10px 0 5px 0;">
+                      <span style="display: inline-flex; align-items: center; background-color: #fff; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px;">
+                        <img src="https://www.google.com/favicon.ico" alt="Google" style="width: 16px; height: 16px; margin-right: 8px;" />
+                        <strong>Sign in with Google</strong>
+                      </span>
+                    </p>
+                    <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                      Your account was created using Google Sign-In. Please use the <strong>"Continue with Google"</strong> button on the login page to access your account.
+                    </p>
+                  ` : `
+                    <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                      Log in using your existing password. If you've forgotten your password, use the "Forgot Password" option on the login page.
+                    </p>
+                  `}
+                </div>
+              </div>
+            ` : ''}
+
             <div class="info-box">
               <h3>Field Details:</h3>
               <p><strong>Field Name:</strong> ${statusData.fieldName}</p>
@@ -1748,6 +1773,11 @@ class EmailService {
         console.log('📧 Subject:', subject);
         console.log('📧 Status:', statusData.status);
         console.log('📧 Has credentials:', !!statusData.credentials);
+        console.log('📧 Has existing account:', !!statusData.existingAccount);
+        if (statusData.existingAccount) {
+            console.log('📧 Existing account provider:', statusData.existingAccount.provider);
+            console.log('📧 Is Google account:', statusData.existingAccount.isGoogleAccount);
+        }
         const html = getFieldClaimStatusTemplate({
             fullName: statusData.fullName,
             fieldName: statusData.fieldName,
@@ -1755,7 +1785,8 @@ class EmailService {
             status: statusData.status,
             reviewNotes: statusData.reviewNotes,
             documents: statusData.documents,
-            credentials: statusData.credentials
+            credentials: statusData.credentials,
+            existingAccount: statusData.existingAccount
         });
         try {
             console.log('📧 [sendFieldClaimStatusEmail] Calling sendMail...');

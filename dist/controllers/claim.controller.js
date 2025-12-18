@@ -257,6 +257,7 @@ exports.updateClaimStatus = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
                     }
                 });
                 console.log(`ℹ️ Field owner account already exists for ${claim.email}, assigned field to existing account`);
+                console.log(`ℹ️ Existing user provider: ${existingFieldOwner.provider}`);
             }
         }
         catch (accountError) {
@@ -287,6 +288,12 @@ exports.updateClaimStatus = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
             credentials: status === 'APPROVED' && generatedPassword ? {
                 email: claim.email,
                 password: generatedPassword
+            } : undefined,
+            // Pass existing account info for users who already have accounts
+            existingAccount: status === 'APPROVED' && !generatedPassword && fieldOwner ? {
+                email: claim.email,
+                provider: fieldOwner.provider || 'general',
+                isGoogleAccount: fieldOwner.provider === 'google'
             } : undefined
         });
         console.log('📧 Email send result:', emailResult ? 'SUCCESS' : 'FAILED');

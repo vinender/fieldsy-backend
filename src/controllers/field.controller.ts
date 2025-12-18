@@ -343,11 +343,29 @@ class FieldController {
     // Enrich fields with full amenity objects (only for the amenities we're sending)
     const enrichedFields = await enrichFieldsWithAmenities(transformedFields);
 
+    // Get user's liked fields if authenticated
+    const userId = (req as any).user?.id;
+    let userLikedFieldIds: Set<string> = new Set();
+
+    if (userId) {
+      const userFavorites = await prisma.favorite.findMany({
+        where: { userId },
+        select: { fieldId: true }
+      });
+      userLikedFieldIds = new Set(userFavorites.map(f => f.fieldId));
+    }
+
+    // Add isLiked to each field
+    const fieldsWithLikeStatus = enrichedFields.map((field: any) => ({
+      ...field,
+      isLiked: userLikedFieldIds.has(field.id)
+    }));
+
     const totalPages = Math.ceil(result.total / limitNum);
 
     res.json({
       success: true,
-      data: enrichedFields,
+      data: fieldsWithLikeStatus,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -926,9 +944,27 @@ class FieldController {
     // Enrich fields with amenity labels (string array only)
     const enrichedFields = await enrichFieldsWithAmenities(transformedFields);
 
+    // Get user's liked fields if authenticated
+    const userId = (req as any).user?.id;
+    let userLikedFieldIds: Set<string> = new Set();
+
+    if (userId) {
+      const userFavorites = await prisma.favorite.findMany({
+        where: { userId },
+        select: { fieldId: true }
+      });
+      userLikedFieldIds = new Set(userFavorites.map(f => f.fieldId));
+    }
+
+    // Add isLiked to each field
+    const fieldsWithLikeStatus = enrichedFields.map((field: any) => ({
+      ...field,
+      isLiked: userLikedFieldIds.has(field.id)
+    }));
+
     res.json({
       success: true,
-      data: enrichedFields,
+      data: fieldsWithLikeStatus,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -1080,9 +1116,27 @@ class FieldController {
     // Enrich fields with full amenity objects
     const enrichedFields = await enrichFieldsWithAmenities(transformedFields);
 
+    // Get user's liked fields if authenticated
+    const userId = (req as any).user?.id;
+    let userLikedFieldIds: Set<string> = new Set();
+
+    if (userId) {
+      const userFavorites = await prisma.favorite.findMany({
+        where: { userId },
+        select: { fieldId: true }
+      });
+      userLikedFieldIds = new Set(userFavorites.map(f => f.fieldId));
+    }
+
+    // Add isLiked to each field
+    const fieldsWithLikeStatus = enrichedFields.map((field: any) => ({
+      ...field,
+      isLiked: userLikedFieldIds.has(field.id)
+    }));
+
     res.json({
       success: true,
-      data: enrichedFields,
+      data: fieldsWithLikeStatus,
       pagination: {
         page: pageNum,
         limit: limitNum,

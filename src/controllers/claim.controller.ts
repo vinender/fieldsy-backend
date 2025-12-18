@@ -295,6 +295,7 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
         });
 
         console.log(`ℹ️ Field owner account already exists for ${claim.email}, assigned field to existing account`);
+        console.log(`ℹ️ Existing user provider: ${existingFieldOwner.provider}`);
       }
     } catch (accountError) {
       console.error('Failed to create field owner account:', accountError);
@@ -327,6 +328,12 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
       credentials: status === 'APPROVED' && generatedPassword ? {
         email: claim.email,
         password: generatedPassword
+      } : undefined,
+      // Pass existing account info for users who already have accounts
+      existingAccount: status === 'APPROVED' && !generatedPassword && fieldOwner ? {
+        email: claim.email,
+        provider: fieldOwner.provider || 'general',
+        isGoogleAccount: fieldOwner.provider === 'google'
       } : undefined
     });
 

@@ -8,12 +8,12 @@ const router = Router();
 
 // Public routes (with optional auth for better data)
 router.get('/', optionalAuth, fieldController.getAllFields);
-router.get('/active', fieldController.getActiveFields); // Public endpoint for active fields only
+router.get('/active', optionalAuth, fieldController.getActiveFields); // Public endpoint for active fields only (with isLiked if authenticated)
 router.get('/price-range', fieldController.getPriceRange); // Get min and max prices
 router.get('/suggestions', fieldController.getFieldSuggestions);
 router.get('/search/location', fieldController.searchByLocation);
-router.get('/nearby', fieldController.getNearbyFields);
-router.get('/popular', fieldController.getPopularFields);
+router.get('/nearby', optionalAuth, fieldController.getNearbyFields); // With isLiked if authenticated
+router.get('/popular', optionalAuth, fieldController.getPopularFields); // With isLiked if authenticated
 
 // Field ownership claiming routes (for field owners to claim unclaimed fields)
 // These are NOT for booking - they're for claiming ownership of unclaimed fields

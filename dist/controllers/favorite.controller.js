@@ -35,7 +35,8 @@ class FavoriteController {
             res.json({
                 success: true,
                 message: 'Field removed from favorites',
-                isFavorited: false
+                isLiked: false,
+                isFavorited: false // Keep for backwards compatibility
             });
         }
         else {
@@ -49,7 +50,8 @@ class FavoriteController {
             res.json({
                 success: true,
                 message: 'Field added to favorites',
-                isFavorited: true,
+                isLiked: true,
+                isFavorited: true, // Keep for backwards compatibility
                 data: favorite
             });
         }
@@ -133,7 +135,8 @@ class FavoriteController {
                 averageRating: avgRating,
                 reviewCount: fav.field._count.fieldReviews,
                 bookingCount: fav.field._count.bookings,
-                isFavorited: true
+                isLiked: true,
+                isFavorited: true // Keep for backwards compatibility
             };
         });
         // Get total count only for valid favorites with active fields (after cleanup)
@@ -170,7 +173,8 @@ class FavoriteController {
         });
         res.json({
             success: true,
-            isFavorited: !!favorite
+            isLiked: !!favorite,
+            isFavorited: !!favorite // Keep for backwards compatibility
         });
     });
     // Remove from favorites

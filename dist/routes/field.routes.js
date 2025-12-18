@@ -11,12 +11,12 @@ const auth_middleware_2 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 // Public routes (with optional auth for better data)
 router.get('/', auth_middleware_2.optionalAuth, field_controller_1.default.getAllFields);
-router.get('/active', field_controller_1.default.getActiveFields); // Public endpoint for active fields only
+router.get('/active', auth_middleware_2.optionalAuth, field_controller_1.default.getActiveFields); // Public endpoint for active fields only (with isLiked if authenticated)
 router.get('/price-range', field_controller_1.default.getPriceRange); // Get min and max prices
 router.get('/suggestions', field_controller_1.default.getFieldSuggestions);
 router.get('/search/location', field_controller_1.default.searchByLocation);
-router.get('/nearby', field_controller_1.default.getNearbyFields);
-router.get('/popular', field_controller_1.default.getPopularFields);
+router.get('/nearby', auth_middleware_2.optionalAuth, field_controller_1.default.getNearbyFields); // With isLiked if authenticated
+router.get('/popular', auth_middleware_2.optionalAuth, field_controller_1.default.getPopularFields); // With isLiked if authenticated
 // Field ownership claiming routes (for field owners to claim unclaimed fields)
 // These are NOT for booking - they're for claiming ownership of unclaimed fields
 router.get('/unclaimed', auth_middleware_1.protect, (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), field_controller_1.default.getFieldForClaim);
