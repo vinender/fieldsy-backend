@@ -553,16 +553,34 @@ class Server {
         });
         // Handle uncaught exceptions
         process.on('uncaughtException', (err) => {
-            console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+            console.error('UNCAUGHT EXCEPTION! 💥');
             console.error(err.name, err.message);
-            process.exit(1);
+            console.error(err.stack);
+            // In production, exit to allow process manager to restart
+            // In development, log and continue to avoid disruption
+            if (constants_1.NODE_ENV === 'production') {
+                console.error('Shutting down due to uncaught exception...');
+                process.exit(1);
+            }
+            else {
+                console.error('⚠️ Continuing despite uncaught exception (development mode)');
+            }
         });
         process.on('unhandledRejection', (err) => {
-            console.error('UNHANDLED REJECTION! 💥 Shutting down...');
-            console.error(err.name, err.message);
-            server.close(() => {
-                process.exit(1);
-            });
+            console.error('UNHANDLED REJECTION! 💥');
+            console.error(err?.name, err?.message);
+            console.error(err?.stack);
+            // In production, exit to allow process manager to restart
+            // In development, log and continue to avoid disruption
+            if (constants_1.NODE_ENV === 'production') {
+                console.error('Shutting down due to unhandled rejection...');
+                server.close(() => {
+                    process.exit(1);
+                });
+            }
+            else {
+                console.error('⚠️ Continuing despite unhandled rejection (development mode)');
+            }
         });
     }
 }

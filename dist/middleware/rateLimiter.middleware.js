@@ -108,35 +108,35 @@ const _passwordResetLimiter = (0, express_rate_limit_1.default)({
 });
 const _uploadLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 20, // 20 uploads per minute
+    max: 80, // 20 uploads per minute
     message: 'Too many upload requests, please slow down.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _searchLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 30, // 30 searches per minute
+    max: 50, // 30 searches per minute
     message: 'Too many search requests, please try again after a minute.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _bookingLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 5, // 5 bookings per minute
+    max: 55, // 5 bookings per minute
     message: 'Too many booking attempts, please slow down.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _reviewLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 3, // 3 reviews per minute
+    max: 15, // 3 reviews per minute
     message: 'Too many review submissions, please wait before submitting another review.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 const _messageLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 30, // 30 messages per minute
+    max: 70, // 30 messages per minute
     message: 'Too many messages sent, please slow down.',
     standardHeaders: true,
     legacyHeaders: false,
