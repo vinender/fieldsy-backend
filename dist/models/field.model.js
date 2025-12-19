@@ -136,6 +136,8 @@ class FieldModel {
                     latitude: true,
                     longitude: true,
                     price: true,
+                    price30min: true,
+                    price1hr: true,
                     pricePerDay: true,
                     bookingDuration: true,
                     images: true,
@@ -197,6 +199,8 @@ class FieldModel {
                     latitude: true,
                     longitude: true,
                     price: true,
+                    price30min: true,
+                    price1hr: true,
                     pricePerDay: true,
                     bookingDuration: true,
                     images: true,
@@ -344,13 +348,36 @@ class FieldModel {
             whereClause.state = where.state;
         if (where.type)
             whereClause.type = where.type;
-        // Price filter
+        // Price filter - check against price30min (the lower/starting price)
+        // If price30min is not set, fall back to legacy price field
         if (where.minPrice || where.maxPrice) {
-            whereClause.price = {};
-            if (where.minPrice)
-                whereClause.price.gte = where.minPrice;
-            if (where.maxPrice)
-                whereClause.price.lte = where.maxPrice;
+            whereClause.OR = [
+                // Check price30min field
+                ...(where.minPrice && where.maxPrice ? [{
+                        price30min: { gte: where.minPrice, lte: where.maxPrice }
+                    }] : where.minPrice ? [{
+                        price30min: { gte: where.minPrice }
+                    }] : [{
+                        price30min: { lte: where.maxPrice }
+                    }]),
+                // Fall back to legacy price field if price30min is null
+                ...(where.minPrice && where.maxPrice ? [{
+                        AND: [
+                            { price30min: null },
+                            { price: { gte: where.minPrice, lte: where.maxPrice } }
+                        ]
+                    }] : where.minPrice ? [{
+                        AND: [
+                            { price30min: null },
+                            { price: { gte: where.minPrice } }
+                        ]
+                    }] : [{
+                        AND: [
+                            { price30min: null },
+                            { price: { lte: where.maxPrice } }
+                        ]
+                    }])
+            ];
         }
         // Amenities filter
         if (where.amenities && where.amenities.length > 0) {
@@ -467,7 +494,8 @@ class FieldModel {
                 // Generate all possible time slots for this field
                 const openTime = field.openingTime || '06:00';
                 const closeTime = field.closingTime || '22:00';
-                const slotDuration = field.bookingDuration === '30min' ? 30 : 60;
+                // Use 30 min slots as the base duration since all fields now support both 30min and 1hr bookings
+                const slotDuration = 30;
                 // Convert time string to minutes
                 const timeToMinutes = (timeStr) => {
                     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -558,7 +586,8 @@ class FieldModel {
                     });
                     const openTime = field.openingTime || '06:00';
                     const closeTime = field.closingTime || '22:00';
-                    const slotDuration = field.bookingDuration === '30min' ? 30 : 60;
+                    // Use 30 min slots as the base duration since all fields now support both 30min and 1hr bookings
+                    const slotDuration = 30;
                     const openMinutes = timeToMinutes(openTime);
                     const closeMinutes = timeToMinutes(closeTime);
                     // Generate all possible slots
@@ -671,8 +700,10 @@ class FieldModel {
                     id: true,
                     name: true,
                     images: true, // First image for card thumbnail
-                    price: true,
-                    bookingDuration: true, // For price unit display
+                    price: true, // Legacy field
+                    price30min: true, // New price field for 30 min slots
+                    price1hr: true, // New price field for 1 hour slots
+                    bookingDuration: true, // Legacy field
                     averageRating: true,
                     totalReviews: true,
                     amenities: true, // For amenity icons
@@ -721,12 +752,36 @@ class FieldModel {
             whereClause.state = where.state;
         if (where.type)
             whereClause.type = where.type;
+        // Price filter - check against price30min (the lower/starting price)
+        // If price30min is not set, fall back to legacy price field
         if (where.minPrice || where.maxPrice) {
-            whereClause.price = {};
-            if (where.minPrice)
-                whereClause.price.gte = where.minPrice;
-            if (where.maxPrice)
-                whereClause.price.lte = where.maxPrice;
+            whereClause.OR = [
+                // Check price30min field
+                ...(where.minPrice && where.maxPrice ? [{
+                        price30min: { gte: where.minPrice, lte: where.maxPrice }
+                    }] : where.minPrice ? [{
+                        price30min: { gte: where.minPrice }
+                    }] : [{
+                        price30min: { lte: where.maxPrice }
+                    }]),
+                // Fall back to legacy price field if price30min is null
+                ...(where.minPrice && where.maxPrice ? [{
+                        AND: [
+                            { price30min: null },
+                            { price: { gte: where.minPrice, lte: where.maxPrice } }
+                        ]
+                    }] : where.minPrice ? [{
+                        AND: [
+                            { price30min: null },
+                            { price: { gte: where.minPrice } }
+                        ]
+                    }] : [{
+                        AND: [
+                            { price30min: null },
+                            { price: { lte: where.maxPrice } }
+                        ]
+                    }])
+            ];
         }
         return database_1.default.field.findMany({
             where: whereClause,
@@ -1008,6 +1063,8 @@ class FieldModel {
                 zipCode: true,
                 address: true,
                 price: true,
+                price30min: true,
+                price1hr: true,
                 bookingDuration: true,
                 averageRating: true,
                 totalReviews: true,
@@ -1025,7 +1082,9 @@ class FieldModel {
             address: field.address || '',
             location: `${field.city || ''}${field.city && field.state ? ', ' : ''}${field.state || ''} ${field.zipCode || ''}`.trim(),
             fullAddress: `${field.address || ''}${field.address && (field.city || field.state) ? ', ' : ''}${field.city || ''}${field.city && field.state ? ', ' : ''}${field.state || ''} ${field.zipCode || ''}`.trim(),
-            price: field.price,
+            price: field.price30min || field.price, // Use price30min as the starting price
+            price30min: field.price30min,
+            price1hr: field.price1hr,
             rating: field.averageRating,
             reviews: field.totalReviews,
             image: field.images?.[0] || null,
@@ -1087,6 +1146,8 @@ class FieldModel {
                     longitude: fieldLng,
                     location: field.location,
                     price: field.price,
+                    price30min: field.price30min,
+                    price1hr: field.price1hr,
                     bookingDuration: field.bookingDuration,
                     averageRating: field.averageRating,
                     totalReviews: field.totalReviews,
@@ -1096,11 +1157,6 @@ class FieldModel {
                     ownerId: field.ownerId?.$oid || field.ownerId, // Handle ObjectId reference
                     ownerName: field.ownerName,
                     distanceMiles: Number(distanceMiles.toFixed(1)),
-                    // Add booking/review counts if they were in the original object
-                    // Note: findRaw won't include relations or _count unless we aggregate, 
-                    // but for search cards we might be okay with just the basic data
-                    // or we can do a second fetch for IDs if strictly needed.
-                    // For performance, we'll stick to the raw data which contains the critical fields.
                 };
             });
             return fieldsWithDistance;
@@ -1133,8 +1189,10 @@ class FieldModel {
                 latitude: true,
                 longitude: true,
                 location: true,
-                price: true,
-                bookingDuration: true,
+                price: true, // Legacy field
+                price30min: true, // New price field for 30 min slots
+                price1hr: true, // New price field for 1 hour slots
+                bookingDuration: true, // Legacy field
                 averageRating: true,
                 totalReviews: true,
                 images: true,
@@ -1185,7 +1243,7 @@ class FieldModel {
                 ? sortOrder.split(',').map(s => s.trim())
                 : sortFields.map(() => sortOrder);
             const orderByOptions = {
-                price: 'price',
+                price: 'price30min', // Use price30min for sorting (the starting price)
                 rating: 'averageRating',
                 reviews: 'totalReviews',
                 name: 'name',
@@ -1202,7 +1260,7 @@ class FieldModel {
         }
         // Single sort field (backward compatible)
         const orderByOptions = {
-            price: { price: sortOrder },
+            price: { price30min: sortOrder }, // Use price30min for sorting (the starting price)
             rating: { averageRating: sortOrder },
             reviews: { totalReviews: sortOrder },
             name: { name: sortOrder },

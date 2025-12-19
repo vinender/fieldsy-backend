@@ -1478,15 +1478,19 @@ class FieldController {
           updateData = {
             name: 'Untitled Field',
             type: 'PRIVATE',
-            price: parseFloat(data.price || data.pricePerHour) || 0,
-            bookingDuration: data.bookingDuration || '1hour',
+            price: parseFloat(data.price || data.pricePerHour) || 0, // Legacy field
+            price30min: parseFloat(data.price30min) || 0,
+            price1hr: parseFloat(data.price1hr) || 0,
+            bookingDuration: data.bookingDuration || '30min', // Legacy field
             instantBooking: data.instantBooking || false,
             pricingAvailabilityCompleted: true
           };
         } else {
           updateData = {
-            price: parseFloat(data.price || data.pricePerHour) || 0,
-            bookingDuration: data.bookingDuration || '1hour',
+            price: parseFloat(data.price || data.pricePerHour) || 0, // Legacy field
+            price30min: parseFloat(data.price30min) || 0,
+            price1hr: parseFloat(data.price1hr) || 0,
+            bookingDuration: data.bookingDuration || '30min', // Legacy field
             instantBooking: data.instantBooking || false,
             pricingAvailabilityCompleted: true
           };

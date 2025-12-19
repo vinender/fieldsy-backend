@@ -132,9 +132,11 @@ model Field {
   fenceType          String? // e.g., "Wooden", "Metal", "Mesh", "Electric"
   fenceSize          String? // e.g., "3ft", "4ft", "5ft", "6ft", "6ft+"
   surfaceType        String? // e.g., "Soft Sand", "Grass", "Artificial Grass", "Concrete"
-  price              Float? // Price for the duration specified in bookingDuration
+  price              Float? // Legacy: Price for the duration specified in bookingDuration (deprecated)
+  price30min         Float? // Price for 30 minute booking slot
+  price1hr           Float? // Price for 1 hour booking slot
   pricePerDay        Float?
-  bookingDuration    String? // e.g., "30min" or "1hour" - defines what the price is for
+  bookingDuration    String? // Legacy: e.g., "30min" or "1hour" (deprecated - now both durations are available)
   amenities          String[] // e.g., ["Water bowls", "Agility equipment", "Shade areas"]
   rules              String[] // e.g., ["Dogs must be leashed", "Clean up after your dog"]
   images             String[]
