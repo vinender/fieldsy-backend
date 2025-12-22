@@ -595,16 +595,19 @@ export class PaymentController {
             currentPeriodEnd.setDate(bookingDate.getDate() + 7);
           } else {
             // Monthly - next billing is same date next month
-            nextBillingDate = new Date(bookingDate);
-            nextBillingDate.setMonth(bookingDate.getMonth() + 1);
-
             // Handle edge case: if current day is 31 and next month has fewer days
-            // JavaScript automatically adjusts (e.g., Jan 31 + 1 month = Mar 3 if Feb has 28 days)
-            // To fix this, we ensure it stays on the last day of the month
-            if (nextBillingDate.getDate() !== dayOfMonth) {
-              nextBillingDate.setDate(0); // Go to last day of previous month
-            }
+            // We need to get the last day of the target month
+            const targetMonth = bookingDate.getMonth() + 1;
+            const targetYear = bookingDate.getFullYear() + (targetMonth > 11 ? 1 : 0);
+            const normalizedTargetMonth = targetMonth > 11 ? 0 : targetMonth;
 
+            // Get the last day of the target month
+            const lastDayOfTargetMonth = new Date(targetYear, normalizedTargetMonth + 1, 0).getDate();
+
+            // Use the minimum of the original day and the last day of target month
+            const targetDay = Math.min(dayOfMonth, lastDayOfTargetMonth);
+
+            nextBillingDate = new Date(targetYear, normalizedTargetMonth, targetDay);
             currentPeriodEnd = new Date(nextBillingDate);
           }
 

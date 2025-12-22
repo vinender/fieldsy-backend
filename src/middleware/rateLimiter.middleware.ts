@@ -104,7 +104,7 @@ const _authLimiter = rateLimit({
 
 const _socialAuthLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 30, // 30 requests per minute (OAuth flow involves multiple requests)
+  max: 60, // 30 requests per minute (OAuth flow involves multiple requests)
   message: 'Too many social login attempts, please try again after a minute.',
   skipSuccessfulRequests: true, // Don't count successful attempts
   standardHeaders: true,

@@ -93,7 +93,7 @@ const _authLimiter = (0, express_rate_limit_1.default)({
 });
 const _socialAuthLimiter = (0, express_rate_limit_1.default)({
     windowMs: 60000, // 1 minute
-    max: 30, // 30 requests per minute (OAuth flow involves multiple requests)
+    max: 60, // 30 requests per minute (OAuth flow involves multiple requests)
     message: 'Too many social login attempts, please try again after a minute.',
     skipSuccessfulRequests: true, // Don't count successful attempts
     standardHeaders: true,
