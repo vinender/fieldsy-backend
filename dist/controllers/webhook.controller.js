@@ -623,11 +623,10 @@ class WebhookController {
                     chargesEnabled: account.charges_enabled,
                     payoutsEnabled: account.payouts_enabled,
                     detailsSubmitted: account.details_submitted,
-                    // Update capabilities
-                    currentlyDue: account.requirements?.currently_due || [],
-                    eventuallyDue: account.requirements?.eventually_due || [],
-                    pastDue: account.requirements?.past_due || [],
-                    disabledReason: account.requirements?.disabled_reason || null
+                    // Update requirements
+                    requirementsCurrentlyDue: account.requirements?.currently_due || [],
+                    requirementsEventuallyDue: account.requirements?.eventually_due || [],
+                    requirementsPastDue: account.requirements?.past_due || []
                 }
             });
             // Notify user if payouts just became enabled
@@ -677,9 +676,9 @@ class WebhookController {
                         chargesEnabled: account.charges_enabled || false,
                         payoutsEnabled: account.payouts_enabled || false,
                         detailsSubmitted: account.details_submitted || false,
-                        currentlyDue: account.requirements?.currently_due || [],
-                        eventuallyDue: account.requirements?.eventually_due || [],
-                        pastDue: account.requirements?.past_due || []
+                        requirementsCurrentlyDue: account.requirements?.currently_due || [],
+                        requirementsEventuallyDue: account.requirements?.eventually_due || [],
+                        requirementsPastDue: account.requirements?.past_due || []
                     }
                 });
             }

@@ -11,6 +11,7 @@ import prisma from '../config/database';
  * Clean up expired slot locks
  * This should be called periodically (e.g., every 5 minutes) to remove stale locks
  */
+
 export async function cleanupExpiredSlotLocks(): Promise<number> {
   try {
     const result = await prisma.slotLock.deleteMany({
@@ -38,6 +39,7 @@ export async function releaseUserSlotLocks(
   fieldId: string,
   date: Date
 ): Promise<number> {
+  
   try {
     const normalizedDate = new Date(date);
     normalizedDate.setHours(0, 0, 0, 0);
@@ -97,6 +99,8 @@ export async function isSlotLockedByOther(
 /**
  * Get all active locks for a field on a specific date
  */
+
+
 export async function getActiveLocksForField(
   fieldId: string,
   date: Date

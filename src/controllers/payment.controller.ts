@@ -191,10 +191,18 @@ export class PaymentController {
       const LOCK_EXPIRY_MINUTES = 10; // Lock expires after 10 minutes
       const lockExpiresAt = new Date(Date.now() + LOCK_EXPIRY_MINUTES * 60 * 1000);
       const acquiredLocks: string[] = [];
+      let slotLockingEnabled = true;
 
-      try {
-        // First, clean up any expired locks for these slots
-        await prisma.slotLock.deleteMany({
+      // Check if slotLock model is available (might not be on production yet)
+      if (!prisma.slotLock) {
+        console.warn('[PaymentController] SlotLock model not available - skipping slot locking');
+        slotLockingEnabled = false;
+      }
+
+      if (slotLockingEnabled) {
+        try {
+          // First, clean up any expired locks for these slots
+          await prisma.slotLock.deleteMany({
           where: {
             fieldId,
             date: bookingDate,
@@ -238,27 +246,11 @@ export class PaymentController {
               });
 
               if (existingLock && existingLock.userId !== userId) {
-                // Another user has the lock - clean up our acquired locks and return error
-                console.log(`[PaymentController] Slot ${slot} is locked by another user`);
-
-                // Release locks we acquired
-                if (acquiredLocks.length > 0) {
-                  await prisma.slotLock.deleteMany({
-                    where: {
-                      fieldId,
-                      date: bookingDate,
-                      startTime: { in: acquiredLocks },
-                      userId
-                    }
-                  });
-                }
-
-                return res.status(409).json({
-                  error: 'One or more selected time slots are currently being booked by another user',
-                  code: 'SLOT_LOCKED',
-                  unavailableSlot: slot,
-                  message: `The slot ${slot} is currently being booked by another user. Please try again in a few minutes or select a different time.`
-                });
+                // Another user has the lock - log warning but allow to proceed
+                // The transaction-level check will catch actual conflicts
+                console.log(`[PaymentController] Slot ${slot} is locked by another user, but allowing to proceed (transaction will catch conflicts)`);
+                // Don't add to acquiredLocks since we don't own this lock
+                // Continue without blocking - let the booking transaction handle conflicts
               } else if (existingLock && existingLock.userId === userId) {
                 // Same user already has the lock (retry attempt) - that's fine
                 acquiredLocks.push(slotStart);
@@ -310,6 +302,7 @@ export class PaymentController {
         console.error('[PaymentController] Failed to acquire slot locks:', lockError);
         throw lockError;
       }
+      } // End of slotLockingEnabled check
       // ============================================================
 
       // Create idempotency key to prevent duplicate bookings
@@ -929,18 +922,20 @@ export class PaymentController {
       // ============================================================
       // RELEASE SLOT LOCKS - Booking was successfully created
       // ============================================================
-      try {
-        await prisma.slotLock.deleteMany({
-          where: {
-            fieldId,
-            date: bookingDate,
-            userId
-          }
-        });
-        console.log('[PaymentController] Released slot locks after successful booking creation');
-      } catch (lockCleanupError) {
-        // Non-critical error - locks will expire anyway
-        console.warn('[PaymentController] Failed to cleanup slot locks:', lockCleanupError);
+      if (slotLockingEnabled && prisma.slotLock) {
+        try {
+          await prisma.slotLock.deleteMany({
+            where: {
+              fieldId,
+              date: bookingDate,
+              userId
+            }
+          });
+          console.log('[PaymentController] Released slot locks after successful booking creation');
+        } catch (lockCleanupError) {
+          // Non-critical error - locks will expire anyway
+          console.warn('[PaymentController] Failed to cleanup slot locks:', lockCleanupError);
+        }
       }
       // ============================================================
 
@@ -1080,25 +1075,27 @@ export class PaymentController {
     } catch (error) {
       console.error('Error creating payment intent:', error);
 
-      // Try to release any slot locks on error
-      try {
-        const userId = (req as any).user?.id;
-        const { fieldId, date } = req.body;
-        if (userId && fieldId && date) {
-          const bookingDate = new Date(date);
-          bookingDate.setHours(0, 0, 0, 0);
-          await prisma.slotLock.deleteMany({
-            where: {
-              fieldId,
-              date: bookingDate,
-              userId
-            }
-          });
-          console.log('[PaymentController] Released slot locks on error');
+      // Try to release any slot locks on error (only if slotLock model exists)
+      if (prisma.slotLock) {
+        try {
+          const userId = (req as any).user?.id;
+          const { fieldId, date } = req.body;
+          if (userId && fieldId && date) {
+            const bookingDate = new Date(date);
+            bookingDate.setHours(0, 0, 0, 0);
+            await prisma.slotLock.deleteMany({
+              where: {
+                fieldId,
+                date: bookingDate,
+                userId
+              }
+            });
+            console.log('[PaymentController] Released slot locks on error');
+          }
+        } catch (lockCleanupError) {
+          // Non-critical - locks will expire anyway
+          console.warn('[PaymentController] Failed to cleanup locks on error:', lockCleanupError);
         }
-      } catch (lockCleanupError) {
-        // Non-critical - locks will expire anyway
-        console.warn('[PaymentController] Failed to cleanup locks on error:', lockCleanupError);
       }
 
       res.status(500).json({

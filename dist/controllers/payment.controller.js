@@ -164,122 +164,116 @@ class PaymentController {
             const LOCK_EXPIRY_MINUTES = 10; // Lock expires after 10 minutes
             const lockExpiresAt = new Date(Date.now() + LOCK_EXPIRY_MINUTES * 60 * 1000);
             const acquiredLocks = [];
-            try {
-                // First, clean up any expired locks for these slots
-                await database_1.default.slotLock.deleteMany({
-                    where: {
-                        fieldId,
-                        date: bookingDate,
-                        expiresAt: { lt: new Date() }
-                    }
-                });
-                // Try to acquire locks for all slots
-                for (const slot of normalizedTimeSlots) {
-                    const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
-                    const startMinutes = parseTimeToMinutesLocal(slotStart);
-                    const actualEndMinutes = startMinutes + actualDurationMinutes;
-                    const actualSlotEnd = minutesToTimeStrLocal(actualEndMinutes);
-                    try {
-                        // Try to create a lock - the unique constraint on (fieldId, date, startTime)
-                        // will cause this to fail if another user already has a lock
-                        await database_1.default.slotLock.create({
-                            data: {
-                                fieldId,
-                                date: bookingDate,
-                                startTime: slotStart,
-                                endTime: actualSlotEnd,
-                                userId,
-                                expiresAt: lockExpiresAt
-                            }
-                        });
-                        acquiredLocks.push(slotStart);
-                        console.log(`[PaymentController] Acquired lock for slot ${slot}`);
-                    }
-                    catch (lockError) {
-                        // Check if this is a unique constraint violation (slot already locked)
-                        if (lockError.code === 'P2002') {
-                            // Check if the existing lock belongs to another user
-                            const existingLock = await database_1.default.slotLock.findFirst({
-                                where: {
-                                    fieldId,
-                                    date: bookingDate,
-                                    startTime: slotStart,
-                                    expiresAt: { gt: new Date() } // Only consider non-expired locks
-                                }
-                            });
-                            if (existingLock && existingLock.userId !== userId) {
-                                // Another user has the lock - clean up our acquired locks and return error
-                                console.log(`[PaymentController] Slot ${slot} is locked by another user`);
-                                // Release locks we acquired
-                                if (acquiredLocks.length > 0) {
-                                    await database_1.default.slotLock.deleteMany({
-                                        where: {
-                                            fieldId,
-                                            date: bookingDate,
-                                            startTime: { in: acquiredLocks },
-                                            userId
-                                        }
-                                    });
-                                }
-                                return res.status(409).json({
-                                    error: 'One or more selected time slots are currently being booked by another user',
-                                    code: 'SLOT_LOCKED',
-                                    unavailableSlot: slot,
-                                    message: `The slot ${slot} is currently being booked by another user. Please try again in a few minutes or select a different time.`
-                                });
-                            }
-                            else if (existingLock && existingLock.userId === userId) {
-                                // Same user already has the lock (retry attempt) - that's fine
-                                acquiredLocks.push(slotStart);
-                                console.log(`[PaymentController] Reusing existing lock for slot ${slot}`);
-                            }
-                            else {
-                                // Lock exists but is expired - try to delete and recreate
-                                await database_1.default.slotLock.deleteMany({
-                                    where: {
-                                        fieldId,
-                                        date: bookingDate,
-                                        startTime: slotStart
-                                    }
-                                });
-                                // Try again to create the lock
-                                await database_1.default.slotLock.create({
-                                    data: {
-                                        fieldId,
-                                        date: bookingDate,
-                                        startTime: slotStart,
-                                        endTime: actualSlotEnd,
-                                        userId,
-                                        expiresAt: lockExpiresAt
-                                    }
-                                });
-                                acquiredLocks.push(slotStart);
-                                console.log(`[PaymentController] Acquired lock after cleanup for slot ${slot}`);
-                            }
-                        }
-                        else {
-                            // Some other error - rethrow
-                            throw lockError;
-                        }
-                    }
-                }
-                console.log('[PaymentController] All slot locks acquired successfully:', acquiredLocks);
+            let slotLockingEnabled = true;
+            // Check if slotLock model is available (might not be on production yet)
+            if (!database_1.default.slotLock) {
+                console.warn('[PaymentController] SlotLock model not available - skipping slot locking');
+                slotLockingEnabled = false;
             }
-            catch (lockError) {
-                // Failed to acquire locks - clean up any we got
-                if (acquiredLocks.length > 0) {
+            if (slotLockingEnabled) {
+                try {
+                    // First, clean up any expired locks for these slots
                     await database_1.default.slotLock.deleteMany({
                         where: {
                             fieldId,
                             date: bookingDate,
-                            startTime: { in: acquiredLocks },
-                            userId
+                            expiresAt: { lt: new Date() }
                         }
                     });
+                    // Try to acquire locks for all slots
+                    for (const slot of normalizedTimeSlots) {
+                        const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
+                        const startMinutes = parseTimeToMinutesLocal(slotStart);
+                        const actualEndMinutes = startMinutes + actualDurationMinutes;
+                        const actualSlotEnd = minutesToTimeStrLocal(actualEndMinutes);
+                        try {
+                            // Try to create a lock - the unique constraint on (fieldId, date, startTime)
+                            // will cause this to fail if another user already has a lock
+                            await database_1.default.slotLock.create({
+                                data: {
+                                    fieldId,
+                                    date: bookingDate,
+                                    startTime: slotStart,
+                                    endTime: actualSlotEnd,
+                                    userId,
+                                    expiresAt: lockExpiresAt
+                                }
+                            });
+                            acquiredLocks.push(slotStart);
+                            console.log(`[PaymentController] Acquired lock for slot ${slot}`);
+                        }
+                        catch (lockError) {
+                            // Check if this is a unique constraint violation (slot already locked)
+                            if (lockError.code === 'P2002') {
+                                // Check if the existing lock belongs to another user
+                                const existingLock = await database_1.default.slotLock.findFirst({
+                                    where: {
+                                        fieldId,
+                                        date: bookingDate,
+                                        startTime: slotStart,
+                                        expiresAt: { gt: new Date() } // Only consider non-expired locks
+                                    }
+                                });
+                                if (existingLock && existingLock.userId !== userId) {
+                                    // Another user has the lock - log warning but allow to proceed
+                                    // The transaction-level check will catch actual conflicts
+                                    console.log(`[PaymentController] Slot ${slot} is locked by another user, but allowing to proceed (transaction will catch conflicts)`);
+                                    // Don't add to acquiredLocks since we don't own this lock
+                                    // Continue without blocking - let the booking transaction handle conflicts
+                                }
+                                else if (existingLock && existingLock.userId === userId) {
+                                    // Same user already has the lock (retry attempt) - that's fine
+                                    acquiredLocks.push(slotStart);
+                                    console.log(`[PaymentController] Reusing existing lock for slot ${slot}`);
+                                }
+                                else {
+                                    // Lock exists but is expired - try to delete and recreate
+                                    await database_1.default.slotLock.deleteMany({
+                                        where: {
+                                            fieldId,
+                                            date: bookingDate,
+                                            startTime: slotStart
+                                        }
+                                    });
+                                    // Try again to create the lock
+                                    await database_1.default.slotLock.create({
+                                        data: {
+                                            fieldId,
+                                            date: bookingDate,
+                                            startTime: slotStart,
+                                            endTime: actualSlotEnd,
+                                            userId,
+                                            expiresAt: lockExpiresAt
+                                        }
+                                    });
+                                    acquiredLocks.push(slotStart);
+                                    console.log(`[PaymentController] Acquired lock after cleanup for slot ${slot}`);
+                                }
+                            }
+                            else {
+                                // Some other error - rethrow
+                                throw lockError;
+                            }
+                        }
+                    }
+                    console.log('[PaymentController] All slot locks acquired successfully:', acquiredLocks);
                 }
-                console.error('[PaymentController] Failed to acquire slot locks:', lockError);
-                throw lockError;
-            }
+                catch (lockError) {
+                    // Failed to acquire locks - clean up any we got
+                    if (acquiredLocks.length > 0) {
+                        await database_1.default.slotLock.deleteMany({
+                            where: {
+                                fieldId,
+                                date: bookingDate,
+                                startTime: { in: acquiredLocks },
+                                userId
+                            }
+                        });
+                    }
+                    console.error('[PaymentController] Failed to acquire slot locks:', lockError);
+                    throw lockError;
+                }
+            } // End of slotLockingEnabled check
             // ============================================================
             // Create idempotency key to prevent duplicate bookings
             // Use a deterministic key based on the booking parameters (NOT random!)
@@ -839,19 +833,21 @@ class PaymentController {
             // ============================================================
             // RELEASE SLOT LOCKS - Booking was successfully created
             // ============================================================
-            try {
-                await database_1.default.slotLock.deleteMany({
-                    where: {
-                        fieldId,
-                        date: bookingDate,
-                        userId
-                    }
-                });
-                console.log('[PaymentController] Released slot locks after successful booking creation');
-            }
-            catch (lockCleanupError) {
-                // Non-critical error - locks will expire anyway
-                console.warn('[PaymentController] Failed to cleanup slot locks:', lockCleanupError);
+            if (slotLockingEnabled && database_1.default.slotLock) {
+                try {
+                    await database_1.default.slotLock.deleteMany({
+                        where: {
+                            fieldId,
+                            date: bookingDate,
+                            userId
+                        }
+                    });
+                    console.log('[PaymentController] Released slot locks after successful booking creation');
+                }
+                catch (lockCleanupError) {
+                    // Non-critical error - locks will expire anyway
+                    console.warn('[PaymentController] Failed to cleanup slot locks:', lockCleanupError);
+                }
             }
             // ============================================================
             // Use first booking as primary for backward compatibility
@@ -980,26 +976,28 @@ class PaymentController {
         }
         catch (error) {
             console.error('Error creating payment intent:', error);
-            // Try to release any slot locks on error
-            try {
-                const userId = req.user?.id;
-                const { fieldId, date } = req.body;
-                if (userId && fieldId && date) {
-                    const bookingDate = new Date(date);
-                    bookingDate.setHours(0, 0, 0, 0);
-                    await database_1.default.slotLock.deleteMany({
-                        where: {
-                            fieldId,
-                            date: bookingDate,
-                            userId
-                        }
-                    });
-                    console.log('[PaymentController] Released slot locks on error');
+            // Try to release any slot locks on error (only if slotLock model exists)
+            if (database_1.default.slotLock) {
+                try {
+                    const userId = req.user?.id;
+                    const { fieldId, date } = req.body;
+                    if (userId && fieldId && date) {
+                        const bookingDate = new Date(date);
+                        bookingDate.setHours(0, 0, 0, 0);
+                        await database_1.default.slotLock.deleteMany({
+                            where: {
+                                fieldId,
+                                date: bookingDate,
+                                userId
+                            }
+                        });
+                        console.log('[PaymentController] Released slot locks on error');
+                    }
                 }
-            }
-            catch (lockCleanupError) {
-                // Non-critical - locks will expire anyway
-                console.warn('[PaymentController] Failed to cleanup locks on error:', lockCleanupError);
+                catch (lockCleanupError) {
+                    // Non-critical - locks will expire anyway
+                    console.warn('[PaymentController] Failed to cleanup locks on error:', lockCleanupError);
+                }
             }
             res.status(500).json({
                 error: 'Failed to create payment intent',
