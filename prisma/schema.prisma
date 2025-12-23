@@ -834,3 +834,21 @@ model FieldProperty {
   @@index([category, isActive, order])
   @@map("field_properties")
 }
+
+// Slot lock for preventing double bookings during payment processing
+// This creates a temporary lock on a time slot while payment is being processed
+model SlotLock {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  fieldId   String   @db.ObjectId
+  date      DateTime
+  startTime String   // e.g., "14:00"
+  endTime   String   // e.g., "15:00"
+  userId    String   @db.ObjectId // User who holds the lock
+  expiresAt DateTime // Lock expires after this time (e.g., 10 minutes)
+  createdAt DateTime @default(now())
+
+  // Unique constraint ensures only one lock per slot at a time
+  @@unique([fieldId, date, startTime])
+  @@index([expiresAt]) // For efficient cleanup of expired locks
+  @@map("slot_locks")
+}

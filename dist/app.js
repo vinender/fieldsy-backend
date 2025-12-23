@@ -34,6 +34,7 @@ const field_properties_routes_1 = __importDefault(require("./routes/field-proper
 const contact_query_routes_1 = __importDefault(require("./routes/contact-query.routes"));
 const docs_routes_1 = __importDefault(require("./routes/docs.routes"));
 const faq_routes_1 = __importDefault(require("./routes/faq.routes"));
+const slot_lock_utils_1 = require("./utils/slot-lock.utils");
 // Load environment variables
 dotenv_1.default.config();
 // Initialize Express app
@@ -435,10 +436,13 @@ app.use((req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    // Start slot lock cleanup job
+    (0, slot_lock_utils_1.startSlotLockCleanup)();
 });
 // Graceful shutdown
 process.on("SIGTERM", async () => {
     console.log("SIGTERM signal received: closing HTTP server");
+    (0, slot_lock_utils_1.stopSlotLockCleanup)();
     await exports.prisma.$disconnect();
     process.exit(0);
 });
