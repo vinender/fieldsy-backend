@@ -268,13 +268,46 @@ export async function createNotification({
     console.log('Target User ID (ObjectId):', userId);
     console.log('Notification Type:', type);
     console.log('Title:', title);
-    
+
     // Validate userId is a valid ObjectId
     if (!userId || typeof userId !== 'string' || userId.length !== 24) {
       console.error('Invalid userId format:', userId);
       return null;
     }
-    
+
+    // Deduplication: Check for recent duplicate notifications (within last 5 minutes)
+    // This prevents duplicate notifications when multiple services process the same event
+    const deduplicationTypes = [
+      'PAYOUT_PROCESSED',
+      'payout_processed',
+      'PAYOUT_PENDING',
+      'PAYOUT_FAILED',
+      'payout_retry_success',
+      'earnings_update'
+    ];
+
+    if (deduplicationTypes.includes(type) && data?.bookingId) {
+      const recentDuplicate = await prisma.notification.findFirst({
+        where: {
+          userId,
+          type,
+          createdAt: {
+            gte: new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (recentDuplicate) {
+        // Check if the data contains the same bookingId
+        const existingBookingId = recentDuplicate.data?.bookingId;
+        if (existingBookingId === data.bookingId) {
+          console.log(`Duplicate notification prevented: ${type} for booking ${data.bookingId}`);
+          return recentDuplicate; // Return existing notification instead of creating new one
+        }
+      }
+    }
+
     const notification = await prisma.notification.create({
       data: {
         userId,

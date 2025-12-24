@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import prisma from '../config/database';
 import { authenticateAdmin } from '../middleware/admin.middleware';
+import { emailService } from '../services/email.service';
 
 const router = Router();
 
@@ -48,9 +49,10 @@ router.put('/settings', authenticateAdmin, async (req, res) => {
       });
     }
 
-    // Get or create system settings
+    // Get current settings to check previous rate
     let settings = await prisma.systemSettings.findFirst();
-    
+    const previousRate = settings?.defaultCommissionRate || 20;
+
     if (settings) {
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
@@ -62,6 +64,9 @@ router.put('/settings', authenticateAdmin, async (req, res) => {
       });
     }
 
+    // Note: No email notifications for default commission rate changes
+    // Emails are only sent when custom commission is set for a specific field owner
+
     res.json({
       success: true,
       data: settings,
@@ -69,9 +74,9 @@ router.put('/settings', authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating commission settings:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to update commission settings' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update commission settings'
     });
   }
 });
@@ -132,7 +137,27 @@ router.put('/field-owner/:userId', authenticateAdmin, async (req, res) => {
     const { userId } = req.params;
     const { commissionRate, useDefault } = req.body;
 
+    // Get current user data and system default rate
+    const [currentUser, settings] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, email: true, commissionRate: true }
+      }),
+      prisma.systemSettings.findFirst()
+    ]);
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Field owner not found'
+      });
+    }
+
+    const defaultRate = settings?.defaultCommissionRate || 20;
+    const previousRate = currentUser.commissionRate ?? defaultRate;
+
     // If useDefault is true, set commission to null to use system default
+    // No email notification when switching to default rate
     if (useDefault) {
       const user = await prisma.user.update({
         where: { id: userId },
@@ -160,6 +185,19 @@ router.put('/field-owner/:userId', authenticateAdmin, async (req, res) => {
       data: { commissionRate }
     });
 
+    // Send email notification if rate changed
+    if (previousRate !== rate) {
+      emailService.sendCustomCommissionChangeEmail({
+        email: currentUser.email,
+        ownerName: currentUser.name || 'Field Owner',
+        previousRate: previousRate,
+        newRate: rate,
+        useDefault: false
+      }).catch(err => {
+        console.error(`Failed to send commission change email to ${currentUser.email}:`, err);
+      });
+    }
+
     res.json({
       success: true,
       data: user,
@@ -167,9 +205,9 @@ router.put('/field-owner/:userId', authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating field owner commission:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to update field owner commission' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update field owner commission'
     });
   }
 });

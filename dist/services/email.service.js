@@ -2213,4 +2213,184 @@ const getFieldAddressChangeNotificationTemplate = (data) => {
     </html>
   `;
 };
+// Commission change notification templates
+const getDefaultCommissionChangeTemplate = (data) => {
+    return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #4CAF50, #45a049); padding: 30px 20px; text-align: center; color: white; }
+          .content { padding: 30px; }
+          .rate-box { background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+          .rate-change { display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; }
+          .rate-item { padding: 15px 25px; border-radius: 8px; }
+          .old-rate { background: #fee2e2; color: #dc2626; }
+          .new-rate { background: #dcfce7; color: #16a34a; }
+          .rate-value { font-size: 32px; font-weight: bold; }
+          .rate-label { font-size: 12px; text-transform: uppercase; margin-top: 5px; }
+          .arrow { font-size: 24px; color: #666; }
+          .footer { padding: 20px; text-align: center; background: #f9f9f9; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">Platform Commission Update</h1>
+          </div>
+          <div class="content">
+            <p>Hi ${data.ownerName || 'Field Owner'},</p>
+            <p>We wanted to let you know that the platform commission rate has been updated.</p>
+
+            <div class="rate-box">
+              <div class="rate-change">
+                <div class="rate-item old-rate">
+                  <div class="rate-value">${data.previousRate}%</div>
+                  <div class="rate-label">Previous Rate</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="rate-item new-rate">
+                  <div class="rate-value">${data.newRate}%</div>
+                  <div class="rate-label">New Rate</div>
+                </div>
+              </div>
+            </div>
+
+            <p><strong>What this means for you:</strong></p>
+            <ul>
+              <li>The new commission rate applies to all future bookings starting from today.</li>
+              <li>Completed bookings will retain their original commission rates.</li>
+              <li>Your earnings from upcoming bookings will be calculated using the new ${data.newRate}% platform fee.</li>
+            </ul>
+
+            <p>If you have any questions about this change, please don't hesitate to contact our support team.</p>
+
+            <p>Best regards,<br>The Fieldsy Team</p>
+          </div>
+          <div class="footer">
+            <p>This email was sent to notify you of changes to your Fieldsy account.</p>
+            <p>© ${new Date().getFullYear()} Fieldsy. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+};
+const getCustomCommissionChangeTemplate = (data) => {
+    const rateDescription = data.useDefault
+        ? `Your commission rate has been changed to use the platform default rate of ${data.newRate}%.`
+        : `A custom commission rate of ${data.newRate}% has been set for your account.`;
+    return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #4CAF50, #45a049); padding: 30px 20px; text-align: center; color: white; }
+          .content { padding: 30px; }
+          .rate-box { background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+          .rate-change { display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; }
+          .rate-item { padding: 15px 25px; border-radius: 8px; }
+          .old-rate { background: #fee2e2; color: #dc2626; }
+          .new-rate { background: #dcfce7; color: #16a34a; }
+          .rate-value { font-size: 32px; font-weight: bold; }
+          .rate-label { font-size: 12px; text-transform: uppercase; margin-top: 5px; }
+          .arrow { font-size: 24px; color: #666; }
+          .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+          .badge-custom { background: #fef3c7; color: #d97706; }
+          .badge-default { background: #e0e7ff; color: #4f46e5; }
+          .footer { padding: 20px; text-align: center; background: #f9f9f9; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">Your Commission Rate Updated</h1>
+          </div>
+          <div class="content">
+            <p>Hi ${data.ownerName || 'Field Owner'},</p>
+            <p>${rateDescription}</p>
+
+            <div class="rate-box">
+              <div class="rate-change">
+                <div class="rate-item old-rate">
+                  <div class="rate-value">${data.previousRate}%</div>
+                  <div class="rate-label">Previous Rate</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="rate-item new-rate">
+                  <div class="rate-value">${data.newRate}%</div>
+                  <div class="rate-label">New Rate</div>
+                </div>
+              </div>
+              <div style="margin-top: 15px;">
+                <span class="badge ${data.useDefault ? 'badge-default' : 'badge-custom'}">
+                  ${data.useDefault ? 'Platform Default Rate' : 'Custom Rate'}
+                </span>
+              </div>
+            </div>
+
+            <p><strong>What this means for you:</strong></p>
+            <ul>
+              <li>The new commission rate of ${data.newRate}% applies to all your future bookings.</li>
+              <li>Completed bookings will retain their original commission rates.</li>
+              <li>For a £100 booking, your earnings will be £${(100 - data.newRate).toFixed(2)} after the platform fee.</li>
+            </ul>
+
+            <p>If you have any questions about this change, please contact our support team.</p>
+
+            <p>Best regards,<br>The Fieldsy Team</p>
+          </div>
+          <div class="footer">
+            <p>This email was sent to notify you of changes to your Fieldsy account.</p>
+            <p>© ${new Date().getFullYear()} Fieldsy. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+};
+// Add methods to EmailService class for commission notifications
+EmailService.prototype.sendDefaultCommissionChangeEmail = async function (data) {
+    const subject = 'Platform Commission Rate Updated - Fieldsy';
+    const html = getDefaultCommissionChangeTemplate({
+        ownerName: data.ownerName,
+        previousRate: data.previousRate,
+        newRate: data.newRate,
+    });
+    try {
+        const result = await this.sendMail(data.email, subject, html);
+        console.log(`✅ Default commission change email sent to ${data.email}`);
+        return result;
+    }
+    catch (error) {
+        console.error(`❌ Failed to send default commission change email to ${data.email}:`, error);
+        return false;
+    }
+};
+EmailService.prototype.sendCustomCommissionChangeEmail = async function (data) {
+    const subject = 'Your Commission Rate Has Been Updated - Fieldsy';
+    const html = getCustomCommissionChangeTemplate({
+        ownerName: data.ownerName,
+        previousRate: data.previousRate,
+        newRate: data.newRate,
+        useDefault: data.useDefault,
+    });
+    try {
+        const result = await this.sendMail(data.email, subject, html);
+        console.log(`✅ Custom commission change email sent to ${data.email}`);
+        return result;
+    }
+    catch (error) {
+        console.error(`❌ Failed to send custom commission change email to ${data.email}:`, error);
+        return false;
+    }
+};
 exports.emailService = new EmailService();

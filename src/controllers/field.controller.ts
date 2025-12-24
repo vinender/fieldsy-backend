@@ -611,7 +611,7 @@ class FieldController {
             newAddress: formatAddress(updatedField.address, updatedField.city, updatedField.state, updatedField.zipCode),
             changeDate: new Date(),
           });
-        } else {  
+        } else {
           console.warn('Admin email not configured; skipping field address change notification.');
         }
       } catch (notificationError) {
@@ -1751,7 +1751,7 @@ class FieldController {
         amount: booking.totalPrice,
         date: booking.date
       }));
-      
+
       res.json({
         success: true,
         bookings: formattedBookings,
@@ -1878,10 +1878,50 @@ class FieldController {
         // Calculate Stripe fee (1.5% + 20p)
         const stripeFee = booking.totalPrice > 0 ? Math.round(((booking.totalPrice * 0.015) + 0.20) * 100) / 100 : 0;
         const amountAfterStripeFee = Math.round((booking.totalPrice - stripeFee) * 100) / 100;
-        // Platform fee (admin commission) - what Fieldsy takes (uses custom rate if set by admin)
-        const platformFee = Math.round((amountAfterStripeFee * effectiveCommissionRate) / 100 * 100) / 100;
-        // Field owner earnings - remainder after Stripe and platform fees
-        const fieldOwnerEarnings = Math.round((amountAfterStripeFee - platformFee) * 100) / 100;
+
+        // Determine platform fee logic
+        // Use stored value if booking is completed OR cancellation window has passed
+        // Use dynamic value if booking is pending/confirmed AND within cancellation window
+
+        const cancelWindowHours = systemSettings?.cancellationWindowHours || 24;
+        const cancelWindowMs = cancelWindowHours * 60 * 60 * 1000;
+        const bookingTime = new Date(booking.date).getTime();
+        const now = new Date().getTime();
+        // Time until booking starts
+        const timeUntilBooking = bookingTime - now;
+
+        // Window passed means we are closer to booking start than the cancellation window allows
+        // OR the booking is in the past.
+        const isPastCancellationWindow = timeUntilBooking < cancelWindowMs;
+        const isLocked = booking.status === 'COMPLETED' || isPastCancellationWindow;
+
+        let platformFee = 0;
+        let usedCommissionRate = effectiveCommissionRate;
+
+        // Note: booking.platformCommission is the amount, not rate.
+        if (isLocked && booking.platformCommission !== null && booking.platformCommission !== undefined) {
+          platformFee = booking.platformCommission;
+          // Calculate effective rate for display based on GROSS booking amount (totalPrice)
+          if (booking.totalPrice > 0) {
+            usedCommissionRate = (platformFee / booking.totalPrice) * 100;
+            usedCommissionRate = Math.round(usedCommissionRate * 100) / 100;
+          } else {
+            usedCommissionRate = 0;
+          }
+        } else {
+          // Use dynamic/current rate applied to GROSS booking amount (if not stored)
+          platformFee = Math.round((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+          usedCommissionRate = effectiveCommissionRate;
+        }
+
+        // Field owner earnings - remainder after platform fees
+        // Note: Platform commission covers Stripe fees; owner pays commission only.
+        let fieldOwnerEarnings = 0;
+        if (isLocked && booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
+          fieldOwnerEarnings = booking.fieldOwnerAmount;
+        } else {
+          fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee) * 100) / 100;
+        }
 
         return {
           id: booking.id,
@@ -1903,7 +1943,7 @@ class FieldController {
           notes: booking.notes || null,
           rescheduleCount: booking.rescheduleCount || 0,
           // Fee breakdown
-          platformCommissionRate: effectiveCommissionRate,
+          platformCommissionRate: usedCommissionRate,
           isCustomCommission: hasCustomCommission,
           defaultCommissionRate,
           stripeFee,
@@ -2050,10 +2090,50 @@ class FieldController {
         // Calculate Stripe fee (1.5% + 20p)
         const stripeFee = booking.totalPrice > 0 ? Math.round(((booking.totalPrice * 0.015) + 0.20) * 100) / 100 : 0;
         const amountAfterStripeFee = Math.round((booking.totalPrice - stripeFee) * 100) / 100;
-        // Platform fee (admin commission) - what Fieldsy takes (uses custom rate if set by admin)
-        const platformFee = Math.round((amountAfterStripeFee * effectiveCommissionRate) / 100 * 100) / 100;
-        // Field owner earnings - remainder after Stripe and platform fees
-        const fieldOwnerEarnings = Math.round((amountAfterStripeFee - platformFee) * 100) / 100;
+
+        // Determine platform fee logic
+        // Use stored value if booking is completed OR cancellation window has passed
+        // Use dynamic value if booking is pending/confirmed AND within cancellation window
+
+        const cancelWindowHours = systemSettings?.cancellationWindowHours || 24;
+        const cancelWindowMs = cancelWindowHours * 60 * 60 * 1000;
+        const bookingTime = new Date(booking.date).getTime();
+        const now = new Date().getTime();
+        // Time until booking starts
+        const timeUntilBooking = bookingTime - now;
+
+        // Window passed means we are closer to booking start than the cancellation window allows
+        // OR the booking is in the past.
+        const isPastCancellationWindow = timeUntilBooking < cancelWindowMs;
+        const isLocked = booking.status === 'COMPLETED' || isPastCancellationWindow;
+
+        let platformFee = 0;
+        let usedCommissionRate = effectiveCommissionRate;
+
+        // Note: booking.platformCommission is the amount, not rate.
+        if (isLocked && booking.platformCommission !== null && booking.platformCommission !== undefined) {
+          platformFee = booking.platformCommission;
+          // Calculate effective rate for display based on GROSS booking amount (totalPrice)
+          if (booking.totalPrice > 0) {
+            usedCommissionRate = (platformFee / booking.totalPrice) * 100;
+            usedCommissionRate = Math.round(usedCommissionRate * 100) / 100;
+          } else {
+            usedCommissionRate = 0;
+          }
+        } else {
+          // Use dynamic/current rate applied to GROSS booking amount (if not stored)
+          platformFee = Math.round((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+          usedCommissionRate = effectiveCommissionRate;
+        }
+
+        // Field owner earnings - remainder after platform fees
+        // Note: Platform commission covers Stripe fees; owner pays commission only.
+        let fieldOwnerEarnings = 0;
+        if (isLocked && booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
+          fieldOwnerEarnings = booking.fieldOwnerAmount;
+        } else {
+          fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee) * 100) / 100;
+        }
 
         return {
           id: booking.id,
@@ -2075,7 +2155,7 @@ class FieldController {
           notes: booking.notes || null,
           rescheduleCount: booking.rescheduleCount || 0,
           // Fee breakdown
-          platformCommissionRate: effectiveCommissionRate,
+          platformCommissionRate: usedCommissionRate,
           isCustomCommission: hasCustomCommission,
           defaultCommissionRate,
           stripeFee,
@@ -2215,13 +2295,37 @@ class FieldController {
 
       // Format bookings for frontend with fee breakdown
       const formattedBookings = bookings.map((booking: any) => {
-        // Calculate Stripe fee (1.5% + 20p)
+        // Calculate Stripe fee (1.5% + 20p) - Informational, covered by platform commission
         const stripeFee = booking.totalPrice > 0 ? Math.round(((booking.totalPrice * 0.015) + 0.20) * 100) / 100 : 0;
         const amountAfterStripeFee = Math.round((booking.totalPrice - stripeFee) * 100) / 100;
-        // Platform fee (admin commission) - what Fieldsy takes, using effective rate (custom or default)
-        const platformFee = Math.round((amountAfterStripeFee * effectiveCommissionRate) / 100 * 100) / 100;
-        // Field owner earnings - remainder after Stripe and platform fees
-        const fieldOwnerEarnings = Math.round((amountAfterStripeFee - platformFee) * 100) / 100;
+
+        let platformFee = 0;
+        let usedCommissionRate = effectiveCommissionRate;
+
+        // Note: booking.platformCommission is the amount, not rate.
+        if (booking.platformCommission !== null && booking.platformCommission !== undefined) {
+          platformFee = booking.platformCommission;
+          // Calculate effective rate for display based on GROSS booking amount (totalPrice)
+          if (booking.totalPrice > 0) {
+            usedCommissionRate = (platformFee / booking.totalPrice) * 100;
+            usedCommissionRate = Math.round(usedCommissionRate * 100) / 100;
+          } else {
+            usedCommissionRate = 0;
+          }
+        } else {
+          // Use dynamic/current rate applied to GROSS booking amount (if not stored)
+          platformFee = Math.round((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+          usedCommissionRate = effectiveCommissionRate;
+        }
+
+        // Field owner earnings - remainder after platform fees
+        // Note: Platform commission covers Stripe fees; owner pays commission only.
+        let fieldOwnerEarnings = 0;
+        if (booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
+          fieldOwnerEarnings = booking.fieldOwnerAmount;
+        } else {
+          fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee) * 100) / 100;
+        }
 
         return {
           id: booking.id,
@@ -2243,7 +2347,7 @@ class FieldController {
           notes: booking.notes || null,
           rescheduleCount: booking.rescheduleCount || 0,
           // Fee breakdown
-          platformCommissionRate: effectiveCommissionRate,
+          platformCommissionRate: usedCommissionRate,
           isCustomCommission: hasCustomCommission,
           defaultCommissionRate,
           stripeFee,

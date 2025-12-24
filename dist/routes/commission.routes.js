@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const database_1 = __importDefault(require("../config/database"));
 const admin_middleware_1 = require("../middleware/admin.middleware");
+const email_service_1 = require("../services/email.service");
 const router = (0, express_1.Router)();
 // Get system commission settings
 router.get('/settings', admin_middleware_1.authenticateAdmin, async (req, res) => {
@@ -45,8 +46,9 @@ router.put('/settings', admin_middleware_1.authenticateAdmin, async (req, res) =
                 message: 'Commission rate must be a whole number between 1% and 50%'
             });
         }
-        // Get or create system settings
+        // Get current settings to check previous rate
         let settings = await database_1.default.systemSettings.findFirst();
+        const previousRate = settings?.defaultCommissionRate || 20;
         if (settings) {
             settings = await database_1.default.systemSettings.update({
                 where: { id: settings.id },
@@ -58,6 +60,8 @@ router.put('/settings', admin_middleware_1.authenticateAdmin, async (req, res) =
                 data: { defaultCommissionRate }
             });
         }
+        // Note: No email notifications for default commission rate changes
+        // Emails are only sent when custom commission is set for a specific field owner
         res.json({
             success: true,
             data: settings,
@@ -121,7 +125,24 @@ router.put('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
     try {
         const { userId } = req.params;
         const { commissionRate, useDefault } = req.body;
+        // Get current user data and system default rate
+        const [currentUser, settings] = await Promise.all([
+            database_1.default.user.findUnique({
+                where: { id: userId },
+                select: { id: true, name: true, email: true, commissionRate: true }
+            }),
+            database_1.default.systemSettings.findFirst()
+        ]);
+        if (!currentUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'Field owner not found'
+            });
+        }
+        const defaultRate = settings?.defaultCommissionRate || 20;
+        const previousRate = currentUser.commissionRate ?? defaultRate;
         // If useDefault is true, set commission to null to use system default
+        // No email notification when switching to default rate
         if (useDefault) {
             const user = await database_1.default.user.update({
                 where: { id: userId },
@@ -145,6 +166,18 @@ router.put('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
             where: { id: userId },
             data: { commissionRate }
         });
+        // Send email notification if rate changed
+        if (previousRate !== rate) {
+            email_service_1.emailService.sendCustomCommissionChangeEmail({
+                email: currentUser.email,
+                ownerName: currentUser.name || 'Field Owner',
+                previousRate: previousRate,
+                newRate: rate,
+                useDefault: false
+            }).catch(err => {
+                console.error(`Failed to send commission change email to ${currentUser.email}:`, err);
+            });
+        }
         res.json({
             success: true,
             data: user,
