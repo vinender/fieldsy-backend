@@ -74,6 +74,7 @@ import { startHeldPayoutReleaseJobs } from './jobs/held-payout-release.job';
 import { initRecurringBookingJobs } from './jobs/recurring-booking.job';
 import { initBookingReminderJobs } from './jobs/booking-reminder.job';
 import { initBookingStatusJob } from './jobs/booking-status.job';
+import { startSlotLockCleanup, stopSlotLockCleanup } from './utils/slot-lock.utils';
 
 
 class Server {
@@ -598,6 +599,7 @@ class Server {
     initRecurringBookingJobs();
     initBookingReminderJobs();
     initBookingStatusJob();
+    startSlotLockCleanup(); // Cleanup expired slot locks every 5 minutes
     console.log('✅ Scheduled jobs initialized');
 
     // Enhanced error handling for port conflicts
@@ -638,6 +640,7 @@ class Server {
     // Graceful shutdown
     process.on('SIGTERM', async () => {
       console.log('SIGTERM signal received: closing HTTP server');
+      stopSlotLockCleanup(); // Stop slot lock cleanup job
       await shutdownKafka();
       server.close(() => {
         console.log('HTTP server closed');
@@ -647,6 +650,7 @@ class Server {
 
     process.on('SIGINT', async () => {
       console.log('SIGINT signal received: closing HTTP server');
+      stopSlotLockCleanup(); // Stop slot lock cleanup job
       await shutdownKafka();
       server.close(() => {
         console.log('HTTP server closed');

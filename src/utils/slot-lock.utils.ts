@@ -96,6 +96,7 @@ export async function isSlotLockedByOther(
   }
 }
 
+
 /**
  * Get all active locks for a field on a specific date
  */
@@ -127,8 +128,9 @@ export async function getActiveLocksForField(
   } catch (error) {
     console.error('[SlotLock] Error getting active locks:', error);
     return [];
-  }
+  } 
 }
+
 
 // Start periodic cleanup (every 5 minutes)
 let cleanupInterval: NodeJS.Timeout | null = null;

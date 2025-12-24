@@ -34,7 +34,7 @@ const field_properties_routes_1 = __importDefault(require("./routes/field-proper
 const contact_query_routes_1 = __importDefault(require("./routes/contact-query.routes"));
 const docs_routes_1 = __importDefault(require("./routes/docs.routes"));
 const faq_routes_1 = __importDefault(require("./routes/faq.routes"));
-const slot_lock_utils_1 = require("./utils/slot-lock.utils");
+// Note: Slot lock cleanup is initialized in server.ts (the main entry point)
 // Load environment variables
 dotenv_1.default.config();
 // Initialize Express app
@@ -434,15 +434,15 @@ app.use((req, res) => {
     res.status(404).json({ message: "Route not found" });
 });
 // Start server
+// Note: This file is NOT the main entry point. server.ts is the main entry point.
+// If running this file directly (for testing), the server will start here.
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-    // Start slot lock cleanup job
-    (0, slot_lock_utils_1.startSlotLockCleanup)();
+    // Slot lock cleanup is handled in server.ts
 });
 // Graceful shutdown
 process.on("SIGTERM", async () => {
     console.log("SIGTERM signal received: closing HTTP server");
-    (0, slot_lock_utils_1.stopSlotLockCleanup)();
     await exports.prisma.$disconnect();
     process.exit(0);
 });

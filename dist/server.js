@@ -60,6 +60,7 @@ const held_payout_release_job_1 = require("./jobs/held-payout-release.job");
 const recurring_booking_job_1 = require("./jobs/recurring-booking.job");
 const booking_reminder_job_1 = require("./jobs/booking-reminder.job");
 const booking_status_job_1 = require("./jobs/booking-status.job");
+const slot_lock_utils_1 = require("./utils/slot-lock.utils");
 class Server {
     app;
     httpServer;
@@ -500,6 +501,7 @@ class Server {
         (0, recurring_booking_job_1.initRecurringBookingJobs)();
         (0, booking_reminder_job_1.initBookingReminderJobs)();
         (0, booking_status_job_1.initBookingStatusJob)();
+        (0, slot_lock_utils_1.startSlotLockCleanup)(); // Cleanup expired slot locks every 5 minutes
         console.log('✅ Scheduled jobs initialized');
         // Enhanced error handling for port conflicts
         this.httpServer.on('error', (error) => {
@@ -537,6 +539,7 @@ class Server {
         // Graceful shutdown
         process.on('SIGTERM', async () => {
             console.log('SIGTERM signal received: closing HTTP server');
+            (0, slot_lock_utils_1.stopSlotLockCleanup)(); // Stop slot lock cleanup job
             await (0, kafka_1.shutdownKafka)();
             server.close(() => {
                 console.log('HTTP server closed');
@@ -545,6 +548,7 @@ class Server {
         });
         process.on('SIGINT', async () => {
             console.log('SIGINT signal received: closing HTTP server');
+            (0, slot_lock_utils_1.stopSlotLockCleanup)(); // Stop slot lock cleanup job
             await (0, kafka_1.shutdownKafka)();
             server.close(() => {
                 console.log('HTTP server closed');

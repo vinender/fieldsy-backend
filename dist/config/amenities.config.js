@@ -11,72 +11,17 @@ exports.getAmenityLabel = getAmenityLabel;
 exports.normalizeAmenitySlug = normalizeAmenitySlug;
 exports.transformAmenities = transformAmenities;
 exports.AMENITIES_CONFIG = [
-    // Water & Hydration
+    // Safety & Security
     {
-        slug: 'water-access',
-        label: 'Water Access',
-        iconUrl: '/add-field/water.svg',
-        category: 'hydration'
-    },
-    {
-        slug: 'waterAccess',
-        label: 'Water Access',
-        iconUrl: '/add-field/water.svg',
-        category: 'hydration'
-    },
-    {
-        slug: 'water-bowls',
-        label: 'Water Bowls',
-        iconUrl: '/field-details/drop.svg',
-        category: 'hydration'
-    },
-    {
-        slug: 'waterBowls',
-        label: 'Water Bowls',
-        iconUrl: '/field-details/drop.svg',
-        category: 'hydration'
-    },
-    {
-        slug: 'water-supply',
-        label: 'Water Supply',
-        iconUrl: '/add-field/water.svg',
-        category: 'hydration'
-    },
-    {
-        slug: 'waterSupply',
-        label: 'Water Supply',
-        iconUrl: '/add-field/water.svg',
-        category: 'hydration'
-    },
-    // Fencing & Security
-    {
-        slug: 'secure-fencing',
-        label: 'Secure Fencing',
+        slug: 'secure-fencing-180cm',
+        label: 'Secure fencing (180cm)',
         iconUrl: '/field-details/fence.svg',
         category: 'security'
     },
     {
-        slug: 'secureFencing',
-        label: 'Secure Fencing',
-        iconUrl: '/field-details/fence.svg',
-        category: 'security'
-    },
-    {
-        slug: 'fencing',
-        label: 'Fencing',
-        iconUrl: '/field-details/fence.svg',
-        category: 'security'
-    },
-    {
-        slug: 'double-gated-entry',
-        label: 'Double Gated Entry',
-        iconUrl: '/field-details/shield.svg',
-        category: 'security'
-    },
-    {
-        slug: 'doubleGatedEntry',
-        label: 'Double Gated Entry',
-        iconUrl: '/field-details/shield.svg',
+        slug: 'secure-car-park',
+        label: 'Secure Car Park',
+        iconUrl: '/field-details/home.svg',
         category: 'security'
     },
     {
@@ -85,44 +30,32 @@ exports.AMENITIES_CONFIG = [
         iconUrl: '/add-field/cctv.svg',
         category: 'security'
     },
-    // Shelter & Shade
+    // Water & Cleaning
     {
-        slug: 'shelter',
-        label: 'Shelter',
-        iconUrl: '/add-field/shelter.svg',
-        category: 'comfort'
+        slug: 'fresh-water',
+        label: 'Fresh Water',
+        iconUrl: '/field-details/drop.svg',
+        category: 'hydration'
     },
     {
-        slug: 'shelter-or-shade',
-        label: 'Shelter or Shade',
-        iconUrl: '/add-field/shelter.svg',
-        category: 'comfort'
+        slug: 'hose-pipe-dog-washing',
+        label: 'Hose pipe for dog washing',
+        iconUrl: '/field-details/drop.svg',
+        category: 'hydration'
     },
     {
-        slug: 'shelterOrShade',
-        label: 'Shelter or Shade',
-        iconUrl: '/add-field/shelter.svg',
-        category: 'comfort'
+        slug: 'boot-cleaner',
+        label: 'Boot cleaner',
+        iconUrl: '/field-details/shield.svg',
+        category: 'facilities'
     },
     {
-        slug: 'shade-trees',
-        label: 'Shade Trees',
-        iconUrl: '/add-field/tree.svg',
-        category: 'comfort'
+        slug: 'dog-poo-bins',
+        label: 'Dog Poo Bins',
+        iconUrl: '/field-details/bin.svg',
+        category: 'facilities'
     },
-    {
-        slug: 'shadeTrees',
-        label: 'Shade Trees',
-        iconUrl: '/add-field/tree.svg',
-        category: 'comfort'
-    },
-    {
-        slug: 'trees',
-        label: 'Trees',
-        iconUrl: '/add-field/tree.svg',
-        category: 'comfort'
-    },
-    // Activities & Equipment
+    // Activities & Features
     {
         slug: 'agility-equipment',
         label: 'Agility Equipment',
@@ -130,304 +63,66 @@ exports.AMENITIES_CONFIG = [
         category: 'activities'
     },
     {
-        slug: 'agilityEquipment',
-        label: 'Agility Equipment',
-        iconUrl: '/add-field/dog-agility.svg',
-        category: 'activities'
+        slug: 'contour-graded-terrain',
+        label: 'Contour/graded terrain',
+        iconUrl: '/field-details/terrain.svg',
+        category: 'terrain'
     },
     {
-        slug: 'dogAgility',
-        label: 'Dog Agility',
-        iconUrl: '/add-field/dog-agility.svg',
-        category: 'activities'
+        slug: 'woodland',
+        label: 'Woodland',
+        iconUrl: '/add-field/tree.svg',
+        category: 'terrain'
     },
     {
-        slug: 'dog-agility',
-        label: 'Dog Agility',
-        iconUrl: '/add-field/dog-agility.svg',
-        category: 'activities'
-    },
-    {
-        slug: 'agility-course',
-        label: 'Agility Course',
-        iconUrl: '/add-field/dog-agility.svg',
-        category: 'activities'
-    },
-    {
-        slug: 'agilityCourse',
-        label: 'Agility Course',
-        iconUrl: '/add-field/dog-agility.svg',
-        category: 'activities'
-    },
-    {
-        slug: 'dog-play-equipment',
-        label: 'Dog Play Equipment',
-        iconUrl: '/add-field/dog-play.svg',
-        category: 'activities'
-    },
-    {
-        slug: 'dogPlayEquipment',
-        label: 'Dog Play Equipment',
-        iconUrl: '/add-field/dog-play.svg',
-        category: 'activities'
-    },
-    {
-        slug: 'swimming-area',
-        label: 'Swimming Area',
+        slug: 'pond',
+        label: 'Pond',
         iconUrl: '/add-field/swimming.svg',
-        category: 'activities'
+        category: 'terrain'
     },
     {
-        slug: 'swimmingArea',
-        label: 'Swimming Area',
+        slug: 'river',
+        label: 'River',
         iconUrl: '/add-field/swimming.svg',
-        category: 'activities'
+        category: 'terrain'
     },
     {
-        slug: 'swimming-pool',
-        label: 'Swimming Pool',
-        iconUrl: '/add-field/swimming.svg',
-        category: 'activities'
+        slug: 'field-shelter',
+        label: 'Field Shelter - protection from rain or sun',
+        iconUrl: '/add-field/shelter.svg',
+        category: 'comfort'
     },
     {
-        slug: 'swimmingPool',
-        label: 'Swimming Pool',
-        iconUrl: '/add-field/swimming.svg',
-        category: 'activities'
-    },
-    // Waste Management
-    {
-        slug: 'waste-disposal',
-        label: 'Waste Disposal',
-        iconUrl: '/field-details/bin.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'wasteDisposal',
-        label: 'Waste Disposal',
-        iconUrl: '/field-details/bin.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'toilet',
-        label: 'Toilet',
-        iconUrl: '/field-details/bin.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'poop-bags',
-        label: 'Poop Bags',
-        iconUrl: '/field-details/bin.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'poopBags',
-        label: 'Poop Bags',
-        iconUrl: '/field-details/bin.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'waste-bins',
-        label: 'Waste Bins',
-        iconUrl: '/field-details/bin.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'wasteBins',
-        label: 'Waste Bins',
-        iconUrl: '/field-details/bin.svg',
-        category: 'facilities'
-    },
-    // Facilities
-    {
-        slug: 'parking',
-        label: 'Parking',
+        slug: 'picnic-bench',
+        label: 'Picnic bench',
         iconUrl: '/field-details/home.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'parking-available',
-        label: 'Parking Available',
-        iconUrl: '/field-details/home.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'parkingAvailable',
-        label: 'Parking Available',
-        iconUrl: '/field-details/home.svg',
-        category: 'facilities'
-    },
-    {
-        slug: 'restrooms',
-        label: 'Restrooms',
-        iconUrl: '/field-details/home.svg',
-        category: 'facilities'
+        category: 'comfort'
     },
     {
         slug: 'benches-seating',
-        label: 'Benches/Seating',
+        label: 'Benches and seating',
+        iconUrl: '/field-details/home.svg',
+        category: 'comfort'
+    },
+    // Facilities
+    {
+        slug: 'hot-drinks-machine',
+        label: 'Hot drinks machine',
         iconUrl: '/field-details/home.svg',
         category: 'facilities'
     },
     {
-        slug: 'benchesSeating',
-        label: 'Benches/Seating',
+        slug: 'cafe',
+        label: 'Cafe',
         iconUrl: '/field-details/home.svg',
         category: 'facilities'
     },
-    // Dog Areas
     {
-        slug: 'separate-small-dog-area',
-        label: 'Separate Small Dog Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'separateSmallDogArea',
-        label: 'Separate Small Dog Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'separate-large-dog-area',
-        label: 'Separate Large Dog Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'separateLargeDogArea',
-        label: 'Separate Large Dog Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'off-leash-area',
-        label: 'Off Leash Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'offLeashArea',
-        label: 'Off Leash Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'on-leash-area',
-        label: 'On Leash Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'onLeashArea',
-        label: 'On Leash Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'training-area',
-        label: 'Training Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    {
-        slug: 'trainingArea',
-        label: 'Training Area',
-        iconUrl: '/field-details/pet.svg',
-        category: 'dog-areas'
-    },
-    // Services
-    {
-        slug: 'on-site-supervision',
-        label: 'On-Site Supervision',
-        iconUrl: '/field-details/user.svg',
-        category: 'services'
-    },
-    {
-        slug: 'onSiteSupervision',
-        label: 'On-Site Supervision',
-        iconUrl: '/field-details/user.svg',
-        category: 'services'
-    },
-    {
-        slug: 'first-aid-kit',
-        label: 'First Aid Kit',
-        iconUrl: '/field-details/shield.svg',
-        category: 'services'
-    },
-    {
-        slug: 'firstAidKit',
-        label: 'First Aid Kit',
-        iconUrl: '/field-details/shield.svg',
-        category: 'services'
-    },
-    {
-        slug: 'dog-wash-station',
-        label: 'Dog Wash Station',
-        iconUrl: '/field-details/drop.svg',
-        category: 'services'
-    },
-    {
-        slug: 'dogWashStation',
-        label: 'Dog Wash Station',
-        iconUrl: '/field-details/drop.svg',
-        category: 'services'
-    },
-    // Other Amenities
-    {
-        slug: 'picnic-area',
-        label: 'Picnic Area',
+        slug: 'toilets',
+        label: 'Toilets',
         iconUrl: '/field-details/home.svg',
-        category: 'other'
+        category: 'facilities'
     },
-    {
-        slug: 'picnicArea',
-        label: 'Picnic Area',
-        iconUrl: '/field-details/home.svg',
-        category: 'other'
-    },
-    {
-        slug: 'wifi',
-        label: 'WiFi',
-        iconUrl: '/field-details/home.svg',
-        category: 'other'
-    },
-    {
-        slug: 'food-and-drinks',
-        label: 'Food and Drinks',
-        iconUrl: '/field-details/home.svg',
-        category: 'other'
-    },
-    {
-        slug: 'foodAndDrinks',
-        label: 'Food and Drinks',
-        iconUrl: '/field-details/home.svg',
-        category: 'other'
-    },
-    {
-        slug: 'toys',
-        label: 'Toys',
-        iconUrl: '/add-field/dog-play.svg',
-        category: 'other'
-    },
-    {
-        slug: 'treats',
-        label: 'Treats',
-        iconUrl: '/field-details/pet.svg',
-        category: 'other'
-    },
-    {
-        slug: 'night-lighting',
-        label: 'Night Lighting',
-        iconUrl: '/add-field/clock.svg',
-        category: 'other'
-    },
-    {
-        slug: 'nightLighting',
-        label: 'Night Lighting',
-        iconUrl: '/add-field/clock.svg',
-        category: 'other'
-    }
 ];
 /**
  * Get amenity configuration by slug

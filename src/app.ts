@@ -30,7 +30,7 @@ import fieldPropertiesRoutes from "./routes/field-properties.routes"
 import contactQueryRoutes from "./routes/contact-query.routes"
 import docsRoutes from "./routes/docs.routes"
 import faqRoutes from "./routes/faq.routes"
-import { startSlotLockCleanup, stopSlotLockCleanup } from "./utils/slot-lock.utils"
+// Note: Slot lock cleanup is initialized in server.ts (the main entry point)
 // Load environment variables
 
 
@@ -458,18 +458,17 @@ app.use((req, res) => {
 
 
 // Start server
+// Note: This file is NOT the main entry point. server.ts is the main entry point.
+// If running this file directly (for testing), the server will start here.
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)
-
-  // Start slot lock cleanup job
-  startSlotLockCleanup();
+  // Slot lock cleanup is handled in server.ts
 })
 
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   console.log("SIGTERM signal received: closing HTTP server")
-  stopSlotLockCleanup();
   await prisma.$disconnect();
   process.exit(0);
 })
