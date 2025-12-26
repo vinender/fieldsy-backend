@@ -271,7 +271,7 @@ class BookingController {
         rescheduleCount: true,
         createdAt: true,
         updatedAt: true,
-        review: {
+        fieldReview: {
           select: {
             id: true,
             rating: true,

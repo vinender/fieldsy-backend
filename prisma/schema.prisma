@@ -810,6 +810,7 @@ model ContactQuery {
 model Amenity {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String   @unique // e.g., "Water bowls", "Agility equipment"
+  slug      String?  @unique // URL-friendly slug e.g., "water-bowls", "agility-equipment"
   icon      String? // S3 URL for the icon image
   isActive  Boolean  @default(true)
   order     Int      @default(0) // Display order

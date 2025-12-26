@@ -4,6 +4,17 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Helper function to generate slug from name
+const generateSlug = (name: string): string => {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+};
+
 // Helper function to format amenity names to labels
 const formatAmenityLabel = (name: string): string => {
   const specialCases: Record<string, string> = {
@@ -110,9 +121,17 @@ export const createAmenity = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if amenity with same name exists
-    const existingAmenity = await prisma.amenity.findUnique({
-      where: { name }
+    // Generate slug from name
+    const slug = generateSlug(name);
+
+    // Check if amenity with same name or slug exists
+    const existingAmenity = await prisma.amenity.findFirst({
+      where: {
+        OR: [
+          { name },
+          { slug }
+        ]
+      }
     });
 
     if (existingAmenity) {
@@ -125,6 +144,7 @@ export const createAmenity = async (req: Request, res: Response) => {
     const amenity = await prisma.amenity.create({
       data: {
         name,
+        slug,
         icon: icon || null,
         order: order || 0,
         isActive: isActive !== undefined ? isActive : true
@@ -164,10 +184,20 @@ export const updateAmenity = async (req: Request, res: Response) => {
       });
     }
 
-    // If name is being updated, check for duplicates
+    // Generate new slug if name is being updated
+    let newSlug: string | undefined;
     if (name && name !== existingAmenity.name) {
-      const duplicateAmenity = await prisma.amenity.findUnique({
-        where: { name }
+      newSlug = generateSlug(name);
+
+      // Check for duplicates (name or slug)
+      const duplicateAmenity = await prisma.amenity.findFirst({
+        where: {
+          id: { not: id },
+          OR: [
+            { name },
+            { slug: newSlug }
+          ]
+        }
       });
 
       if (duplicateAmenity) {
@@ -182,6 +212,7 @@ export const updateAmenity = async (req: Request, res: Response) => {
       where: { id },
       data: {
         ...(name && { name }),
+        ...(newSlug && { slug: newSlug }),
         ...(icon !== undefined && { icon }),
         ...(order !== undefined && { order }),
         ...(isActive !== undefined && { isActive })
