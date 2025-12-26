@@ -21,6 +21,7 @@ export interface CreateFieldInput {
   ownerId: string;
   type?: 'PRIVATE' | 'PUBLIC' | 'TRAINING';
   size?: string;
+  customFieldSize?: string;
   terrainType?: string;
   price?: number; // Legacy field - kept for backward compatibility
   price30min?: number; // Price for 30 minute booking slot
@@ -192,6 +193,7 @@ class FieldModel {
           bookingDuration: true,
           images: true,
           size: true,
+          customFieldSize: true,
           type: true,
           terrainType: true,
           surfaceType: true,
@@ -255,6 +257,7 @@ class FieldModel {
           bookingDuration: true,
           images: true,
           size: true,
+          customFieldSize: true,
           type: true,
           terrainType: true,
           surfaceType: true,
@@ -969,7 +972,7 @@ class FieldModel {
     });
   }
 
-  
+
   // Find fields by owner
   async findByOwner(ownerId: string) {
     return prisma.field.findMany({

@@ -128,6 +128,7 @@ model Field {
   ownerId            String    @db.ObjectId
   type               FieldType @default(PRIVATE)
   size               String? // e.g., "Small", "Medium", "Large", "Extra Large"
+  customFieldSize    String? // User stored custom field size
   terrainType        String? // e.g., "Grass", "Dirt", "Sand", "Mixed"
   fenceType          String? // e.g., "Wooden", "Metal", "Mesh", "Electric"
   fenceSize          String? // e.g., "3ft", "4ft", "5ft", "6ft", "6ft+"
