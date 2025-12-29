@@ -11,6 +11,7 @@ const notification_service_1 = require("../services/notification.service");
 const commission_utils_1 = require("../utils/commission.utils");
 const email_service_1 = require("../services/email.service");
 const booking_model_1 = __importDefault(require("../models/booking.model"));
+const constants_1 = require("../config/constants");
 class PaymentController {
     // Create a payment intent for booking a field
     async createPaymentIntent(req, res) {
@@ -466,7 +467,7 @@ class PaymentController {
                 paymentIntentParams.customer = customerId;
                 paymentIntentParams.payment_method = paymentMethod.stripePaymentMethodId;
                 paymentIntentParams.confirm = true; // Auto-confirm the payment
-                paymentIntentParams.return_url = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/user/my-bookings`; // Add return URL for 3D Secure
+                paymentIntentParams.return_url = `${constants_1.FRONTEND_URL}/user/my-bookings`; // Add return URL for 3D Secure
                 // Use specific payment method configuration
                 paymentIntentParams.automatic_payment_methods = {
                     enabled: true,

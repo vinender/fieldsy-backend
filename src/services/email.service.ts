@@ -1,6 +1,7 @@
 //@ts-nocheck
 const nodemailer = require('nodemailer');
 import { config } from 'dotenv';
+import { FRONTEND_URL } from '../config/constants';
 
 config();
 
@@ -1603,7 +1604,7 @@ const getRecurringBookingCreatedTemplateDogOwner = (data: {
             </div>
 
             <p style="text-align: center;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/user/my-bookings" class="button">View Booking</a>
+              <a href="${FRONTEND_URL}/user/my-bookings" class="button">View Booking</a>
             </p>
 
             <p>See you at the field! 🐕‍🦺</p>
@@ -1796,7 +1797,7 @@ const getRecurringBookingCreatedTemplateFieldOwner = (data: {
             </ul>
 
             <p style="text-align: center;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/field-owner/preview" class="button">View Booking</a>
+              <a href="${FRONTEND_URL}/field-owner/preview" class="button">View Booking</a>
             </p>
 
             <p>Thank you for hosting with Fieldsy! 🏞️</p>
@@ -2351,7 +2352,7 @@ const getBookingReminderTemplate = (data: {
             </div>
 
             <div style="text-align: center;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/user/my-bookings" class="cta-button">
+              <a href="${FRONTEND_URL}/user/my-bookings" class="cta-button">
                 View Booking Details
               </a>
             </div>

@@ -6,6 +6,7 @@ import { AppError } from '../utils/AppError';
 import Stripe from 'stripe';
 import { payoutService } from '../services/payout.service';
 import { heldPayoutService } from '../services/held-payout.service';
+import { FRONTEND_URL } from '../config/constants';
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -130,14 +131,13 @@ class StripeConnectController {
     if (isMobile) {
       // For mobile, use web-based redirect URLs that will deep link back to app
       // The web pages will handle the deep link redirect
-      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      finalReturnUrl = `${baseUrl}/stripe-redirect?status=success&type=mobile`;
-      finalRefreshUrl = `${baseUrl}/stripe-redirect?status=refresh&type=mobile`;
+      finalReturnUrl = `${FRONTEND_URL}/stripe-redirect?status=success&type=mobile`;
+      finalRefreshUrl = `${FRONTEND_URL}/stripe-redirect?status=refresh&type=mobile`;
       console.log(`Mobile redirect URLs: return=${finalReturnUrl}, refresh=${finalRefreshUrl}`);
     } else {
       // For web, use provided URLs or defaults
-      finalReturnUrl = returnUrl || `${process.env.FRONTEND_URL}/field-owner/payouts?success=true`;
-      finalRefreshUrl = refreshUrl || `${process.env.FRONTEND_URL}/field-owner/payouts?refresh=true`;
+      finalReturnUrl = returnUrl || `${FRONTEND_URL}/field-owner/payouts?success=true`;
+      finalRefreshUrl = refreshUrl || `${FRONTEND_URL}/field-owner/payouts?refresh=true`;
     }
 
     // Validate URLs are HTTPS in production

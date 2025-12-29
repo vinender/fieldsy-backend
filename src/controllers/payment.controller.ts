@@ -9,6 +9,7 @@ import { calculatePayoutAmounts } from '../utils/commission.utils';
 import { subscriptionService } from '../services/subscription.service';
 import { emailService } from '../services/email.service';
 import BookingModel from '../models/booking.model';
+import { FRONTEND_URL } from '../config/constants';
 
 export class PaymentController {
   // Create a payment intent for booking a field
@@ -520,7 +521,7 @@ export class PaymentController {
         paymentIntentParams.customer = customerId;
         paymentIntentParams.payment_method = paymentMethod.stripePaymentMethodId;
         paymentIntentParams.confirm = true; // Auto-confirm the payment
-        paymentIntentParams.return_url = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/user/my-bookings`; // Add return URL for 3D Secure
+        paymentIntentParams.return_url = `${FRONTEND_URL}/user/my-bookings`; // Add return URL for 3D Secure
         // Use specific payment method configuration
         paymentIntentParams.automatic_payment_methods = {
           enabled: true,
