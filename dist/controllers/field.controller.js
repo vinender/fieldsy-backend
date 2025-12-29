@@ -1093,6 +1093,7 @@ class FieldController {
                         ...initialFieldData,
                         name: data.fieldName,
                         size: data.fieldSize,
+                        customFieldSize: data.customFieldSize || null, // Store custom field size if provided
                         terrainType: data.terrainType,
                         fenceType: data.fenceType,
                         fenceSize: data.fenceSize,
@@ -1167,6 +1168,7 @@ class FieldController {
                 updateData = {
                     name: data.fieldName,
                     size: data.fieldSize,
+                    customFieldSize: data.customFieldSize || null, // Store custom field size if provided
                     terrainType: data.terrainType, // This is terrain type, not field type
                     fenceType: data.fenceType,
                     fenceSize: data.fenceSize,
