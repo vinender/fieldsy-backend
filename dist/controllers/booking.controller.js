@@ -317,6 +317,14 @@ class BookingController {
                         name: true,
                         email: true
                     }
+                },
+                subscription: {
+                    select: {
+                        id: true,
+                        status: true,
+                        interval: true,
+                        cancelAtPeriodEnd: true,
+                    }
                 }
             }
         });
@@ -336,11 +344,22 @@ class BookingController {
             : [];
         // Calculate booking eligibility for cancellation/reschedule
         const now = new Date();
-        const bookingDate = new Date(booking.date);
-        const [hours, minutes] = (booking.startTime || '00:00').split(':').map(Number);
-        bookingDate.setHours(hours, minutes, 0, 0);
-        const hoursUntilBooking = Math.max(0, (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60));
-        const isUpcoming = booking.status === 'CONFIRMED' && bookingDate > now;
+        const bookingDateTime = new Date(booking.date);
+        // Parse the start time properly (handles formats like "9:00AM", "9:00 AM", "09:00")
+        const startTime = booking.startTime || '00:00';
+        const timeMatch = startTime.match(/^(\d{1,2}):?(\d{2})?\s*(AM|PM)?$/i);
+        if (timeMatch) {
+            let hour = parseInt(timeMatch[1]);
+            const minutes = parseInt(timeMatch[2] || '0');
+            const period = timeMatch[3]?.toUpperCase();
+            if (period === 'PM' && hour !== 12)
+                hour += 12;
+            if (period === 'AM' && hour === 12)
+                hour = 0;
+            bookingDateTime.setHours(hour, minutes, 0, 0);
+        }
+        const hoursUntilBooking = Math.max(0, (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60));
+        const isUpcoming = booking.status === 'CONFIRMED' && bookingDateTime > now;
         const rescheduleCount = booking.rescheduleCount || 0;
         // Check if any booking in the subscription has been completed (for recurring bookings)
         let hasCompletedBookingInSubscription = false;
@@ -359,6 +378,12 @@ class BookingController {
             rescheduleCount < 3 &&
             !hasCompletedBookingInSubscription;
         const isCancellable = isUpcoming && hoursUntilBooking >= cancellationWindowHours;
+        // For subscription immediate cancellation - use same logic as booking cancellation
+        const canCancelSubscriptionImmediately = booking.subscription &&
+            booking.subscription.status === 'active' &&
+            !booking.subscription.cancelAtPeriodEnd &&
+            isUpcoming &&
+            isCancellable;
         // Return optimized booking data
         const optimizedBooking = {
             id: booking.id,
@@ -380,8 +405,10 @@ class BookingController {
             // Eligibility flags for cancellation/reschedule
             isCancellable,
             isReschedulable,
-            hoursUntilBooking,
+            hoursUntilBooking: Math.floor(hoursUntilBooking),
             hasCompletedBookingInSubscription,
+            cancellationWindow: cancellationWindowHours,
+            canCancelSubscriptionImmediately: !!canCancelSubscriptionImmediately,
             // Review data - to check if booking has been reviewed
             hasReview: !!booking.fieldReview,
             fieldReview: booking.fieldReview ? {
@@ -625,8 +652,8 @@ class BookingController {
         const totalPages = Math.ceil(total / limitNum);
         // Transform bookings to remove redundant data and optimize response
         // Use Promise.all to handle async amenity transformation
-        // Helper function to calculate hours until booking
-        const calculateHoursUntilBooking = (bookingDate, startTime) => {
+        // Helper function to calculate hours until booking and return booking datetime
+        const getBookingTimeInfo = (bookingDate, startTime) => {
             const now = new Date();
             const bookingDateTime = new Date(bookingDate);
             // Parse the start time and add it to the booking date
@@ -643,7 +670,8 @@ class BookingController {
                     bookingDateTime.setHours(hour, minutes, 0, 0);
                 }
             }
-            return (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+            const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+            return { hoursUntilBooking, bookingDateTime };
         };
         const optimizedBookings = await Promise.all(bookings.map(async (booking) => {
             const field = booking.field;
@@ -654,8 +682,10 @@ class BookingController {
                 ? await (0, amenityHelper_1.transformAmenities)(field.amenities)
                 : [];
             // Calculate cancellation/reschedule eligibility
-            const hoursUntilBooking = calculateHoursUntilBooking(booking.date, booking.startTime);
-            const isUpcoming = booking.status === 'CONFIRMED';
+            const { hoursUntilBooking, bookingDateTime } = getBookingTimeInfo(booking.date, booking.startTime);
+            // Match getBooking logic: isUpcoming requires status CONFIRMED AND booking time in the future
+            const now = new Date();
+            const isUpcoming = booking.status === 'CONFIRMED' && bookingDateTime > now;
             const isCancellable = isUpcoming && hoursUntilBooking >= cancellationWindowHours;
             const rescheduleCount = booking.rescheduleCount || 0;
             // For recurring bookings, check if any booking in the subscription has been completed
