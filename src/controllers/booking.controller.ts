@@ -100,25 +100,33 @@ class BookingController {
     }
 
     // Calculate total price based on duration and number of dogs
+    // Use price30min for 30-minute slots, price1hr for hourly slots
+    // Fall back to field.price for backwards compatibility
     const startMinutes = this.timeToMinutes(startTime);
     const endMinutes = this.timeToMinutes(endTime);
     const durationHours = (endMinutes - startMinutes) / 60;
-    const pricePerUnit = field.price || 0;
 
     let totalPrice = 0;
     if (field.bookingDuration === '30min') {
-      // For 30-minute slots, the price is per 30 minutes
+      // For 30-minute slots, use price30min (price per 30 minutes per dog)
+      const pricePerSlot = field.price30min || field.price || 0;
       const duration30MinBlocks = durationHours * 2; // Convert hours to 30-min blocks
-      totalPrice = pricePerUnit * duration30MinBlocks * numberOfDogs;
+      totalPrice = pricePerSlot * duration30MinBlocks * numberOfDogs;
     } else {
-      // For hourly slots, price is per hour
-      totalPrice = pricePerUnit * durationHours * numberOfDogs;
+      // For hourly slots, use price1hr (price per hour per dog)
+      const pricePerHour = field.price1hr || field.price || 0;
+      totalPrice = pricePerHour * durationHours * numberOfDogs;
     }
 
     // Log for debugging
+    const priceUsed = field.bookingDuration === '30min'
+      ? (field.price30min || field.price || 0)
+      : (field.price1hr || field.price || 0);
     console.log('Create booking price calculation:', {
       fieldId: field.id,
-      pricePerUnit,
+      priceUsed,
+      price30min: field.price30min,
+      price1hr: field.price1hr,
       durationHours,
       numberOfDogs,
       bookingDuration: field.bookingDuration,
@@ -252,6 +260,10 @@ class BookingController {
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
 
+    // Get system settings for cancellation window
+    const systemSettings = await prisma.systemSettings.findFirst();
+    const cancellationWindowHours = systemSettings?.cancellationWindowHours || 24;
+
     // Fetch booking with only necessary fields for the modal
     const booking = await prisma.booking.findUnique({
       where: { id },
@@ -269,6 +281,7 @@ class BookingController {
         paymentStatus: true,
         repeatBooking: true,
         rescheduleCount: true,
+        subscriptionId: true,
         createdAt: true,
         updatedAt: true,
         fieldReview: {
@@ -337,6 +350,36 @@ class BookingController {
       ? await transformAmenities(booking.field.amenities)
       : [];
 
+    // Calculate booking eligibility for cancellation/reschedule
+    const now = new Date();
+    const bookingDate = new Date(booking.date);
+    const [hours, minutes] = (booking.startTime || '00:00').split(':').map(Number);
+    bookingDate.setHours(hours, minutes, 0, 0);
+
+    const hoursUntilBooking = Math.max(0, (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60));
+    const isUpcoming = booking.status === 'CONFIRMED' && bookingDate > now;
+    const rescheduleCount = booking.rescheduleCount || 0;
+
+    // Check if any booking in the subscription has been completed (for recurring bookings)
+    let hasCompletedBookingInSubscription = false;
+    if (booking.subscriptionId) {
+      const completedCount = await prisma.booking.count({
+        where: {
+          subscriptionId: booking.subscriptionId,
+          status: 'COMPLETED'
+        }
+      });
+      hasCompletedBookingInSubscription = completedCount > 0;
+    }
+
+    // Calculate eligibility flags
+    const isReschedulable = isUpcoming &&
+      hoursUntilBooking >= cancellationWindowHours &&
+      rescheduleCount < 3 &&
+      !hasCompletedBookingInSubscription;
+
+    const isCancellable = isUpcoming && hoursUntilBooking >= cancellationWindowHours;
+
     // Return optimized booking data
     const optimizedBooking = {
       id: booking.id,
@@ -352,8 +395,14 @@ class BookingController {
       paymentStatus: booking.paymentStatus,
       repeatBooking: booking.repeatBooking,
       rescheduleCount: booking.rescheduleCount,
+      subscriptionId: booking.subscriptionId,
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
+      // Eligibility flags for cancellation/reschedule
+      isCancellable,
+      isReschedulable,
+      hoursUntilBooking,
+      hasCompletedBookingInSubscription,
       // Review data - to check if booking has been reviewed
       hasReview: !!booking.fieldReview,
       fieldReview: booking.fieldReview ? {
@@ -657,7 +706,25 @@ class BookingController {
         const isUpcoming = booking.status === 'CONFIRMED';
         const isCancellable = isUpcoming && hoursUntilBooking >= cancellationWindowHours;
         const rescheduleCount = booking.rescheduleCount || 0;
-        const isReschedulable = isUpcoming && hoursUntilBooking >= cancellationWindowHours && rescheduleCount < 3;
+
+        // For recurring bookings, check if any booking in the subscription has been completed
+        // If so, disable reschedule for all bookings in the subscription
+        let hasCompletedBookingInSubscription = false;
+        if (booking.subscription && booking.subscriptionId) {
+          // Check if any booking with the same subscription has been completed
+          const completedBookings = bookings.filter(
+            b => b.subscriptionId === booking.subscriptionId && b.status === 'COMPLETED'
+          );
+          hasCompletedBookingInSubscription = completedBookings.length > 0;
+        }
+
+        // isReschedulable logic:
+        // - Regular bookings: can reschedule if upcoming, outside cancellation window, and under 3 reschedules
+        // - Recurring bookings: same as above BUT also must not have any completed bookings in subscription
+        const isReschedulable = isUpcoming &&
+          hoursUntilBooking >= cancellationWindowHours &&
+          rescheduleCount < 3 &&
+          !hasCompletedBookingInSubscription;
 
         // For subscription immediate cancellation - use same logic as booking cancellation
         const canCancelSubscriptionImmediately = booking.subscription &&
@@ -685,6 +752,7 @@ class BookingController {
           // Calculated fields for frontend/mobile apps
           isCancellable,
           isReschedulable,
+          hasCompletedBookingInSubscription, // True if any booking in subscription is completed (disables reschedule)
           hoursUntilBooking: Math.floor(hoursUntilBooking),
           cancellationWindow: cancellationWindowHours,
           canCancelSubscriptionImmediately: !!canCancelSubscriptionImmediately,
@@ -754,12 +822,28 @@ class BookingController {
               return result;
             };
 
-            // Calculate the correct next billing date based on lastBookingDate and interval
-            // This represents the next date when a booking will be created
+            // Calculate the correct next billing date based on the CURRENT BOOKING's date
+            // This should show the next billing date AFTER the booking being displayed
             let calculatedNextBillingDate: Date | null = null;
 
-            if (sub.lastBookingDate) {
-              // Calculate next booking date from last booking date
+            // Use the current booking's date as the base for calculating next billing
+            // This ensures the "Next billing" shows the date AFTER this booking
+            const currentBookingDate = booking.date ? new Date(booking.date) : null;
+
+            if (currentBookingDate) {
+              // Calculate next booking date from the CURRENT booking's date
+              if (sub.interval === 'everyday') {
+                calculatedNextBillingDate = new Date(currentBookingDate);
+                calculatedNextBillingDate.setDate(calculatedNextBillingDate.getDate() + 1);
+              } else if (sub.interval === 'weekly') {
+                calculatedNextBillingDate = new Date(currentBookingDate);
+                calculatedNextBillingDate.setDate(calculatedNextBillingDate.getDate() + 7);
+              } else if (sub.interval === 'monthly') {
+                calculatedNextBillingDate = new Date(currentBookingDate);
+                calculatedNextBillingDate.setMonth(calculatedNextBillingDate.getMonth() + 1);
+              }
+            } else if (sub.lastBookingDate) {
+              // Fallback to lastBookingDate if current booking date not available
               const lastBooking = new Date(sub.lastBookingDate);
               if (sub.interval === 'everyday') {
                 calculatedNextBillingDate = new Date(lastBooking);
@@ -772,7 +856,7 @@ class BookingController {
                 calculatedNextBillingDate.setMonth(calculatedNextBillingDate.getMonth() + 1);
               }
             } else {
-              // Fallback to stored nextBillingDate if no lastBookingDate
+              // Fallback to stored nextBillingDate if no booking dates available
               calculatedNextBillingDate = sub.nextBillingDate ? new Date(sub.nextBillingDate) : null;
 
               // If nextBillingDate is in the past, calculate the next future billing date
@@ -1422,7 +1506,7 @@ class BookingController {
 
     // Get cancellation window from settings (default 24 hours)
     const settings = await prisma.systemSettings.findFirst();
-    const cancellationWindowHours = settings?.cancellationWindow || 24;
+    const cancellationWindowHours = settings?.cancellationWindowHours || 24;
 
     if (hoursUntilBooking < cancellationWindowHours) {
       throw new AppError(`Rescheduling is only allowed at least ${cancellationWindowHours} hours before the booking time.`, 400);
@@ -1461,22 +1545,31 @@ class BookingController {
       const dogsCount = booking.numberOfDogs || 1; // Always use the original numberOfDogs from booking
 
       // Calculate price based on field's booking duration setting
-      let pricePerUnit = field.price || 0;
+      // Use price30min for 30-minute slots, price1hr for hourly slots
+      // Fall back to field.price for backwards compatibility
       let totalPrice = 0;
 
       if (field.bookingDuration === '30min') {
-        // For 30-minute slots, the price is per 30 minutes
+        // For 30-minute slots, use price30min (price per 30 minutes per dog)
+        const pricePerSlot = field.price30min || field.price || 0;
         const duration30MinBlocks = durationHours * 2; // Convert hours to 30-min blocks
-        totalPrice = pricePerUnit * duration30MinBlocks * dogsCount;
+        totalPrice = pricePerSlot * duration30MinBlocks * dogsCount;
       } else {
-        // For hourly slots, price is per hour
-        totalPrice = pricePerUnit * durationHours * dogsCount;
+        // For hourly slots, use price1hr (price per hour per dog)
+        const pricePerHour = field.price1hr || field.price || 0;
+        totalPrice = pricePerHour * durationHours * dogsCount;
       }
 
       // Ensure totalPrice is a valid number
+      const priceUsed = field.bookingDuration === '30min'
+        ? (field.price30min || field.price || 0)
+        : (field.price1hr || field.price || 0);
+
       if (isNaN(totalPrice) || totalPrice < 0) {
         console.error('Invalid totalPrice calculation:', {
-          pricePerUnit,
+          priceUsed,
+          price30min: field.price30min,
+          price1hr: field.price1hr,
           durationHours,
           numberOfDogs: dogsCount,
           bookingDuration: field.bookingDuration,
@@ -1494,7 +1587,9 @@ class BookingController {
 
       // Log for debugging
       console.log('Reschedule price calculation:', {
-        pricePerUnit,
+        priceUsed,
+        price30min: field.price30min,
+        price1hr: field.price1hr,
         durationHours,
         numberOfDogs: dogsCount,
         bookingDuration: field.bookingDuration,

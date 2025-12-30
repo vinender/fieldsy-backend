@@ -219,7 +219,10 @@ class SubscriptionService {
         // Import BookingModel for availability check
         const BookingModel = (await Promise.resolve().then(() => __importStar(require('../models/booking.model')))).default;
         const { field } = subscription;
-        const pricePerUnit = field.price || 0;
+        // Use correct price based on booking duration
+        const pricePerUnit = field.bookingDuration === '30min'
+            ? (field.price30min || field.price || 0)
+            : (field.price1hr || field.price || 0);
         // Get commission rate for this field owner
         const { commissionRate } = await (0, commission_utils_1.calculatePayoutAmounts)(100, field.ownerId || '');
         // Commission rate is what platform takes as percentage
