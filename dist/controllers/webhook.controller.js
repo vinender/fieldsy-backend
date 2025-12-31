@@ -835,15 +835,11 @@ class WebhookController {
                 // Send email
                 if (stripeAccount.user.email) {
                     try {
-                        await email_service_1.emailService.sendEmail({
-                            to: stripeAccount.user.email,
-                            subject: 'Payout Completed',
-                            template: 'payout-completed',
-                            data: {
-                                userName: stripeAccount.user.name || 'Field Owner',
-                                amount: (payout.amount / 100).toFixed(2),
-                                currency: payout.currency.toUpperCase()
-                            }
+                        await email_service_1.emailService.sendPayoutCompletedEmail({
+                            email: stripeAccount.user.email,
+                            userName: stripeAccount.user.name || 'Field Owner',
+                            amount: (payout.amount / 100).toFixed(2),
+                            currency: payout.currency.toUpperCase()
                         });
                     }
                     catch (emailError) {
@@ -904,6 +900,21 @@ class WebhookController {
                     }
                     catch (bookingError) {
                         console.error('[PayoutWebhook] Failed to update bookings:', bookingError);
+                    }
+                }
+                // Send email notification for failed payout
+                if (stripeAccount.user.email) {
+                    try {
+                        await email_service_1.emailService.sendPayoutFailedEmail({
+                            email: stripeAccount.user.email,
+                            userName: stripeAccount.user.name || 'Field Owner',
+                            amount: (payout.amount / 100).toFixed(2),
+                            currency: payout.currency.toUpperCase(),
+                            failureReason: payout.failure_message || undefined
+                        });
+                    }
+                    catch (emailError) {
+                        console.error('[PayoutWebhook] Failed to send payout failed email:', emailError);
                     }
                 }
             }
@@ -1229,11 +1240,13 @@ class WebhookController {
     // ============================================================================
     async syncPayoutRecord(payout, connectedAccountId) {
         try {
+            const bookingIds = this.extractBookingIds(payout.metadata);
+            // First try to find existing record
             let payoutRecord = await database_1.default.payout.findFirst({
                 where: { stripePayoutId: payout.id }
             });
-            const bookingIds = this.extractBookingIds(payout.metadata);
             if (payoutRecord) {
+                // Update existing record
                 payoutRecord = await database_1.default.payout.update({
                     where: { id: payoutRecord.id },
                     data: {
@@ -1246,25 +1259,61 @@ class WebhookController {
                 console.log(`[PayoutWebhook] Updated payout ${payoutRecord.id} to: ${payout.status}`);
             }
             else if (connectedAccountId) {
+                // Need to create new record
                 const stripeAccount = await database_1.default.stripeAccount.findFirst({
                     where: { stripeAccountId: connectedAccountId }
                 });
                 if (stripeAccount) {
-                    payoutRecord = await database_1.default.payout.create({
-                        data: {
-                            stripeAccountId: stripeAccount.id,
-                            stripePayoutId: payout.id,
-                            amount: payout.amount / 100,
-                            currency: payout.currency,
-                            status: payout.status,
-                            description: payout.description || `Payout ${payout.id}`,
-                            arrivalDate: payout.arrival_date ? new Date(payout.arrival_date * 1000) : null,
-                            failureCode: payout.failure_code || null,
-                            failureMessage: payout.failure_message || null,
-                            bookingIds
+                    try {
+                        // Use upsert to handle race conditions where another webhook may have created the record
+                        payoutRecord = await database_1.default.payout.upsert({
+                            where: { stripePayoutId: payout.id },
+                            update: {
+                                status: payout.status,
+                                arrivalDate: payout.arrival_date ? new Date(payout.arrival_date * 1000) : null,
+                                failureCode: payout.failure_code || null,
+                                failureMessage: payout.failure_message || null
+                            },
+                            create: {
+                                stripeAccountId: stripeAccount.id,
+                                stripePayoutId: payout.id,
+                                amount: payout.amount / 100,
+                                currency: payout.currency,
+                                status: payout.status,
+                                description: payout.description || `Payout ${payout.id}`,
+                                arrivalDate: payout.arrival_date ? new Date(payout.arrival_date * 1000) : null,
+                                failureCode: payout.failure_code || null,
+                                failureMessage: payout.failure_message || null,
+                                bookingIds
+                            }
+                        });
+                        console.log(`[PayoutWebhook] Upserted payout record ${payoutRecord.id} with status: ${payout.status}`);
+                    }
+                    catch (upsertError) {
+                        // If upsert fails (e.g., race condition), try to fetch the existing record
+                        if (upsertError.code === 'P2002') {
+                            console.log(`[PayoutWebhook] Race condition detected, fetching existing record for: ${payout.id}`);
+                            payoutRecord = await database_1.default.payout.findFirst({
+                                where: { stripePayoutId: payout.id }
+                            });
+                            if (payoutRecord) {
+                                // Update the existing record
+                                payoutRecord = await database_1.default.payout.update({
+                                    where: { id: payoutRecord.id },
+                                    data: {
+                                        status: payout.status,
+                                        arrivalDate: payout.arrival_date ? new Date(payout.arrival_date * 1000) : null,
+                                        failureCode: payout.failure_code || null,
+                                        failureMessage: payout.failure_message || null
+                                    }
+                                });
+                                console.log(`[PayoutWebhook] Updated existing record after race condition: ${payoutRecord.id}`);
+                            }
                         }
-                    });
-                    console.log(`[PayoutWebhook] Created payout record ${payoutRecord.id}`);
+                        else {
+                            throw upsertError;
+                        }
+                    }
                 }
                 else {
                     console.log(`[PayoutWebhook] No StripeAccount found for connected account: ${connectedAccountId}`);

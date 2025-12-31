@@ -2215,6 +2215,45 @@ class EmailService {
       return false;
     }
   }
+
+  async sendPayoutCompletedEmail(data: {
+    email: string;
+    userName: string;
+    amount: string;
+    currency: string;
+  }): Promise<boolean> {
+    const subject = `Payout Completed - £${data.amount} has been deposited - Fieldsy`;
+    const html = getPayoutCompletedTemplate(data);
+
+    try {
+      const result = await this.sendMail(data.email, subject, html);
+      console.log(`✅ Payout completed email sent to ${data.email}`);
+      return result;
+    } catch (error) {
+      console.error(`❌ Failed to send payout completed email to ${data.email}:`, error);
+      return false;
+    }
+  }
+
+  async sendPayoutFailedEmail(data: {
+    email: string;
+    userName: string;
+    amount: string;
+    currency: string;
+    failureReason?: string;
+  }): Promise<boolean> {
+    const subject = `Payout Failed - Action Required - Fieldsy`;
+    const html = getPayoutFailedTemplate(data);
+
+    try {
+      const result = await this.sendMail(data.email, subject, html);
+      console.log(`✅ Payout failed email sent to ${data.email}`);
+      return result;
+    } catch (error) {
+      console.error(`❌ Failed to send payout failed email to ${data.email}:`, error);
+      return false;
+    }
+  }
 }
 
 // Email template for booking reminder
@@ -2725,6 +2764,242 @@ EmailService.prototype.sendCustomCommissionChangeEmail = async function(data: {
     console.error(`❌ Failed to send custom commission change email to ${data.email}:`, error);
     return false;
   }
+};
+
+// Email template for payout completed
+const getPayoutCompletedTemplate = (data: {
+  userName: string;
+  amount: string;
+  currency: string;
+}) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Payout Completed</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+          }
+          .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            text-align: center;
+            padding: 20px 0;
+            background: linear-gradient(135deg, #3A6B22 0%, #5a9a3a 100%);
+            border-radius: 10px 10px 0 0;
+          }
+          .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+          }
+          .content {
+            padding: 30px 20px;
+            text-align: center;
+          }
+          .success-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+          }
+          .amount {
+            font-size: 36px;
+            font-weight: bold;
+            color: #3A6B22;
+            margin: 20px 0;
+          }
+          .message {
+            font-size: 16px;
+            color: #666666;
+            margin: 20px 0;
+          }
+          .cta-button {
+            display: inline-block;
+            background-color: #3A6B22;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+          }
+          .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666666;
+            font-size: 14px;
+            border-top: 1px solid #eeeeee;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">🐾 Fieldsy</div>
+          </div>
+
+          <div class="content">
+            <div class="success-icon">✅</div>
+
+            <h2 style="color: #333;">Payout Completed!</h2>
+
+            <p class="message">Hi ${data.userName},</p>
+
+            <p class="message">Great news! Your payout has been successfully processed and deposited to your bank account.</p>
+
+            <div class="amount">£${data.amount}</div>
+
+            <p class="message">The funds should appear in your account within 1-2 business days, depending on your bank.</p>
+
+            <a href="${FRONTEND_URL}/field-owner/payouts" class="cta-button">
+              View Payout History
+            </a>
+          </div>
+
+          <div class="footer">
+            <p>Thank you for being a valued Fieldsy field owner!</p>
+            <p>&copy; ${new Date().getFullYear()} Fieldsy. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+// Email template for payout failed
+const getPayoutFailedTemplate = (data: {
+  userName: string;
+  amount: string;
+  currency: string;
+  failureReason?: string;
+}) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Payout Failed</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+          }
+          .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            text-align: center;
+            padding: 20px 0;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            border-radius: 10px 10px 0 0;
+          }
+          .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+          }
+          .content {
+            padding: 30px 20px;
+            text-align: center;
+          }
+          .error-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+          }
+          .amount {
+            font-size: 28px;
+            font-weight: bold;
+            color: #dc3545;
+            margin: 20px 0;
+          }
+          .message {
+            font-size: 16px;
+            color: #666666;
+            margin: 20px 0;
+          }
+          .error-box {
+            background-color: #fff3f3;
+            border: 1px solid #ffcccc;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .cta-button {
+            display: inline-block;
+            background-color: #3A6B22;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+          }
+          .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666666;
+            font-size: 14px;
+            border-top: 1px solid #eeeeee;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">🐾 Fieldsy</div>
+          </div>
+
+          <div class="content">
+            <div class="error-icon">❌</div>
+
+            <h2 style="color: #333;">Payout Failed</h2>
+
+            <p class="message">Hi ${data.userName},</p>
+
+            <p class="message">Unfortunately, your payout of <strong>£${data.amount}</strong> could not be processed.</p>
+
+            ${data.failureReason ? `
+            <div class="error-box">
+              <strong>Reason:</strong> ${data.failureReason}
+            </div>
+            ` : ''}
+
+            <p class="message">Please check your bank account details in your Stripe dashboard and try again. If the problem persists, please contact our support team.</p>
+
+            <a href="${FRONTEND_URL}/field-owner/payouts" class="cta-button">
+              Check Payout Settings
+            </a>
+          </div>
+
+          <div class="footer">
+            <p>Need help? Contact us at support@fieldsy.co.uk</p>
+            <p>&copy; ${new Date().getFullYear()} Fieldsy. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
 };
 
 export const emailService = new EmailService();
