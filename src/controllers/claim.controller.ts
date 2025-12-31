@@ -442,7 +442,6 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
         status: 'PENDING'
       }
     });
-
     if (userClaim) {
       return res.json({
         success: true,

@@ -73,6 +73,10 @@ class BookingController {
         if (!field.isActive) {
             throw new AppError_1.AppError('Field is not available for booking', 400);
         }
+        // Check if field is claimed - unclaimed fields cannot be booked
+        if (field.isClaimed === false) {
+            throw new AppError_1.AppError('This field has not been claimed by an owner yet and is not available for booking', 400);
+        }
         // Check if the time slot is in the past
         const bookingDate = new Date(date);
         const [startHourStr, startPeriod] = startTime.split(/(?=[AP]M)/);
