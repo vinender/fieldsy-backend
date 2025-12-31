@@ -700,6 +700,7 @@ model SystemSettings {
   siteName                   String? @default("Fieldsy")
   siteUrl                    String? @default("https://fieldsy.com")
   supportEmail               String? @default("support@fieldsy.com")
+  adminEmail                 String? // Admin email for receiving system notifications (field address changes, etc.)
   maintenanceMode            Boolean @default(false)
   enableNotifications        Boolean @default(true)
   enableEmailNotifications   Boolean @default(true)

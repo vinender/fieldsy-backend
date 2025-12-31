@@ -1899,6 +1899,25 @@ class EmailService {
     }
     async sendFieldAddressChangeNotification(data) {
         const subject = `Field Address Updated: ${data.fieldName}`;
+        // Detailed logging for address change notification
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('📬 FIELD ADDRESS CHANGE EMAIL NOTIFICATION');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('📧 Sender Email (FROM):', EMAIL_FROM || 'NOT CONFIGURED');
+        console.log('📧 Recipient Email (TO):', data.adminEmail);
+        console.log('📧 Subject:', subject);
+        console.log('───────────────────────────────────────────────────────────────');
+        console.log('📋 Field Details:');
+        console.log('   - Field Name:', data.fieldName);
+        console.log('   - Field ID:', data.fieldId);
+        console.log('   - Owner Name:', data.ownerName || 'N/A');
+        console.log('   - Owner Email:', data.ownerEmail || 'N/A');
+        console.log('───────────────────────────────────────────────────────────────');
+        console.log('📍 Address Change:');
+        console.log('   - Previous Address:', data.previousAddress);
+        console.log('   - New Address:', data.newAddress);
+        console.log('   - Change Date:', data.changeDate);
+        console.log('───────────────────────────────────────────────────────────────');
         const html = getFieldAddressChangeNotificationTemplate({
             fieldName: data.fieldName,
             fieldId: data.fieldId,
@@ -1909,12 +1928,29 @@ class EmailService {
             changeDate: data.changeDate,
         });
         try {
+            console.log('🚀 Attempting to send email...');
             const result = await this.sendMail(data.adminEmail, subject, html);
-            console.log(`✅ Field address change email sent to admin ${data.adminEmail}`);
+            if (result) {
+                console.log('✅ EMAIL SENT SUCCESSFULLY');
+                console.log('   - Status: DELIVERED');
+                console.log('   - Recipient:', data.adminEmail);
+                console.log('   - Sender:', EMAIL_FROM);
+            }
+            else {
+                console.log('⚠️ EMAIL SEND RETURNED FALSE');
+                console.log('   - Status: FAILED (sendMail returned false)');
+                console.log('   - This may indicate email service is disabled or misconfigured');
+            }
+            console.log('═══════════════════════════════════════════════════════════════');
             return result;
         }
         catch (error) {
-            console.error(`❌ Failed to send field address change email to ${data.adminEmail}:`, error);
+            console.log('❌ EMAIL SEND FAILED WITH ERROR');
+            console.log('   - Status: ERROR');
+            console.log('   - Recipient:', data.adminEmail);
+            console.log('   - Sender:', EMAIL_FROM);
+            console.log('   - Error:', error);
+            console.log('═══════════════════════════════════════════════════════════════');
             return false;
         }
     }

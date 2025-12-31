@@ -296,6 +296,8 @@ class FieldController {
         name: field.name,
         image: field.images?.[0] || null, // Only send first image for card
         price: field.price,
+        price30min: field.price30min, // New price field for 30 min slots
+        price1hr: field.price1hr, // New price field for 1 hour slots
         duration: field.bookingDuration || 'hour', // 'hour' or '30min'
         rating: field.averageRating || 0,
         reviewCount: field.totalReviews || 0,
@@ -592,16 +594,34 @@ class FieldController {
     const enrichedField = await enrichFieldWithAmenities(updatedField);
 
     if (shouldNotifyAdmin) {
-      console.log('Notifying admin about the address change::::::::')
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('🔔 FIELD ADDRESS CHANGE DETECTED - INITIATING ADMIN NOTIFICATION');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('📋 Field ID:', updatedField.id);
+      console.log('📋 Field Name:', updatedField.name || 'N/A');
+      console.log('📍 Previous Address:', previousAddressSnapshot || 'Not provided');
+      console.log('📍 New Address:', formatAddress(updatedField.address, updatedField.city, updatedField.state, updatedField.zipCode));
+      console.log('───────────────────────────────────────────────────────────────');
+
       try {
         const { emailService } = await import('../services/email.service');
         const settings = await prisma.systemSettings.findFirst({
-          select: { supportEmail: true },
+          select: { adminEmail: true, supportEmail: true },
         });
-        const adminEmail = process.env.SMTP_USER;
+
+        console.log('🔍 Settings Retrieved:');
+        console.log('   - Admin Email from settings:', settings?.adminEmail || 'NOT SET');
+        console.log('   - Support Email from settings:', settings?.supportEmail || 'NOT SET');
+        console.log('   - SMTP_USER from env:', process.env.SMTP_USER || 'NOT SET');
+
+        // Use adminEmail from settings, fallback to supportEmail, then SMTP_USER
+        const adminEmail = settings?.adminEmail || settings?.supportEmail || process.env.SMTP_USER;
+
+        console.log('📧 Final Admin Email Selected:', adminEmail || 'NONE AVAILABLE');
 
         if (adminEmail) {
-          await emailService.sendFieldAddressChangeNotification({
+          console.log('🚀 Sending email notification to admin...');
+          const emailResult = await emailService.sendFieldAddressChangeNotification({
             adminEmail,
             fieldName: updatedField.name || 'Field',
             fieldId: updatedField.id,
@@ -611,11 +631,13 @@ class FieldController {
             newAddress: formatAddress(updatedField.address, updatedField.city, updatedField.state, updatedField.zipCode),
             changeDate: new Date(),
           });
+          console.log('📧 Email notification result:', emailResult ? 'SUCCESS' : 'FAILED');
         } else {
-          console.warn('Admin email not configured; skipping field address change notification.');
+          console.warn('⚠️ Admin email not configured in settings; skipping field address change notification.');
+          console.warn('   To enable notifications, set Admin Email in Admin Settings > General');
         }
       } catch (notificationError) {
-        console.error('Failed to send field address change notification:', notificationError);
+        console.error('❌ Failed to send field address change notification:', notificationError);
       }
 
       // Send in-app notification to all admins
@@ -940,6 +962,8 @@ class FieldController {
         name: field.name,
         image: field.images?.[0] || null,
         price: field.price,
+        price30min: field.price30min,
+        price1hr: field.price1hr,
         duration: field.bookingDuration || 'hour',
         rating: field.averageRating || 0,
         reviewCount: field.totalReviews || 0,
@@ -1027,6 +1051,8 @@ class FieldController {
         state: true,
         address: true,
         price: true,
+        price30min: true,
+        price1hr: true,
         bookingDuration: true,
         averageRating: true,
         totalReviews: true,
@@ -1112,6 +1138,8 @@ class FieldController {
         name: field.name,
         image: field.images?.[0] || null,
         price: field.price,
+        price30min: field.price30min,
+        price1hr: field.price1hr,
         duration: field.bookingDuration || 'hour',
         rating: field.averageRating || 0,
         reviewCount: field.totalReviews || 0,

@@ -46,7 +46,7 @@ exports.getSystemSettings = getSystemSettings;
 // Update system settings (Admin only)
 const updateSystemSettings = async (req, res) => {
     try {
-        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons } = req.body;
+        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons } = req.body;
         // Validate maxAdvanceBookingDays is between 30 and 60
         if (maxAdvanceBookingDays !== undefined) {
             if (maxAdvanceBookingDays < 30 || maxAdvanceBookingDays > 60) {
@@ -108,6 +108,7 @@ const updateSystemSettings = async (req, res) => {
                     ...(siteName !== undefined && { siteName }),
                     ...(siteUrl !== undefined && { siteUrl }),
                     ...(supportEmail !== undefined && { supportEmail }),
+                    ...(adminEmail !== undefined && { adminEmail }),
                     ...(maintenanceMode !== undefined && { maintenanceMode }),
                     ...(enableNotifications !== undefined && { enableNotifications }),
                     ...(enableEmailNotifications !== undefined && { enableEmailNotifications }),

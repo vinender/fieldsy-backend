@@ -408,9 +408,14 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
   const { fieldId } = req.params;
   const { email } = req.query;
 
-  // Check if field exists
+  // Check if field exists - only select fields we need
   const field = await prisma.field.findUnique({
-    where: { id: fieldId }
+    where: { id: fieldId },
+    select: {
+      id: true,
+      name: true,
+      isClaimed: true
+    }
   });
 
   if (!field) {
@@ -423,7 +428,8 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
     return res.json({
       success: true,
       canClaim: false,
-      reason: 'This field has already been claimed and verified'
+      reason: 'This field has already been claimed and verified',
+      fieldName: field.name
     });
   }
 
@@ -442,7 +448,8 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
         success: true,
         canClaim: false,
         reason: 'You already have a pending claim for this field',
-        userHasPendingClaim: true
+        userHasPendingClaim: true,
+        fieldName: field.name
       });
     }
   }
@@ -459,7 +466,8 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
     success: true,
     canClaim: true,
     pendingClaimsCount,
-    message: pendingClaimsCount > 0 
+    fieldName: field.name,
+    message: pendingClaimsCount > 0
       ? `This field has ${pendingClaimsCount} pending claim(s) under review. You can still submit your claim.`
       : 'You can claim this field'
   });
