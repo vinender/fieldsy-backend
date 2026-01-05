@@ -403,6 +403,7 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
   });
 });
 
+
 // Check if a user can claim a field
 export const checkClaimEligibility = asyncHandler(async (req: Request, res: Response) => {
   const { fieldId } = req.params;

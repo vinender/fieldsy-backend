@@ -399,10 +399,10 @@ class FieldModel {
                 gte: where.numberOfDogs,
             };
         }
-        // Size filter
-        if (where.size) {
-            whereClause.size = where.size;
-        }
+        // Size filter - also include fields with custom sizes that match the category
+        // Size categories: small (≤1 acre), medium (1-3 acres), large (3+ acres)
+        // We'll handle this after the query to include custom field sizes
+        const sizeFilter = where.size;
         // Terrain type filter
         if (where.terrainType) {
             whereClause.terrainType = where.terrainType;
@@ -711,6 +711,8 @@ class FieldModel {
                     amenities: true, // For amenity icons
                     isClaimed: true,
                     ownerName: true, // Denormalized owner name
+                    size: true, // For size filtering
+                    customFieldSize: true, // For custom size filtering
                     // Location fields for distance calculation
                     latitude: true,
                     longitude: true,
@@ -736,10 +738,43 @@ class FieldModel {
             }),
             database_1.default.field.count({ where: whereClause }),
         ]);
+        // Post-query filter for size (including custom field sizes that match the category)
+        // Size categories mapping:
+        // - small: 1 acre or less (customFieldSize <= 1)
+        // - medium: 1-3 acres (customFieldSize > 1 && customFieldSize <= 3)
+        // - large: 3+ acres (customFieldSize > 3)
+        let filteredFields = fields;
+        if (sizeFilter) {
+            filteredFields = fields.filter((field) => {
+                // If field has a matching preset size, include it
+                if (field.size === sizeFilter) {
+                    return true;
+                }
+                // If field has a custom size, check if it falls into the requested category
+                if (field.customFieldSize) {
+                    const customSize = parseFloat(field.customFieldSize);
+                    if (isNaN(customSize))
+                        return false;
+                    // Map size filter values to ranges
+                    // Handle both the DB value format (e.g., "small") and the display format
+                    const sizeFilterLower = sizeFilter.toLowerCase();
+                    if (sizeFilterLower === 'small' || sizeFilterLower.includes('1 acre or less')) {
+                        return customSize <= 1;
+                    }
+                    else if (sizeFilterLower === 'medium' || sizeFilterLower.includes('1-3')) {
+                        return customSize > 1 && customSize <= 3;
+                    }
+                    else if (sizeFilterLower === 'large' || sizeFilterLower.includes('3+')) {
+                        return customSize > 3;
+                    }
+                }
+                return false;
+            });
+        }
         return {
-            fields,
-            total,
-            hasMore: skip + take < total,
+            fields: filteredFields,
+            total: sizeFilter ? filteredFields.length : total,
+            hasMore: skip + take < (sizeFilter ? filteredFields.length : total),
         };
     }
     // Find all fields with filters (legacy - for backward compatibility)

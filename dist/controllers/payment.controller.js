@@ -582,125 +582,42 @@ class PaymentController {
                 where: { id: field.ownerId },
                 select: { name: true, email: true }
             });
-            // If this is a recurring booking, create subscription first
-            let subscriptionId = undefined;
+            // Check if this is a recurring booking - subscriptions will be created per-slot inside the booking loop
             const recurringOptions = ['everyday', 'weekly', 'monthly'];
             const normalizedRepeatBooking = repeatBooking?.toLowerCase();
+            const isRecurringBooking = repeatBooking && recurringOptions.includes(normalizedRepeatBooking);
             console.log('🔍 REPEAT BOOKING CHECK:', {
                 repeatBooking,
                 normalizedRepeatBooking,
-                isIncluded: recurringOptions.includes(normalizedRepeatBooking),
+                isRecurring: isRecurringBooking,
                 recurringOptions
             });
-            if (repeatBooking && recurringOptions.includes(normalizedRepeatBooking)) {
-                console.log('✅ Creating subscription for recurring booking...');
-                try {
-                    // Create subscription record in database
-                    const bookingDate = new Date(date);
-                    // Check for conflicts with existing bookings on future recurring dates
-                    const conflictCheck = await booking_model_1.default.checkRecurringSubscriptionConflicts(fieldId, bookingDate, startTimeStr, endTimeStr, normalizedRepeatBooking);
-                    if (conflictCheck.hasConflict) {
-                        const conflictDates = conflictCheck.conflictingDates
-                            .slice(0, 3) // Show first 3 conflicts
-                            .map(c => {
-                            const dateStr = c.date.toLocaleDateString('en-GB', {
-                                weekday: 'short',
-                                day: 'numeric',
-                                month: 'short'
-                            });
-                            return dateStr;
-                        })
-                            .join(', ');
-                        const moreCount = conflictCheck.conflictingDates.length > 3
-                            ? ` and ${conflictCheck.conflictingDates.length - 3} more`
-                            : '';
-                        return res.status(400).json({
-                            error: `Cannot create ${normalizedRepeatBooking} recurring booking. There are existing bookings on: ${conflictDates}${moreCount}. Please choose a different time slot or cancel the conflicting bookings first.`,
-                            conflictingDates: conflictCheck.conflictingDates.map(c => ({
-                                date: c.date.toISOString(),
-                                bookedBy: c.existingBooking.user?.name || 'Another user'
-                            }))
+            // For recurring bookings, check for conflicts with existing bookings on future recurring dates
+            if (isRecurringBooking) {
+                const bookingDate = new Date(date);
+                const conflictCheck = await booking_model_1.default.checkRecurringSubscriptionConflicts(fieldId, bookingDate, startTimeStr, endTimeStr, normalizedRepeatBooking);
+                if (conflictCheck.hasConflict) {
+                    const conflictDates = conflictCheck.conflictingDates
+                        .slice(0, 3) // Show first 3 conflicts
+                        .map(c => {
+                        const dateStr = c.date.toLocaleDateString('en-GB', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short'
                         });
-                    }
-                    const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' });
-                    const dayOfMonth = bookingDate.getDate();
-                    // Calculate next billing date
-                    let nextBillingDate;
-                    let currentPeriodEnd;
-                    if (normalizedRepeatBooking === 'everyday') {
-                        // Next billing is 1 day after the booking date
-                        nextBillingDate = new Date(bookingDate);
-                        nextBillingDate.setDate(bookingDate.getDate() + 1);
-                        currentPeriodEnd = new Date(bookingDate);
-                        currentPeriodEnd.setDate(bookingDate.getDate() + 1);
-                    }
-                    else if (normalizedRepeatBooking === 'weekly') {
-                        // Next billing is 7 days after the booking date
-                        nextBillingDate = new Date(bookingDate);
-                        nextBillingDate.setDate(bookingDate.getDate() + 7);
-                        currentPeriodEnd = new Date(bookingDate);
-                        currentPeriodEnd.setDate(bookingDate.getDate() + 7);
-                    }
-                    else {
-                        // Monthly - next billing is same date next month
-                        // Handle edge case: if current day is 31 and next month has fewer days
-                        // We need to get the last day of the target month
-                        const targetMonth = bookingDate.getMonth() + 1;
-                        const targetYear = bookingDate.getFullYear() + (targetMonth > 11 ? 1 : 0);
-                        const normalizedTargetMonth = targetMonth > 11 ? 0 : targetMonth;
-                        // Get the last day of the target month
-                        const lastDayOfTargetMonth = new Date(targetYear, normalizedTargetMonth + 1, 0).getDate();
-                        // Use the minimum of the original day and the last day of target month
-                        const targetDay = Math.min(dayOfMonth, lastDayOfTargetMonth);
-                        nextBillingDate = new Date(targetYear, normalizedTargetMonth, targetDay);
-                        currentPeriodEnd = new Date(nextBillingDate);
-                    }
-                    console.log('Recurring booking calculation:', {
-                        bookingDate: bookingDate.toISOString(),
-                        interval: repeatBooking,
-                        normalizedInterval: normalizedRepeatBooking,
-                        nextBillingDate: nextBillingDate.toISOString(),
-                        currentPeriodEnd: currentPeriodEnd.toISOString(),
-                        dayOfWeek: normalizedRepeatBooking === 'weekly' ? dayOfWeek : null,
-                        dayOfMonth: normalizedRepeatBooking === 'monthly' ? dayOfMonth : null
+                        return dateStr;
+                    })
+                        .join(', ');
+                    const moreCount = conflictCheck.conflictingDates.length > 3
+                        ? ` and ${conflictCheck.conflictingDates.length - 3} more`
+                        : '';
+                    return res.status(400).json({
+                        error: `Cannot create ${normalizedRepeatBooking} recurring booking. There are existing bookings on: ${conflictDates}${moreCount}. Please choose a different time slot or cancel the conflicting bookings first.`,
+                        conflictingDates: conflictCheck.conflictingDates.map(c => ({
+                            date: c.date.toISOString(),
+                            bookedBy: c.existingBooking.user?.name || 'Another user'
+                        }))
                     });
-                    const subscription = await database_1.default.subscription.create({
-                        data: {
-                            userId,
-                            fieldId,
-                            stripeSubscriptionId: paymentIntent.id, // Use payment intent ID as reference
-                            stripeCustomerId: user.stripeCustomerId || '',
-                            status: 'active',
-                            interval: normalizedRepeatBooking,
-                            intervalCount: 1,
-                            currentPeriodStart: bookingDate,
-                            currentPeriodEnd: currentPeriodEnd,
-                            timeSlot: displayTimeSlot, // For display: first slot or "X:XX (+N more)"
-                            timeSlots: normalizedTimeSlots, // Store all time slots as array
-                            dayOfWeek: normalizedRepeatBooking === 'weekly' ? dayOfWeek : null,
-                            dayOfMonth: normalizedRepeatBooking === 'monthly' ? dayOfMonth : null,
-                            startTime: startTimeStr,
-                            endTime: endTimeStr,
-                            numberOfDogs: parseInt(numberOfDogs),
-                            totalPrice: amount,
-                            nextBillingDate: nextBillingDate,
-                            lastBookingDate: bookingDate
-                        }
-                    });
-                    subscriptionId = subscription.id;
-                    console.log('✅ Created subscription for recurring booking:', {
-                        subscriptionId,
-                        userId,
-                        fieldId,
-                        status: subscription.status,
-                        interval: subscription.interval,
-                        timeSlot: subscription.timeSlot,
-                        timeSlots: subscription.timeSlots
-                    });
-                }
-                catch (subscriptionError) {
-                    console.error('Error creating subscription:', subscriptionError);
-                    // Continue with booking creation even if subscription fails
                 }
             }
             // Create a booking for each selected time slot
@@ -774,12 +691,80 @@ class PaymentController {
                         }
                     }
                     // All slots are available, create bookings atomically
+                    // For recurring bookings, create a SEPARATE subscription for each slot
                     const createdBookings = [];
+                    const bookingDate = new Date(date);
+                    const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' });
+                    const dayOfMonth = bookingDate.getDate();
                     for (const slot of normalizedTimeSlots) {
                         const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
                         const startMinutes = parseTimeToMinutes(slotStart);
                         const actualEndMinutes = startMinutes + slotDuration;
                         const actualSlotEnd = minutesToTimeStr(actualEndMinutes);
+                        // Create separate subscription for this slot if it's a recurring booking
+                        let slotSubscriptionId = undefined;
+                        if (isRecurringBooking) {
+                            try {
+                                // Calculate next billing date for this slot
+                                let nextBillingDate;
+                                let currentPeriodEnd;
+                                if (normalizedRepeatBooking === 'everyday') {
+                                    nextBillingDate = new Date(bookingDate);
+                                    nextBillingDate.setDate(bookingDate.getDate() + 1);
+                                    currentPeriodEnd = new Date(nextBillingDate);
+                                }
+                                else if (normalizedRepeatBooking === 'weekly') {
+                                    nextBillingDate = new Date(bookingDate);
+                                    nextBillingDate.setDate(bookingDate.getDate() + 7);
+                                    currentPeriodEnd = new Date(nextBillingDate);
+                                }
+                                else {
+                                    // Monthly
+                                    const targetMonth = bookingDate.getMonth() + 1;
+                                    const targetYear = bookingDate.getFullYear() + (targetMonth > 11 ? 1 : 0);
+                                    const normalizedTargetMonth = targetMonth > 11 ? 0 : targetMonth;
+                                    const lastDayOfTargetMonth = new Date(targetYear, normalizedTargetMonth + 1, 0).getDate();
+                                    const targetDay = Math.min(dayOfMonth, lastDayOfTargetMonth);
+                                    nextBillingDate = new Date(targetYear, normalizedTargetMonth, targetDay);
+                                    currentPeriodEnd = new Date(nextBillingDate);
+                                }
+                                // Create subscription for this specific slot
+                                const slotSubscription = await tx.subscription.create({
+                                    data: {
+                                        userId,
+                                        fieldId,
+                                        stripeSubscriptionId: `${paymentIntent.id}_slot_${normalizedTimeSlots.indexOf(slot)}`, // Unique per slot
+                                        stripeCustomerId: user.stripeCustomerId || '',
+                                        status: 'active',
+                                        interval: normalizedRepeatBooking,
+                                        intervalCount: 1,
+                                        currentPeriodStart: bookingDate,
+                                        currentPeriodEnd: currentPeriodEnd,
+                                        timeSlot: slot, // Single slot for this subscription
+                                        timeSlots: [slot], // Array with only this slot
+                                        dayOfWeek: normalizedRepeatBooking === 'weekly' ? dayOfWeek : null,
+                                        dayOfMonth: normalizedRepeatBooking === 'monthly' ? dayOfMonth : null,
+                                        startTime: slotStart,
+                                        endTime: actualSlotEnd,
+                                        numberOfDogs: parseInt(numberOfDogs),
+                                        totalPrice: pricePerSlot, // Price for this slot only
+                                        nextBillingDate: nextBillingDate,
+                                        lastBookingDate: bookingDate
+                                    }
+                                });
+                                slotSubscriptionId = slotSubscription.id;
+                                console.log(`✅ Created subscription for slot ${slot}:`, {
+                                    subscriptionId: slotSubscriptionId,
+                                    timeSlot: slot,
+                                    pricePerSlot,
+                                    interval: normalizedRepeatBooking
+                                });
+                            }
+                            catch (subscriptionError) {
+                                console.error(`Error creating subscription for slot ${slot}:`, subscriptionError);
+                                // Continue with booking creation even if subscription fails
+                            }
+                        }
                         const newBooking = await tx.booking.create({
                             data: {
                                 fieldId,
@@ -798,7 +783,7 @@ class PaymentController {
                                 payoutStatus,
                                 payoutHeldReason,
                                 repeatBooking: normalizedRepeatBooking || repeatBooking || 'none',
-                                subscriptionId: subscriptionId,
+                                subscriptionId: slotSubscriptionId, // Each booking has its own subscription
                                 bookingDuration: duration || '60min'
                             }
                         });
