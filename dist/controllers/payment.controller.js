@@ -593,31 +593,23 @@ class PaymentController {
                 recurringOptions
             });
             // For recurring bookings, check for conflicts with existing bookings on future recurring dates
+            // Instead of blocking, we'll store the conflicts and skip those dates automatically
+            let skippedDates = [];
             if (isRecurringBooking) {
                 const bookingDate = new Date(date);
                 const conflictCheck = await booking_model_1.default.checkRecurringSubscriptionConflicts(fieldId, bookingDate, startTimeStr, endTimeStr, normalizedRepeatBooking);
                 if (conflictCheck.hasConflict) {
-                    const conflictDates = conflictCheck.conflictingDates
-                        .slice(0, 3) // Show first 3 conflicts
-                        .map(c => {
-                        const dateStr = c.date.toLocaleDateString('en-GB', {
+                    // Store conflicts as skipped dates - these will be automatically skipped by subscription service
+                    skippedDates = conflictCheck.conflictingDates.map(c => ({
+                        date: c.date.toISOString(),
+                        formattedDate: c.date.toLocaleDateString('en-GB', {
                             weekday: 'short',
                             day: 'numeric',
                             month: 'short'
-                        });
-                        return dateStr;
-                    })
-                        .join(', ');
-                    const moreCount = conflictCheck.conflictingDates.length > 3
-                        ? ` and ${conflictCheck.conflictingDates.length - 3} more`
-                        : '';
-                    return res.status(400).json({
-                        error: `Cannot create ${normalizedRepeatBooking} recurring booking. There are existing bookings on: ${conflictDates}${moreCount}. Please choose a different time slot or cancel the conflicting bookings first.`,
-                        conflictingDates: conflictCheck.conflictingDates.map(c => ({
-                            date: c.date.toISOString(),
-                            bookedBy: c.existingBooking.user?.name || 'Another user'
-                        }))
-                    });
+                        }),
+                        bookedBy: c.existingBooking.user?.name || 'Another user'
+                    }));
+                    console.log(`📅 Recurring booking will skip ${skippedDates.length} conflicting dates:`, skippedDates.map(s => s.formattedDate).join(', '));
                 }
             }
             // Create a booking for each selected time slot
@@ -957,7 +949,12 @@ class PaymentController {
                 bookingIds: allBookingIds, // All booking IDs for multi-slot bookings
                 slotsCount: normalizedTimeSlots.length,
                 paymentSucceeded: paymentIntent.status === 'succeeded',
-                publishableKey: `pk_test_${process.env.STRIPE_SECRET_KEY?.slice(8, 40)}` // Send publishable key
+                publishableKey: `pk_test_${process.env.STRIPE_SECRET_KEY?.slice(8, 40)}`, // Send publishable key
+                // Include skipped dates for recurring bookings (these dates will be automatically skipped)
+                ...(skippedDates.length > 0 && {
+                    skippedDates,
+                    skippedDatesWarning: `Note: ${skippedDates.length} future date(s) will be skipped due to existing bookings: ${skippedDates.slice(0, 3).map(s => s.formattedDate).join(', ')}${skippedDates.length > 3 ? ` and ${skippedDates.length - 3} more` : ''}`
+                })
             });
         }
         catch (error) {

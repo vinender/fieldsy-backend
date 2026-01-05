@@ -1894,12 +1894,16 @@ class BookingController {
             const moreCount = conflictCheck.conflictingDates.length > 5
                 ? ` and ${conflictCheck.conflictingDates.length - 5} more`
                 : '';
+            // Return warning instead of blocking - these dates will be skipped automatically
             res.json({
                 success: true,
                 hasConflict: true,
-                message: `Cannot create ${normalizedInterval} recurring booking. There are existing bookings on: ${conflictDates.join(', ')}${moreCount}. Please choose a different time slot or cancel the conflicting bookings first.`,
-                conflictingDates: conflictCheck.conflictingDates.map(c => ({
+                canProceed: true, // Allow proceeding despite conflicts
+                skippedDatesCount: conflictCheck.conflictingDates.length,
+                message: `Note: ${conflictCheck.conflictingDates.length} date(s) will be skipped due to existing bookings: ${conflictDates.join(', ')}${moreCount}. Your recurring booking will continue on available dates.`,
+                skippedDates: conflictCheck.conflictingDates.map(c => ({
                     date: c.date.toISOString(),
+                    formattedDate: new Date(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
                     bookedBy: c.existingBooking.user?.name || 'Another user'
                 }))
             });
@@ -1908,6 +1912,7 @@ class BookingController {
             res.json({
                 success: true,
                 hasConflict: false,
+                canProceed: true,
                 message: 'No conflicts found'
             });
         }
