@@ -15,6 +15,17 @@ const EMAIL_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASS || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || '"Fieldsy" <noreply@fieldsy.com>';
 // Create transporter only if email credentials are provided
 let transporter = null;
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('📧 EMAIL SERVICE INITIALIZATION');
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('📋 Configuration:');
+console.log('   - SMTP Host:', EMAIL_HOST);
+console.log('   - SMTP Port:', EMAIL_PORT);
+console.log('   - SMTP Secure:', EMAIL_SECURE);
+console.log('   - SMTP User:', EMAIL_USER ? `${EMAIL_USER.substring(0, 3)}***${EMAIL_USER.slice(-10)}` : 'NOT SET');
+console.log('   - SMTP Pass:', EMAIL_PASS ? '***configured***' : 'NOT SET');
+console.log('   - From Address:', EMAIL_FROM);
+console.log('───────────────────────────────────────────────────────────────');
 if (EMAIL_USER && EMAIL_PASS) {
     transporter = nodemailer.createTransport({
         host: EMAIL_HOST,
@@ -28,17 +39,23 @@ if (EMAIL_USER && EMAIL_PASS) {
     // Verify transporter connection
     transporter.verify((error, success) => {
         if (error) {
-            console.warn('Email service not configured properly:', error.message);
-            console.warn('Emails will not be sent. Please configure EMAIL_USER and EMAIL_PASS in .env');
+            console.error('❌ Email service verification FAILED:', error.message);
+            console.error('   Error Code:', error.code);
+            console.warn('   Emails will not be sent. Please check SMTP configuration.');
         }
         else {
             console.log('✅ Email service is ready to send messages');
+            console.log('═══════════════════════════════════════════════════════════════');
         }
     });
 }
 else {
-    console.warn('⚠️ Email service disabled: EMAIL_USER or EMAIL_PASS not configured in .env');
-    console.warn('To enable email verification, please set EMAIL_USER and EMAIL_PASS in your .env file');
+    console.warn('⚠️ EMAIL SERVICE DISABLED');
+    console.warn('   Reason: EMAIL_USER or EMAIL_PASS not configured in .env');
+    console.warn('   To enable email notifications:');
+    console.warn('   1. Set SMTP_USER or EMAIL_USER in .env');
+    console.warn('   2. Set SMTP_PASS or EMAIL_PASS in .env');
+    console.log('═══════════════════════════════════════════════════════════════');
 }
 // Email templates
 const getOtpEmailTemplate = (otp, name) => {

@@ -521,12 +521,48 @@ class FieldController {
     delete req.body.id;
     delete req.body.ownerId;
 
-    const addressUpdated =
-      (req.body.address !== undefined && req.body.address !== field.address) ||
-      (req.body.city !== undefined && req.body.city !== field.city) ||
-      (req.body.state !== undefined && req.body.state !== field.state) ||
-      (req.body.zipCode !== undefined && req.body.zipCode !== field.zipCode);
+    // Detailed logging for address change detection
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('🔍 FIELD UPDATE - ADDRESS CHANGE DETECTION');
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('📋 Field ID:', id);
+    console.log('📋 Field Name:', field.name || 'N/A');
+    console.log('👤 User Role:', userRole);
+    console.log('───────────────────────────────────────────────────────────────');
+    console.log('📍 Current Address in DB:');
+    console.log('   - address:', field.address || 'null');
+    console.log('   - city:', field.city || 'null');
+    console.log('   - state:', field.state || 'null');
+    console.log('   - zipCode:', field.zipCode || 'null');
+    console.log('───────────────────────────────────────────────────────────────');
+    console.log('📍 Incoming Address in Request:');
+    console.log('   - address:', req.body.address !== undefined ? req.body.address : '(not in request)');
+    console.log('   - city:', req.body.city !== undefined ? req.body.city : '(not in request)');
+    console.log('   - state:', req.body.state !== undefined ? req.body.state : '(not in request)');
+    console.log('   - zipCode:', req.body.zipCode !== undefined ? req.body.zipCode : '(not in request)');
+    console.log('───────────────────────────────────────────────────────────────');
+
+    const addressChanged = (req.body.address !== undefined && req.body.address !== field.address);
+    const cityChanged = (req.body.city !== undefined && req.body.city !== field.city);
+    const stateChanged = (req.body.state !== undefined && req.body.state !== field.state);
+    const zipCodeChanged = (req.body.zipCode !== undefined && req.body.zipCode !== field.zipCode);
+
+    console.log('🔄 Change Detection Results:');
+    console.log('   - Address changed:', addressChanged);
+    console.log('   - City changed:', cityChanged);
+    console.log('   - State changed:', stateChanged);
+    console.log('   - ZipCode changed:', zipCodeChanged);
+
+    const addressUpdated = addressChanged || cityChanged || stateChanged || zipCodeChanged;
     const shouldNotifyAdmin = userRole === 'FIELD_OWNER' && addressUpdated;
+
+    console.log('───────────────────────────────────────────────────────────────');
+    console.log('📊 Final Decision:');
+    console.log('   - Address Updated:', addressUpdated);
+    console.log('   - User is FIELD_OWNER:', userRole === 'FIELD_OWNER');
+    console.log('   - Should Notify Admin:', shouldNotifyAdmin);
+    console.log('═══════════════════════════════════════════════════════════════');
+
     const previousAddressSnapshot = shouldNotifyAdmin
       ? formatAddress(field.address, field.city, field.state, field.zipCode)
       : null;
