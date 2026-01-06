@@ -21,6 +21,7 @@ class GoogleSignInService {
   private webClientId: string;
   private iosClientId: string;
   private androidClientId: string;
+  private firebaseClientId: string;
   private client: OAuth2Client;
 
   constructor() {
@@ -28,7 +29,7 @@ class GoogleSignInService {
     this.webClientId = process.env.GOOGLE_CLIENT_ID || '';
     this.iosClientId = process.env.GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '';
     this.androidClientId = process.env.GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '';
-
+    this.firebaseClientId = process.env.FIREBASE_CLIENT_ID || '';
     // Initialize OAuth2 client
     this.client = new OAuth2Client(this.webClientId);
 
@@ -44,6 +45,9 @@ class GoogleSignInService {
       }
       if (this.androidClientId !== this.webClientId) {
         console.log('   Android Client ID:', this.androidClientId.substring(0, 20) + '...');
+      }
+      if (this.firebaseClientId !== this.webClientId) {
+        console.log('   Firebase Client ID:', this.firebaseClientId.substring(0, 20) + '...');
       }
     }
   }
@@ -65,6 +69,7 @@ class GoogleSignInService {
         this.webClientId,
         this.iosClientId,
         this.androidClientId,
+        this.firebaseClientId,
       ].filter(Boolean); // Remove empty strings
 
       // Remove duplicates

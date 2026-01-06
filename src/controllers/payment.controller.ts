@@ -257,6 +257,7 @@ export class PaymentController {
                 acquiredLocks.push(slotStart);
                 console.log(`[PaymentController] Reusing existing lock for slot ${slot}`);
               } else {
+                
                 // Lock exists but is expired - try to delete and recreate
                 await prisma.slotLock.deleteMany({
                   where: {

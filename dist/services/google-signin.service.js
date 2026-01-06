@@ -7,12 +7,14 @@ class GoogleSignInService {
     webClientId;
     iosClientId;
     androidClientId;
+    firebaseClientId;
     client;
     constructor() {
         // Load configuration from environment variables
         this.webClientId = process.env.GOOGLE_CLIENT_ID || '';
         this.iosClientId = process.env.GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '';
         this.androidClientId = process.env.GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '';
+        this.firebaseClientId = process.env.FIREBASE_CLIENT_ID || '';
         // Initialize OAuth2 client
         this.client = new google_auth_library_1.OAuth2Client(this.webClientId);
         // Validate configuration on initialization
@@ -27,6 +29,9 @@ class GoogleSignInService {
             }
             if (this.androidClientId !== this.webClientId) {
                 console.log('   Android Client ID:', this.androidClientId.substring(0, 20) + '...');
+            }
+            if (this.firebaseClientId !== this.webClientId) {
+                console.log('   Firebase Client ID:', this.firebaseClientId.substring(0, 20) + '...');
             }
         }
     }
@@ -45,6 +50,7 @@ class GoogleSignInService {
                 this.webClientId,
                 this.iosClientId,
                 this.androidClientId,
+                this.firebaseClientId,
             ].filter(Boolean); // Remove empty strings
             // Remove duplicates
             const uniqueAudiences = [...new Set(validAudiences)];
