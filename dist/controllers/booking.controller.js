@@ -696,9 +696,15 @@ class BookingController {
             // If so, disable reschedule for all bookings in the subscription
             let hasCompletedBookingInSubscription = false;
             if (booking.subscription && booking.subscriptionId) {
-                // Check if any booking with the same subscription has been completed
-                const completedBookings = bookings.filter(b => b.subscriptionId === booking.subscriptionId && b.status === 'COMPLETED');
-                hasCompletedBookingInSubscription = completedBookings.length > 0;
+                // Query the database for completed bookings in this subscription
+                // (not just the current page of bookings, which may not include all completed ones)
+                const completedCount = await database_1.default.booking.count({
+                    where: {
+                        subscriptionId: booking.subscriptionId,
+                        status: 'COMPLETED'
+                    }
+                });
+                hasCompletedBookingInSubscription = completedCount > 0;
             }
             // isReschedulable logic:
             // - Regular bookings: can reschedule if upcoming, outside cancellation window, and under 3 reschedules

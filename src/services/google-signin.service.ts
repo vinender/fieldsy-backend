@@ -39,9 +39,9 @@ class GoogleSignInService {
       console.warn('⚠️  Google Sign In is not fully configured. GOOGLE_CLIENT_ID is missing.');
     } else {
       console.log('✅ Google Sign In Service initialized');
-      console.log('   Web Client ID:', this.webClientId.substring(0, 20) + '...');
+      console.log('  Web Client ID:', this.webClientId.substring(0, 20) + '...');
       if (this.iosClientId !== this.webClientId) {
-        console.log('   iOS Client ID:', this.iosClientId.substring(0, 20) + '...');
+        console.log('  iOS Client ID:', this.iosClientId.substring(0, 20) + '...');
       }
       if (this.androidClientId !== this.webClientId) {
         console.log('   Android Client ID:', this.androidClientId.substring(0, 20) + '...');
