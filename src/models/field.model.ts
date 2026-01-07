@@ -9,6 +9,59 @@ import {
   getPostcodeArea
 } from '../utils/postcode.utils';
 
+// Helper function to check if an image URL is valid (not placeholder, not empty)
+const isValidImageUrl = (img: string | null | undefined): boolean => {
+  if (!img) return false;
+  const lowerImg = img.toLowerCase();
+
+  // Skip placeholder images
+  if (lowerImg.includes('placeholder') ||
+      lowerImg.includes('/fields/field') ||
+      lowerImg === 'null' ||
+      lowerImg === '') {
+    return false;
+  }
+
+  // Must be a proper URL (starts with http)
+  if (!lowerImg.startsWith('http')) {
+    return false;
+  }
+
+  return true;
+};
+
+// Helper function to check if an image is a premium URL (S3, CDN, etc. - not WordPress)
+const isPremiumImageUrl = (img: string): boolean => {
+  const lowerImg = img.toLowerCase();
+
+  // WordPress URLs are valid but not "premium"
+  if (lowerImg.includes('dogwalkingfields.co.uk/wp-content') ||
+      lowerImg.includes('/wp-content/uploads/')) {
+    return false;
+  }
+
+  return true;
+};
+
+// Helper function to get the first valid image
+// Prioritizes non-WordPress URLs, but falls back to WordPress URLs if that's all available
+const getFirstValidImage = (images: string[] | null | undefined): string | null => {
+  if (!images || images.length === 0) return null;
+
+  // First, try to find a premium image (S3, CDN, etc.)
+  const premiumImage = images.find((img: string) => {
+    if (!isValidImageUrl(img)) return false;
+    return isPremiumImageUrl(img);
+  });
+
+  if (premiumImage) return premiumImage;
+
+  // Fall back to any valid image (including WordPress)
+  const anyValidImage = images.find((img: string) => isValidImageUrl(img));
+
+  return anyValidImage || null;
+};
+
 export interface CreateFieldInput {
   name?: string;
   description?: string;
@@ -843,13 +896,12 @@ class FieldModel {
       }
     }
 
-    // Get total count for pagination
-    // Only select fields needed for field cards to optimize response size
-    const [fields, total] = await Promise.all([
+    // Fetch ALL fields without pagination first, so we can sort by image quality
+    // Then apply pagination after sorting
+    const [allFields, total] = await Promise.all([
       prisma.field.findMany({
         where: whereClause,
-        skip,
-        take,
+        // No skip/take here - we'll apply pagination after sorting by image quality
         select: {
           id: true,
           name: true,
@@ -891,6 +943,9 @@ class FieldModel {
       prisma.field.count({ where: whereClause }),
     ]);
 
+    // Use allFields for processing
+    let fields = allFields;
+
     // Post-query filter for size (including custom field sizes that match the category)
     // Size categories mapping:
     // - small: 1 acre or less (customFieldSize <= 1)
@@ -898,8 +953,28 @@ class FieldModel {
     // - large: 3+ acres (customFieldSize > 3)
     let filteredFields = fields;
     if (sizeFilter) {
+      // Normalize size filter to handle both DB values and display labels
+      const sizeFilterLower = sizeFilter.toLowerCase();
+
+      // Map display labels to normalized category
+      let normalizedSize: 'small' | 'medium' | 'large' | 'extra-large' | null = null;
+      if (sizeFilterLower === 'small' || sizeFilterLower.includes('under 1') || sizeFilterLower.includes('1 acre or less')) {
+        normalizedSize = 'small';
+      } else if (sizeFilterLower === 'medium' || sizeFilterLower.includes('1-3') || sizeFilterLower.includes('1–3')) {
+        normalizedSize = 'medium';
+      } else if (sizeFilterLower === 'large' || sizeFilterLower.includes('3+') || sizeFilterLower.includes('3 acres') || sizeFilterLower.includes('3+ acres')) {
+        normalizedSize = 'large';
+      } else if (sizeFilterLower === 'extra-large' || sizeFilterLower.includes('extra')) {
+        normalizedSize = 'extra-large';
+      }
+
       filteredFields = fields.filter((field: any) => {
         // If field has a matching preset size, include it
+        const fieldSizeLower = (field.size || '').toLowerCase();
+        if (fieldSizeLower === normalizedSize) {
+          return true;
+        }
+        // Also check exact match for edge cases
         if (field.size === sizeFilter) {
           return true;
         }
@@ -909,16 +984,15 @@ class FieldModel {
           const customSize = parseFloat(field.customFieldSize);
           if (isNaN(customSize)) return false;
 
-          // Map size filter values to ranges
-          // Handle both the DB value format (e.g., "small") and the display format
-          const sizeFilterLower = sizeFilter.toLowerCase();
-
-          if (sizeFilterLower === 'small' || sizeFilterLower.includes('1 acre or less')) {
+          // Map normalized size to ranges
+          if (normalizedSize === 'small') {
             return customSize <= 1;
-          } else if (sizeFilterLower === 'medium' || sizeFilterLower.includes('1-3')) {
+          } else if (normalizedSize === 'medium') {
             return customSize > 1 && customSize <= 3;
-          } else if (sizeFilterLower === 'large' || sizeFilterLower.includes('3+')) {
-            return customSize > 3;
+          } else if (normalizedSize === 'large') {
+            return customSize > 3 && customSize <= 6;
+          } else if (normalizedSize === 'extra-large') {
+            return customSize > 6;
           }
         }
 
@@ -926,10 +1000,42 @@ class FieldModel {
       });
     }
 
+    // Sort fields by image quality:
+    // 1. Fields with premium images (S3/CDN URLs) come first (score 2)
+    // 2. Fields with WordPress URLs come next (score 1) - these are valid images
+    // 3. Fields with no valid images come last (score 0)
+    const getImageScore = (field: any): number => {
+      if (!field.images || field.images.length === 0) return 0;
+
+      // Check if any image is a premium URL (S3, CDN, not WordPress)
+      const hasPremiumImage = field.images.some((img: string) => {
+        if (!isValidImageUrl(img)) return false;
+        return isPremiumImageUrl(img);
+      });
+
+      if (hasPremiumImage) return 2; // Premium images get highest priority
+
+      // Check if any image is valid (including WordPress)
+      const hasValidImage = field.images.some((img: string) => isValidImageUrl(img));
+
+      if (hasValidImage) return 1; // WordPress/other valid images get medium priority
+      return 0; // No valid images get lowest priority
+    };
+
+    filteredFields.sort((a: any, b: any) => {
+      const aScore = getImageScore(a);
+      const bScore = getImageScore(b);
+      return bScore - aScore; // Higher scores come first
+    });
+
+    // Apply pagination AFTER sorting by image quality
+    const totalAfterFilter = filteredFields.length;
+    const paginatedFields = filteredFields.slice(skip, skip + take);
+
     return {
-      fields: filteredFields,
-      total: sizeFilter ? filteredFields.length : total,
-      hasMore: skip + take < (sizeFilter ? filteredFields.length : total),
+      fields: paginatedFields,
+      total: totalAfterFilter,
+      hasMore: skip + take < totalAfterFilter,
     };
   }
 
@@ -1325,7 +1431,7 @@ class FieldModel {
       price1hr: field.price1hr,
       rating: field.averageRating,
       reviews: field.totalReviews,
-      image: field.images?.[0] || null,
+      image: getFirstValidImage(field.images),
     }));
   }
 

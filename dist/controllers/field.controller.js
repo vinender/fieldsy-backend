@@ -52,6 +52,51 @@ const s3Client = new client_s3_1.S3Client({
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
 });
+// Helper function to check if an image URL is valid (not placeholder, not empty)
+const isValidImageUrl = (img) => {
+    if (!img)
+        return false;
+    const lowerImg = img.toLowerCase();
+    // Skip placeholder images
+    if (lowerImg.includes('placeholder') ||
+        lowerImg.includes('/fields/field') ||
+        lowerImg === 'null' ||
+        lowerImg === '') {
+        return false;
+    }
+    // Must be a proper URL (starts with http)
+    if (!lowerImg.startsWith('http')) {
+        return false;
+    }
+    return true;
+};
+// Helper function to check if an image is a premium URL (S3, CDN, etc. - not WordPress)
+const isPremiumImageUrl = (img) => {
+    const lowerImg = img.toLowerCase();
+    // WordPress URLs are valid but not "premium"
+    if (lowerImg.includes('dogwalkingfields.co.uk/wp-content') ||
+        lowerImg.includes('/wp-content/uploads/')) {
+        return false;
+    }
+    return true;
+};
+// Helper function to get the first valid image
+// Prioritizes non-WordPress URLs, but falls back to WordPress URLs if that's all available
+const getFirstValidImage = (images) => {
+    if (!images || images.length === 0)
+        return null;
+    // First, try to find a premium image (S3, CDN, etc.)
+    const premiumImage = images.find((img) => {
+        if (!isValidImageUrl(img))
+            return false;
+        return isPremiumImageUrl(img);
+    });
+    if (premiumImage)
+        return premiumImage;
+    // Fall back to any valid image (including WordPress)
+    const anyValidImage = images.find((img) => isValidImageUrl(img));
+    return anyValidImage || null;
+};
 const formatRecurringFrequency = (repeatBooking) => {
     if (!repeatBooking)
         return 'NA';
@@ -244,7 +289,7 @@ class FieldController {
             const optimizedField = {
                 id: field.id,
                 name: field.name,
-                image: field.images?.[0] || null, // Only send first image for card
+                image: getFirstValidImage(field.images), // First valid image (not WordPress URL)
                 price: field.price,
                 price30min: field.price30min, // New price field for 30 min slots
                 price1hr: field.price1hr, // New price field for 1 hour slots
@@ -820,7 +865,7 @@ class FieldController {
             return {
                 id: field.id,
                 name: field.name,
-                image: field.images?.[0] || null,
+                image: getFirstValidImage(field.images),
                 price: field.price,
                 price30min: field.price30min,
                 price1hr: field.price1hr,
@@ -975,7 +1020,7 @@ class FieldController {
             return {
                 id: field.id,
                 name: field.name,
-                image: field.images?.[0] || null,
+                image: getFirstValidImage(field.images),
                 price: field.price,
                 price30min: field.price30min,
                 price1hr: field.price1hr,
