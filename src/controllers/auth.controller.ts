@@ -659,7 +659,7 @@ class AuthController {
         });
       }
 
-      // Create or update user (NOT VERIFIED YET)
+      // Create or update user (AUTO-VERIFIED - Apple already verified the email)
       console.log('📝 Creating or updating Apple user...');
       console.log('  - Email:', appleUser.email);
       console.log('  - Name:', name || appleUser.name);
@@ -679,20 +679,31 @@ class AuthController {
       console.log('  - User ID:', user.id);
       console.log('  - Email Verified:', user.emailVerified);
 
-      // Send OTP for verification
-      console.log('📧 Sending OTP for email verification...');
-      const { otpService } = require('../services/otp.service');
-      await otpService.sendOtp(appleUser.email, 'SOCIAL_LOGIN', name || user.name);
-      console.log('✅ OTP sent successfully to:', appleUser.email);
+      // Apple Sign In users are AUTO-VERIFIED (Apple already verified their email)
+      // No OTP needed - log them in immediately (same as Google Sign In)
+      console.log('✅ Apple Sign In - Auto-verifying user (Apple verified email)');
 
-      console.log('\n📤 Sending response - OTP verification required');
+      const token = jwt.sign(
+        {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          provider: 'apple'
+        },
+        JWT_SECRET as jwt.Secret,
+        {
+          expiresIn: JWT_EXPIRES_IN as string | number
+        }
+      );
+
+      console.log('✅ Token generated for new Apple user');
+      console.log('\n📤 Sending response - Login successful (no OTP required)');
       res.status(200).json({
         success: true,
-        requiresVerification: true,
-        message: 'Please check your email for verification code',
+        message: 'Apple sign in successful',
         data: {
-          email: appleUser.email,
-          role: user.role,
+          user,
+          token,
         },
       });
       console.log('╔══════════════════════════════════════════════════════════════════╗');
