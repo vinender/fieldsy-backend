@@ -89,6 +89,35 @@ const getFirstValidImage = (images: string[] | null | undefined): string | null 
   return anyValidImage || null;
 };
 
+// Helper function to get location display string
+// Tries multiple sources: legacy city/state, location JSON object, legacy address
+const getLocationDisplay = (field: any): string => {
+  // 1. First try legacy city/state fields
+  const cityState = [field.city, field.state].filter(Boolean).join(', ');
+  if (cityState) return cityState;
+
+  // 2. Try location JSON object (used by scraped fields)
+  if (field.location && typeof field.location === 'object') {
+    const loc = field.location;
+
+    // Try city/county from location object
+    const locCityState = [loc.city, loc.county || loc.state].filter(Boolean).join(', ');
+    if (locCityState) return locCityState;
+
+    // Try formatted_address (often contains full address)
+    if (loc.formatted_address) {
+      return loc.formatted_address;
+    }
+  }
+
+  // 3. Try legacy address field (contains full address for scraped fields)
+  if (field.address) {
+    return field.address;
+  }
+
+  return 'Location not available';
+};
+
 const formatRecurringFrequency = (repeatBooking?: string | null) => {
   if (!repeatBooking) return 'NA';
 
@@ -386,7 +415,7 @@ class FieldController {
           lng: fieldLng,
         },
         // Formatted location string for display
-        locationDisplay: [field.city, field.state].filter(Boolean).join(', '),
+        locationDisplay: getLocationDisplay(field),
       };
 
       // Calculate distance if user location is provided and field has coordinates
@@ -1085,7 +1114,7 @@ class FieldController {
           lat: fieldLat,
           lng: fieldLng,
         },
-        locationDisplay: [field.city, field.state].filter(Boolean).join(', '),
+        locationDisplay: getLocationDisplay(field),
         distance: field.distanceMiles === Infinity ? null : field.distanceMiles,
         distanceDisplay: field.distanceMiles === Infinity
           ? 'Location not available'
@@ -1261,7 +1290,7 @@ class FieldController {
           lat: fieldLat,
           lng: fieldLng,
         },
-        locationDisplay: [field.city, field.state].filter(Boolean).join(', '),
+        locationDisplay: getLocationDisplay(field),
         distance: field.distanceMiles,
         distanceDisplay: field.distanceMiles
           ? field.distanceMiles < 1
