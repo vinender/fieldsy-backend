@@ -300,7 +300,21 @@ class AuthController {
                 // Use verified values from the token (not from request body)
                 verifiedEmail = appleUser.email;
                 verifiedProviderId = appleUser.sub;
-                verifiedName = appleUser.name || name || verifiedEmail.split('@')[0];
+                // IMPORTANT: Apple only provides name on FIRST sign-in
+                // Priority: 1) name from request body, 2) name from Apple token, 3) email prefix
+                if (name) {
+                    verifiedName = name;
+                }
+                else if (appleUser.name) {
+                    const firstName = appleUser.name.firstName || '';
+                    const lastName = appleUser.name.lastName || '';
+                    verifiedName = `${firstName} ${lastName}`.trim();
+                }
+                // Fallback to email prefix if no name available
+                if (!verifiedName) {
+                    verifiedName = verifiedEmail.split('@')[0];
+                    console.log('  ⚠️ No name provided - using email prefix:', verifiedName);
+                }
                 verifiedImage = image; // Apple doesn't provide profile pictures
                 console.log('✅ Apple token verified successfully');
                 console.log('  - Verified Email:', verifiedEmail);
@@ -553,19 +567,34 @@ class AuthController {
                 });
             }
             // Create or update user (AUTO-VERIFIED - Apple already verified the email)
+            // IMPORTANT: Apple only provides name on FIRST sign-in, so we must save it then
+            // The mobile app should send the name from the Apple credential response
+            let userName = name;
+            // If name not provided directly, try to get from appleUser (usually undefined after first login)
+            if (!userName && appleUser.name) {
+                const firstName = appleUser.name.firstName || '';
+                const lastName = appleUser.name.lastName || '';
+                userName = `${firstName} ${lastName}`.trim();
+            }
+            // If still no name, use email prefix as fallback (model also does this, but let's be explicit)
+            if (!userName) {
+                userName = appleUser.email.split('@')[0];
+                console.log('  ⚠️ No name provided - using email prefix as fallback:', userName);
+            }
             console.log('📝 Creating or updating Apple user...');
             console.log('  - Email:', appleUser.email);
-            console.log('  - Name:', name || appleUser.name);
+            console.log('  - Name to save:', userName);
             console.log('  - Provider ID:', appleUser.sub);
             console.log('  - Role:', role || 'DOG_OWNER');
             const user = await user_model_1.default.createOrUpdateSocialUser({
                 email: appleUser.email,
-                name: name || (appleUser.name ? `${appleUser.name.firstName || ''} ${appleUser.name.lastName || ''}`.trim() : undefined),
+                name: userName,
                 image: undefined, // Apple doesn't provide profile images
                 provider: 'apple',
                 providerId: appleUser.sub,
                 role: role || 'DOG_OWNER',
             });
+            console.log('  ✅ User saved with name:', user.name);
             console.log('✅ User created/updated successfully');
             console.log('  - User ID:', user.id);
             console.log('  - Email Verified:', user.emailVerified);
