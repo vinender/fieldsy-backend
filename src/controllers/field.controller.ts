@@ -18,7 +18,7 @@ const s3Client = new S3Client({
   },
 });
 
-// Helper function to check if an image URL is valid (not placeholder, not empty)
+// Helper function to check if an image URL is valid (not placeholder, not empty, not map image)
 const isValidImageUrl = (img: string | null | undefined): boolean => {
   if (!img) return false;
   const lowerImg = img.toLowerCase();
@@ -33,6 +33,24 @@ const isValidImageUrl = (img: string | null | undefined): boolean => {
 
   // Must be a proper URL (starts with http)
   if (!lowerImg.startsWith('http')) {
+    return false;
+  }
+
+  // Filter out Google Maps images
+  if (lowerImg.includes('maps.google') ||
+      lowerImg.includes('google.com/maps') ||
+      lowerImg.includes('maps.googleapis.com') ||
+      lowerImg.includes('staticmap') ||
+      lowerImg.includes('street_view') ||
+      lowerImg.includes('streetview')) {
+    return false;
+  }
+
+  // Filter out other map service images
+  if (lowerImg.includes('openstreetmap') ||
+      lowerImg.includes('mapbox') ||
+      lowerImg.includes('tile.openstreetmap') ||
+      lowerImg.includes('api.mapbox')) {
     return false;
   }
 
