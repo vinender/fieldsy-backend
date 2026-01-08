@@ -3,3 +3,11 @@ node_modules
 .env
 
 /src/generated/prisma
+
+# Scraping scripts and data (not for production)
+scripts/scrape-british-dog-fields.js
+scripts/import-scraped-fields.js
+scripts/import-scraped-fields.ts
+scripts/scraped-fields.json
+scripts/sample-scraped-fields.json
+scripts/scrape-summary.json

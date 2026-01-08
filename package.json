@@ -85,6 +85,7 @@
     "@types/node": "^24.1.0",
     "axios": "^1.11.0",
     "nodemon": "^3.1.10",
+    "puppeteer": "^24.34.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.2"
   }

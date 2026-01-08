@@ -460,26 +460,54 @@ class AuthController {
     // Apple Sign In - Mobile & Web friendly
     // Handles Apple ID token verification on backend
     appleSignIn = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
-        const { idToken, name, role } = req.body;
-        console.log('==================== APPLE SIGN IN ====================');
-        console.log('Request Body:', { hasIdToken: !!idToken, name, role });
+        const { idToken, name, role, clientId: providedClientId, source } = req.body;
+        const timestamp = new Date().toISOString();
+        console.log('\n');
+        console.log('╔══════════════════════════════════════════════════════════════════╗');
+        console.log('║              APPLE SIGN IN ENDPOINT - DEBUG LOG                  ║');
+        console.log('╚══════════════════════════════════════════════════════════════════╝');
+        console.log(`[${timestamp}] Request received`);
+        // Log request details
+        console.log('\n📋 REQUEST DETAILS:');
+        console.log('─────────────────────────────────────');
+        console.log(`   Endpoint: POST /api/auth/apple-signin`);
+        console.log(`   Source: ${source || 'not specified (likely mobile)'}`);
+        console.log(`   User-Agent: ${req.headers['user-agent'] || 'N/A'}`);
+        console.log(`   Content-Type: ${req.headers['content-type'] || 'N/A'}`);
+        console.log(`   IP Address: ${req.ip || req.connection?.remoteAddress || 'N/A'}`);
+        console.log('\n📦 REQUEST BODY:');
+        console.log('─────────────────────────────────────');
+        console.log(`   Has idToken: ${!!idToken}`);
+        console.log(`   idToken length: ${idToken ? idToken.length : 0} characters`);
+        console.log(`   Name: ${name || 'not provided'}`);
+        console.log(`   Role: ${role || 'not provided (will default to DOG_OWNER)'}`);
+        console.log(`   Provided clientId: ${providedClientId || 'not provided'}`);
         // Validate input
         if (!idToken) {
-            console.log('❌ VALIDATION FAILED: Missing ID token');
+            console.log('\n❌ VALIDATION FAILED: Missing ID token');
+            console.log('   The mobile app must send the identityToken from Apple Sign In');
             throw new AppError_1.AppError('Apple ID token is required', 400);
         }
+        // Log token preview (safely)
+        console.log('\n🔑 TOKEN PREVIEW:');
+        console.log('─────────────────────────────────────');
+        console.log(`   First 50 chars: ${idToken.substring(0, 50)}...`);
+        console.log(`   Last 20 chars: ...${idToken.substring(idToken.length - 20)}`);
         // Validate role if provided
         const validRoles = ['DOG_OWNER', 'FIELD_OWNER'];
         if (role && !validRoles.includes(role)) {
-            console.log('❌ VALIDATION FAILED: Invalid role -', role);
+            console.log(`\n❌ VALIDATION FAILED: Invalid role - ${role}`);
             throw new AppError_1.AppError('Invalid role specified', 400);
         }
-        console.log('✅ Role validation passed:', role || 'DOG_OWNER (default)');
+        console.log(`\n✅ Input validation passed`);
+        console.log(`   Role to use: ${role || 'DOG_OWNER (default)'}`);
         try {
             // Verify Apple ID token using backend service
-            console.log('🔐 Verifying Apple ID token...');
+            console.log('\n🔐 Calling Apple Sign In Service...');
+            console.log('─────────────────────────────────────');
             const { appleSignInService } = require('../services/apple-signin.service');
-            const appleUser = await appleSignInService.verifyIdToken(idToken);
+            const requestSource = source || 'mobile';
+            const appleUser = await appleSignInService.verifyIdToken(idToken, providedClientId, requestSource);
             console.log('✅ Apple token verified successfully');
             console.log('  - Apple User ID:', appleUser.sub);
             console.log('  - Email:', appleUser.email);
@@ -546,7 +574,7 @@ class AuthController {
             const { otpService } = require('../services/otp.service');
             await otpService.sendOtp(appleUser.email, 'SOCIAL_LOGIN', name || user.name);
             console.log('✅ OTP sent successfully to:', appleUser.email);
-            console.log('📤 Sending response - OTP verification required');
+            console.log('\n📤 Sending response - OTP verification required');
             res.status(200).json({
                 success: true,
                 requiresVerification: true,
@@ -556,14 +584,50 @@ class AuthController {
                     role: user.role,
                 },
             });
-            console.log('==================== APPLE SIGN IN COMPLETE ====================');
+            console.log('╔══════════════════════════════════════════════════════════════════╗');
+            console.log('║              APPLE SIGN IN ENDPOINT - COMPLETE                   ║');
+            console.log('╚══════════════════════════════════════════════════════════════════╝');
+            console.log('\n');
         }
         catch (error) {
-            console.error('❌ Apple Sign In failed:', error);
+            console.log('\n');
+            console.log('╔══════════════════════════════════════════════════════════════════╗');
+            console.log('║              APPLE SIGN IN ENDPOINT - ERROR                      ║');
+            console.log('╚══════════════════════════════════════════════════════════════════╝');
+            console.error('❌ Apple Sign In failed');
+            console.error(`   Error Type: ${error.name || 'Unknown'}`);
+            console.error(`   Error Message: ${error.message}`);
+            // Provide detailed error information for debugging
+            console.log('\n🔍 ERROR ANALYSIS:');
+            console.log('─────────────────────────────────────');
             // Handle specific Apple Sign In errors
             if (error.message && error.message.includes('Invalid Apple ID token')) {
-                throw new AppError_1.AppError('Invalid or expired Apple ID token', 401);
+                console.log('   Issue: Token verification failed');
+                console.log('   Possible causes:');
+                console.log('     1. Token has expired (Apple tokens are short-lived, ~5-10 min)');
+                console.log('     2. Client ID mismatch (mobile app uses Bundle ID, not Service ID)');
+                console.log('     3. Token was issued for a different app');
+                console.log('     4. Token is malformed or corrupted');
+                console.log('\n   🛠️  FIXES TO TRY:');
+                console.log('     - Add APPLE_MOBILE_CLIENT_ID=<your-bundle-id> to .env');
+                console.log('     - Or add APPLE_BUNDLE_ID=<your-bundle-id> to .env');
+                console.log('     - Ensure mobile app sends token immediately after receiving it');
+                console.log('     - Check that device time is synchronized');
+                throw new AppError_1.AppError('Invalid or expired Apple ID token. Check server logs for details.', 401);
             }
+            if (error.message && error.message.includes('expired')) {
+                console.log('   Issue: Token has expired');
+                console.log('   Apple ID tokens are only valid for about 5-10 minutes');
+                console.log('   Ensure the mobile app sends the token immediately');
+                throw new AppError_1.AppError('Apple ID token has expired. Please try signing in again.', 401);
+            }
+            if (error.message && (error.message.includes('audience') || error.message.includes('aud'))) {
+                console.log('   Issue: Client ID / Audience mismatch');
+                console.log('   The token was issued for a different app identifier');
+                console.log('   Mobile apps use Bundle ID, web apps use Service ID');
+                throw new AppError_1.AppError('Apple ID token audience mismatch. Check APPLE_MOBILE_CLIENT_ID configuration.', 401);
+            }
+            console.log('\n');
             // Re-throw other errors
             throw error;
         }
