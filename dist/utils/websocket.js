@@ -403,27 +403,11 @@ function setupWebSocket(server) {
                         correlationId: correlationId || tempMessageId,
                         socketId: socket.id // Track which socket sent this
                     });
-                    // If Kafka is disabled, sendMessageToKafka returns the saved message
-                    // In that case, emit it immediately
+                    // processMessage() in kafka.ts already handles all emissions
+                    // (new-message, new-message-notification, message-confirmed)
+                    // So we just log the result here
                     if (savedMessage) {
                         socketLog(`[Socket] Direct processing complete, message ID: ${savedMessage.id}`);
-                        // Broadcast to conversation room
-                        io.to(convRoom).emit('new-message', savedMessage);
-                        socketLog(`[Socket] ✅ Broadcasted 'new-message' to conversation room: ${convRoom}`);
-                        // Send notification to receiver's user room
-                        const receiverRoom = `user-${receiverId}`;
-                        io.to(receiverRoom).emit('new-message-notification', {
-                            conversationId,
-                            message: savedMessage
-                        });
-                        socketLog(`[Socket] ✅ Sent 'new-message-notification' to receiver room: ${receiverRoom}`);
-                        // Send final confirmation to sender with real message ID
-                        socket.emit('message-confirmed', {
-                            tempId: tempMessageId,
-                            realId: savedMessage.id,
-                            message: savedMessage,
-                            correlationId: data.correlationId
-                        });
                     }
                     else {
                         socketLog(`[Socket] Message sent to Kafka queue, will be processed asynchronously`);
