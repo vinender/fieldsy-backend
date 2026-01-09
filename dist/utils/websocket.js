@@ -158,39 +158,48 @@ function setupWebSocket(server) {
                 // Verify room membership
                 const socketsInRoom = await io.in(convRoom).fetchSockets();
                 console.log(`[Socket] Room ${convRoom} now has ${socketsInRoom.length} members`);
-                // Fetch and send message history (most recent 50 messages)
-                const messages = await prisma.message.findMany({
-                    where: { conversationId },
-                    include: {
-                        sender: {
-                            select: {
-                                id: true,
-                                name: true,
-                                image: true,
-                                role: true
+                // Fetch initial message history with pagination (most recent messages first)
+                const limit = 30; // Initial load limit
+                const [messages, totalCount] = await Promise.all([
+                    prisma.message.findMany({
+                        where: { conversationId },
+                        include: {
+                            sender: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    image: true,
+                                    role: true
+                                }
+                            },
+                            receiver: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    image: true,
+                                    role: true
+                                }
                             }
                         },
-                        receiver: {
-                            select: {
-                                id: true,
-                                name: true,
-                                image: true,
-                                role: true
-                            }
-                        }
-                    },
-                    orderBy: { createdAt: 'desc' }, // Get newest first
-                    take: 50
-                });
-                // Reverse to show oldest to newest
+                        orderBy: { createdAt: 'desc' }, // Get newest first
+                        take: limit
+                    }),
+                    prisma.message.count({ where: { conversationId } })
+                ]);
+                // Reverse to show oldest to newest in UI
                 messages.reverse();
-                // Send message history to this specific socket
+                // Send message history with pagination info
                 socket.emit('message-history', {
                     conversationId,
                     messages,
-                    total: messages.length
+                    pagination: {
+                        total: totalCount,
+                        limit,
+                        hasMore: totalCount > limit,
+                        oldestMessageId: messages.length > 0 ? messages[0].id : null
+                    }
                 });
-                console.log(`[Socket] Sent ${messages.length} messages to user ${userId}`);
+                console.log(`[Socket] Sent ${messages.length}/${totalCount} messages to user ${userId}`);
                 // Mark unread messages as read
                 await prisma.message.updateMany({
                     where: {
@@ -209,11 +218,17 @@ function setupWebSocket(server) {
                 socket.emit('conversation-error', { error: 'Failed to join conversation' });
             }
         });
-        // Fetch messages for a conversation (pagination support)
+        // Fetch messages for a conversation (cursor-based pagination for infinite scroll)
         socket.on('fetch-messages', async (data) => {
             try {
-                const { conversationId, page = 1, limit = 50 } = data;
-                const skip = (page - 1) * limit;
+                const { conversationId, beforeMessageId, limit: requestedLimit } = data;
+                // Validation
+                if (!conversationId || typeof conversationId !== 'string') {
+                    socket.emit('messages-error', { error: 'Invalid conversationId' });
+                    return;
+                }
+                // Sanitize limit (max 50, default 30)
+                const limit = Math.min(Math.max(requestedLimit || 30, 1), 50);
                 // Verify user is participant
                 const conversation = await prisma.conversation.findFirst({
                     where: {
@@ -227,9 +242,21 @@ function setupWebSocket(server) {
                     socket.emit('messages-error', { error: 'Access denied' });
                     return;
                 }
-                // Get messages
+                // Build query with cursor if provided
+                const whereClause = { conversationId };
+                if (beforeMessageId) {
+                    // Get the timestamp of the cursor message for efficient querying
+                    const cursorMessage = await prisma.message.findUnique({
+                        where: { id: beforeMessageId },
+                        select: { createdAt: true }
+                    });
+                    if (cursorMessage) {
+                        whereClause.createdAt = { lt: cursorMessage.createdAt };
+                    }
+                }
+                // Get messages older than cursor
                 const messages = await prisma.message.findMany({
-                    where: { conversationId },
+                    where: whereClause,
                     include: {
                         sender: {
                             select: {
@@ -249,21 +276,23 @@ function setupWebSocket(server) {
                         }
                     },
                     orderBy: { createdAt: 'desc' },
-                    skip,
-                    take: limit
+                    take: limit + 1 // Fetch one extra to check if there are more
                 });
-                const total = await prisma.message.count({
-                    where: { conversationId }
-                });
+                // Check if there are more messages
+                const hasMore = messages.length > limit;
+                if (hasMore) {
+                    messages.pop(); // Remove the extra message
+                }
+                // Reverse to show chronological order
+                messages.reverse();
                 // Send messages to this socket
                 socket.emit('messages-fetched', {
                     conversationId,
-                    messages: messages.reverse(),
+                    messages,
                     pagination: {
-                        page,
                         limit,
-                        total,
-                        totalPages: Math.ceil(total / limit)
+                        hasMore,
+                        oldestMessageId: messages.length > 0 ? messages[0].id : null
                     }
                 });
                 // Mark messages as read

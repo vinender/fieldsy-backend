@@ -1,26 +1,133 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.shutdownKafka = exports.sendMessageToKafka = exports.initializeKafka = void 0;
+exports.getMessageStats = getMessageStats;
 //@ts-nocheck
 const kafkajs_1 = require("kafkajs");
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 // Flag to track if Kafka is available
 let kafkaEnabled = false;
+let kafkaConnecting = false; // Prevent multiple connection attempts
 let producer = null;
 let consumer = null;
-// Only initialize Kafka if explicitly enabled
+let kafkaInstance = null;
+// ============================================
+// AUTO-SCALING CONFIGURATION
+// ============================================
+const AUTO_SCALE_CONFIG = {
+    enabled: process.env.KAFKA_AUTO_SCALE !== 'false', // Enabled by default
+    threshold: parseInt(process.env.KAFKA_THRESHOLD || '100', 10), // Messages per minute to trigger Kafka
+    windowMs: 60000, // 1 minute window
+    cooldownMs: 300000, // 5 minutes before disabling Kafka after load drops
+};
+// Rate tracking
+let messageCount = 0;
+let windowStartTime = Date.now();
+let lastHighLoadTime = 0;
+let currentRate = 0;
+// Track and log message rate
+function trackMessageRate() {
+    messageCount++;
+    const now = Date.now();
+    const elapsed = now - windowStartTime;
+    // Calculate rate every window
+    if (elapsed >= AUTO_SCALE_CONFIG.windowMs) {
+        currentRate = Math.round((messageCount / elapsed) * 60000); // msgs/min
+        console.log(`[AutoScale] Message rate: ${currentRate} msgs/min (threshold: ${AUTO_SCALE_CONFIG.threshold})`);
+        // Check if we need to scale up
+        if (currentRate >= AUTO_SCALE_CONFIG.threshold) {
+            lastHighLoadTime = now;
+            if (!kafkaEnabled && !kafkaConnecting && AUTO_SCALE_CONFIG.enabled) {
+                console.log(`[AutoScale] 🚀 High load detected! Enabling Kafka...`);
+                enableKafkaAutomatically();
+            }
+        }
+        // Reset window
+        messageCount = 0;
+        windowStartTime = now;
+    }
+}
+// Get current stats (for monitoring/debugging)
+function getMessageStats() {
+    return {
+        currentRate,
+        kafkaEnabled,
+        threshold: AUTO_SCALE_CONFIG.threshold,
+        autoScaleEnabled: AUTO_SCALE_CONFIG.enabled,
+    };
+}
+// Dynamically enable Kafka when threshold is reached
+async function enableKafkaAutomatically() {
+    if (kafkaConnecting || kafkaEnabled)
+        return;
+    kafkaConnecting = true;
+    console.log('[AutoScale] Attempting to connect to Kafka...');
+    try {
+        // Create Kafka instance if not exists
+        if (!kafkaInstance) {
+            kafkaInstance = new kafkajs_1.Kafka({
+                clientId: 'fieldsy-chat',
+                brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+                retry: {
+                    initialRetryTime: 100,
+                    retries: 3,
+                },
+            });
+        }
+        // Create producer and consumer
+        producer = kafkaInstance.producer();
+        consumer = kafkaInstance.consumer({ groupId: 'chat-service-group' });
+        // Connect producer
+        await producer.connect();
+        console.log('[AutoScale] ✅ Kafka producer connected');
+        // Connect consumer
+        await consumer.connect();
+        console.log('[AutoScale] ✅ Kafka consumer connected');
+        // Subscribe to topic
+        await consumer.subscribe({ topic: 'chat-messages', fromBeginning: false });
+        // Run consumer
+        await consumer.run({
+            eachMessage: async ({ topic, partition, message }) => {
+                try {
+                    if (!message.value)
+                        return;
+                    const chatMessage = JSON.parse(message.value.toString());
+                    if (socketIO) {
+                        await processMessage(chatMessage, socketIO);
+                    }
+                }
+                catch (error) {
+                    console.error('[AutoScale] Error processing Kafka message:', error);
+                }
+            },
+        });
+        kafkaEnabled = true;
+        console.log('[AutoScale] ✅ Kafka fully enabled via auto-scaling!');
+    }
+    catch (error) {
+        console.error('[AutoScale] ❌ Failed to enable Kafka:', error.message);
+        console.log('[AutoScale] Continuing with direct processing...');
+        // Clean up on failure
+        producer = null;
+        consumer = null;
+    }
+    finally {
+        kafkaConnecting = false;
+    }
+}
+// Initialize Kafka on startup (only if explicitly enabled via env)
 if (process.env.ENABLE_KAFKA === 'true') {
-    const kafka = new kafkajs_1.Kafka({
+    kafkaInstance = new kafkajs_1.Kafka({
         clientId: 'fieldsy-chat',
         brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
         retry: {
             initialRetryTime: 100,
-            retries: 3, // Reduce retries to fail faster
+            retries: 3,
         },
     });
-    producer = kafka.producer();
-    consumer = kafka.consumer({ groupId: 'chat-service-group' });
+    producer = kafkaInstance.producer();
+    consumer = kafkaInstance.consumer({ groupId: 'chat-service-group' });
 }
 // Track processed messages to prevent duplicates
 const processedMessages = new Set();
@@ -102,21 +209,27 @@ function scheduleConversationUpdate(conversationId, content, timestamp) {
 }
 // Process message (used by both Kafka and direct processing)
 async function processMessage(chatMessage, io) {
-    const messageKey = chatMessage.correlationId || `${chatMessage.conversationId}-${chatMessage.senderId}-${chatMessage.timestamp.getTime()}`;
+    // Generate unique key using correlationId (preferred) or content hash
+    // IMPORTANT: Don't use just timestamp - multiple messages can have same timestamp!
+    const messageKey = chatMessage.correlationId ||
+        `${chatMessage.conversationId}-${chatMessage.senderId}-${chatMessage.timestamp.getTime()}-${chatMessage.content.slice(0, 20)}-${Math.random().toString(36).substr(2, 5)}`;
     try {
-        // Check for duplicate processing
-        if (processedMessages.has(messageKey)) {
+        // Check for duplicate processing - only if correlationId exists (client-generated unique ID)
+        // Without correlationId, we skip duplicate check to avoid false positives
+        if (chatMessage.correlationId && processedMessages.has(messageKey)) {
             console.log(`[ProcessMessage] Skipping duplicate message: ${messageKey}`);
             return null;
         }
-        // Add to processed set
-        processedMessages.add(messageKey);
-        messageCacheArray.push(messageKey);
-        // Maintain cache size
-        if (messageCacheArray.length > MESSAGE_CACHE_SIZE) {
-            const oldKey = messageCacheArray.shift();
-            if (oldKey)
-                processedMessages.delete(oldKey);
+        // Add to processed set only if we have a reliable correlationId
+        if (chatMessage.correlationId) {
+            processedMessages.add(messageKey);
+            messageCacheArray.push(messageKey);
+            // Maintain cache size
+            if (messageCacheArray.length > MESSAGE_CACHE_SIZE) {
+                const oldKey = messageCacheArray.shift();
+                if (oldKey)
+                    processedMessages.delete(oldKey);
+            }
         }
         // Save message to database (this is the only blocking operation)
         const savedMessage = await prisma.message.create({
@@ -184,6 +297,8 @@ async function processMessage(chatMessage, io) {
 }
 // Send message to Kafka or process directly (parallel processing)
 const sendMessageToKafka = async (message) => {
+    // Track message rate for auto-scaling
+    trackMessageRate();
     try {
         if (kafkaEnabled && producer) {
             // Send to Kafka with conversation ID as partition key
