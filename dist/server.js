@@ -51,6 +51,9 @@ const about_page_routes_1 = __importDefault(require("./routes/about-page.routes"
 const amenity_routes_1 = __importDefault(require("./routes/amenity.routes"));
 const field_properties_routes_1 = __importDefault(require("./routes/field-properties.routes"));
 const contact_query_routes_1 = __importDefault(require("./routes/contact-query.routes"));
+const device_token_routes_1 = __importDefault(require("./routes/device-token.routes"));
+// Import Firebase for push notifications
+const firebase_config_1 = require("./config/firebase.config");
 // Import API documentation
 const api_documentation_1 = require("./utils/api-documentation");
 const api_docs_template_1 = require("./utils/api-docs-template");
@@ -451,6 +454,8 @@ class Server {
         this.app.use('/api/field-properties', field_properties_routes_1.default);
         // Contact Query routes
         this.app.use('/api/contact-queries', contact_query_routes_1.default);
+        // Device Token routes (for push notifications)
+        this.app.use('/api/device-tokens', device_token_routes_1.default);
         // Serve static files (if any)
         // this.app.use('/uploads', express.static('uploads'));
     }
@@ -486,6 +491,8 @@ class Server {
         });
     }
     start() {
+        // Initialize Firebase for push notifications
+        (0, firebase_config_1.initializeFirebase)();
         // Setup WebSocket and get io instance
         const io = (0, websocket_1.setupWebSocket)(this.httpServer);
         this.io = io;

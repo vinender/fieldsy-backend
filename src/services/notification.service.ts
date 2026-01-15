@@ -1,5 +1,6 @@
 //@ts-nocheck
 import { PrismaClient } from '@prisma/client';
+import { PushNotificationService } from './push-notification.service';
 
 const prisma = new PrismaClient();
 
@@ -37,6 +38,16 @@ export class NotificationService {
         console.log('[NotificationService] Emitting user notification to room:', userRoomName);
         io.to(userRoomName).emit('notification', userNotification);
       }
+
+      // Send push notification (async, don't wait for it)
+      PushNotificationService.sendNotificationByType(
+        notificationData.userId,
+        notificationData.type,
+        userNotification.id,
+        notificationData.data || {}
+      ).catch(err => {
+        console.error('[NotificationService] Push notification failed:', err.message);
+      });
 
       // If notifyAdmin is true and it's an important notification type, also notify admin
       if (notifyAdmin && this.shouldNotifyAdmin(notificationData.type)) {

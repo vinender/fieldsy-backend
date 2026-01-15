@@ -71,6 +71,7 @@ model User {
   blocksMade       UserBlock[]     @relation("BlockerRelation")
   blocksReceived   UserBlock[]     @relation("BlockedRelation")
   subscriptions    Subscription[]
+  deviceTokens     DeviceToken[]
 
   // Compound unique constraint: same email can exist with different roles
   @@unique([email, role])
@@ -854,4 +855,24 @@ model SlotLock {
   @@unique([fieldId, date, startTime])
   @@index([expiresAt]) // For efficient cleanup of expired locks
   @@map("slot_locks")
+}
+
+// Device tokens for push notifications (FCM)
+model DeviceToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  token      String   @unique // FCM registration token
+  platform   String   // "web", "ios", "android"
+  deviceName String?  // Optional device identifier (e.g., "iPhone 15 Pro", browser user agent)
+  lastUsed   DateTime @default(now())
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([platform])
+  @@map("device_tokens")
 }

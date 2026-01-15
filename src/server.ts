@@ -60,6 +60,10 @@ import aboutPageRoutes from './routes/about-page.routes';
 import amenityRoutes from './routes/amenity.routes';
 import fieldPropertiesRoutes from './routes/field-properties.routes';
 import contactQueryRoutes from './routes/contact-query.routes';
+import deviceTokenRoutes from './routes/device-token.routes';
+
+// Import Firebase for push notifications
+import { initializeFirebase } from './config/firebase.config';
 
 // Import middleware
 import { errorHandler, notFound } from './middleware/error.middleware';
@@ -538,6 +542,9 @@ class Server {
     // Contact Query routes
     this.app.use('/api/contact-queries', contactQueryRoutes);
 
+    // Device Token routes (for push notifications)
+    this.app.use('/api/device-tokens', deviceTokenRoutes);
+
     // Serve static files (if any)
     // this.app.use('/uploads', express.static('uploads'));
   }
@@ -579,6 +586,9 @@ class Server {
   }
 
   public start(): void {
+    // Initialize Firebase for push notifications
+    initializeFirebase();
+
     // Setup WebSocket and get io instance
     const io = setupWebSocket(this.httpServer);
     this.io = io;

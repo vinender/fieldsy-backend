@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationService = void 0;
 //@ts-nocheck
 const client_1 = require("@prisma/client");
+const push_notification_service_1 = require("./push-notification.service");
 const prisma = new client_1.PrismaClient();
 class NotificationService {
     /**
@@ -27,6 +28,10 @@ class NotificationService {
                 console.log('[NotificationService] Emitting user notification to room:', userRoomName);
                 io.to(userRoomName).emit('notification', userNotification);
             }
+            // Send push notification (async, don't wait for it)
+            push_notification_service_1.PushNotificationService.sendNotificationByType(notificationData.userId, notificationData.type, userNotification.id, notificationData.data || {}).catch(err => {
+                console.error('[NotificationService] Push notification failed:', err.message);
+            });
             // If notifyAdmin is true and it's an important notification type, also notify admin
             if (notifyAdmin && this.shouldNotifyAdmin(notificationData.type)) {
                 // Get admin users
