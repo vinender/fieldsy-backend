@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Initialize S3 client
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_REGION || 'eu-west-2',
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -77,7 +77,7 @@ export const uploadDirect = async (req: Request, res: Response) => {
     await s3Client.send(command);
 
     // Return the file URL
-    const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+    const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'eu-west-2'}.amazonaws.com/${key}`;
 
     res.status(200).json({
       success: true,
@@ -140,7 +140,7 @@ export const uploadMultiple = async (req: Request, res: Response) => {
 
       await s3Client.send(command);
 
-      const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+      const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'eu-west-2'}.amazonaws.com/${key}`;
       
       uploadedFiles.push({
         fileUrl,
@@ -195,7 +195,7 @@ export const getPresignedUrl = async (req: Request, res: Response) => {
     // Return the presigned URL and form fields
     res.status(200).json({
       uploadUrl: url,
-      fileUrl: `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`,
+      fileUrl: `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'eu-west-2'}.amazonaws.com/${key}`,
       fields,
     });
   } catch (error: any) {

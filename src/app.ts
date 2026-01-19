@@ -61,6 +61,16 @@ app.use(cors({
       "http://localhost:8081", // Expo web
       "http://localhost:19006", // Expo web alternate port
       "exp://localhost:8081", // Expo development
+      // Production domains - fieldsy.co.uk
+      "https://fieldsy.co.uk",
+      "https://www.fieldsy.co.uk",
+      "https://admin.fieldsy.co.uk",
+      "https://api.fieldsy.co.uk",
+      "http://fieldsy.co.uk",
+      "http://www.fieldsy.co.uk",
+      "http://admin.fieldsy.co.uk",
+      "http://api.fieldsy.co.uk",
+      // Legacy production domains - indiitserver.in
       "https://fieldsy.indiitserver.in", // Production frontend
       "https://fieldsy-admin.indiitserver.in", // Production admin
       "https://fieldsy-api.indiitserver.in", // Production API (for self-referential calls)
