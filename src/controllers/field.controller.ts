@@ -25,9 +25,9 @@ const isValidImageUrl = (img: string | null | undefined): boolean => {
 
   // Skip placeholder images
   if (lowerImg.includes('placeholder') ||
-      lowerImg.includes('/fields/field') ||
-      lowerImg === 'null' ||
-      lowerImg === '') {
+    lowerImg.includes('/fields/field') ||
+    lowerImg === 'null' ||
+    lowerImg === '') {
     return false;
   }
 
@@ -38,19 +38,19 @@ const isValidImageUrl = (img: string | null | undefined): boolean => {
 
   // Filter out Google Maps images
   if (lowerImg.includes('maps.google') ||
-      lowerImg.includes('google.com/maps') ||
-      lowerImg.includes('maps.googleapis.com') ||
-      lowerImg.includes('staticmap') ||
-      lowerImg.includes('street_view') ||
-      lowerImg.includes('streetview')) {
+    lowerImg.includes('google.com/maps') ||
+    lowerImg.includes('maps.googleapis.com') ||
+    lowerImg.includes('staticmap') ||
+    lowerImg.includes('street_view') ||
+    lowerImg.includes('streetview')) {
     return false;
   }
 
   // Filter out other map service images
   if (lowerImg.includes('openstreetmap') ||
-      lowerImg.includes('mapbox') ||
-      lowerImg.includes('tile.openstreetmap') ||
-      lowerImg.includes('api.mapbox')) {
+    lowerImg.includes('mapbox') ||
+    lowerImg.includes('tile.openstreetmap') ||
+    lowerImg.includes('api.mapbox')) {
     return false;
   }
 
@@ -63,7 +63,7 @@ const isPremiumImageUrl = (img: string): boolean => {
 
   // WordPress URLs are valid but not "premium"
   if (lowerImg.includes('dogwalkingfields.co.uk/wp-content') ||
-      lowerImg.includes('/wp-content/uploads/')) {
+    lowerImg.includes('/wp-content/uploads/')) {
     return false;
   }
 
@@ -1879,6 +1879,25 @@ class FieldController {
         prisma.booking.count({ where: bookingFilter })
       ]);
 
+      // Calculate total earnings from successful payouts (PAID status only)
+      const stripeAccount = await prisma.stripeAccount.findUnique({
+        where: { userId: ownerId }
+      });
+
+      let totalPaidEarnings = 0;
+      if (stripeAccount) {
+        const payouts = await prisma.payout.aggregate({
+          where: {
+            stripeAccountId: stripeAccount.id,
+            status: 'paid'
+          },
+          _sum: {
+            amount: true
+          }
+        });
+        totalPaidEarnings = payouts._sum.amount || 0;
+      }
+
       // Get overall stats across all fields
       const totalBookings = await prisma.booking.count({
         where: { fieldId: { in: fieldIds } }
@@ -1891,16 +1910,6 @@ class FieldController {
             gte: today,
             lt: tomorrow
           }
-        }
-      });
-
-      const totalEarnings = await prisma.booking.aggregate({
-        where: {
-          fieldId: { in: fieldIds },
-          status: 'COMPLETED'
-        },
-        _sum: {
-          fieldOwnerAmount: true
         }
       });
 
@@ -1924,7 +1933,7 @@ class FieldController {
         stats: {
           todayBookings,
           totalBookings,
-          totalEarnings: totalEarnings._sum.fieldOwnerAmount || 0
+          totalEarnings: totalPaidEarnings
         },
         pagination: {
           page: pageNum,
@@ -2025,19 +2034,27 @@ class FieldController {
         prisma.booking.count({ where: bookingFilter })
       ]);
 
-      // Get overall stats across all fields
-      const [totalBookings, totalEarnings] = await Promise.all([
-        prisma.booking.count({ where: { fieldId: { in: fieldIds } } }),
-        prisma.booking.aggregate({
+      // Calculate total earnings from successful payouts (PAID status only)
+      const stripeAccount = await prisma.stripeAccount.findUnique({
+        where: { userId: ownerId }
+      });
+
+      let totalPaidEarnings = 0;
+      if (stripeAccount) {
+        const payouts = await prisma.payout.aggregate({
           where: {
-            fieldId: { in: fieldIds },
-            status: 'COMPLETED'
+            stripeAccountId: stripeAccount.id,
+            status: 'paid'
           },
           _sum: {
-            fieldOwnerAmount: true
+            amount: true
           }
-        })
-      ]);
+        });
+        totalPaidEarnings = payouts._sum.amount || 0;
+      }
+
+      // Get overall stats across all fields
+      const totalBookings = await prisma.booking.count({ where: { fieldId: { in: fieldIds } } });
 
       // Format bookings for frontend with fee breakdown
       const formattedBookings = bookings.map((booking: any) => {
@@ -2125,7 +2142,7 @@ class FieldController {
         stats: {
           todayBookings: totalFilteredBookings,
           totalBookings,
-          totalEarnings: totalEarnings._sum.fieldOwnerAmount || 0
+          totalEarnings: totalPaidEarnings
         },
         pagination: {
           page: pageNum,
@@ -2228,8 +2245,27 @@ class FieldController {
         prisma.booking.count({ where: bookingFilter })
       ]);
 
+      // Calculate total earnings from successful payouts (PAID status only)
+      const stripeAccount = await prisma.stripeAccount.findUnique({
+        where: { userId: ownerId }
+      });
+
+      let totalPaidEarnings = 0;
+      if (stripeAccount) {
+        const payouts = await prisma.payout.aggregate({
+          where: {
+            stripeAccountId: stripeAccount.id,
+            status: 'paid'
+          },
+          _sum: {
+            amount: true
+          }
+        });
+        totalPaidEarnings = payouts._sum.amount || 0;
+      }
+
       // Get overall stats across all fields
-      const [totalBookings, todayBookings, totalEarnings] = await Promise.all([
+      const [totalBookings, todayBookings] = await Promise.all([
         prisma.booking.count({ where: { fieldId: { in: fieldIds } } }),
         prisma.booking.count({
           where: {
@@ -2238,15 +2274,6 @@ class FieldController {
               gte: today,
               lt: tomorrow
             }
-          }
-        }),
-        prisma.booking.aggregate({
-          where: {
-            fieldId: { in: fieldIds },
-            status: 'COMPLETED'
-          },
-          _sum: {
-            fieldOwnerAmount: true
           }
         })
       ]);
@@ -2337,7 +2364,7 @@ class FieldController {
         stats: {
           todayBookings,
           totalBookings,
-          totalEarnings: totalEarnings._sum.fieldOwnerAmount || 0
+          totalEarnings: totalPaidEarnings
         },
         pagination: {
           page: pageNum,
@@ -2433,11 +2460,30 @@ class FieldController {
         prisma.booking.count({ where: bookingFilter })
       ]);
 
+      // Calculate total earnings from successful payouts (PAID status only)
+      const stripeAccount = await prisma.stripeAccount.findUnique({
+        where: { userId: ownerId }
+      });
+
+      let totalPaidEarnings = 0;
+      if (stripeAccount) {
+        const payouts = await prisma.payout.aggregate({
+          where: {
+            stripeAccountId: stripeAccount.id,
+            status: 'paid'
+          },
+          _sum: {
+            amount: true
+          }
+        });
+        totalPaidEarnings = payouts._sum.amount || 0;
+      }
+
       // Get overall stats across all fields
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const [totalBookings, todayBookings, totalEarnings] = await Promise.all([
+      const [totalBookings, todayBookings] = await Promise.all([
         prisma.booking.count({ where: { fieldId: { in: fieldIds } } }),
         prisma.booking.count({
           where: {
@@ -2446,15 +2492,6 @@ class FieldController {
               gte: today,
               lt: tomorrow
             }
-          }
-        }),
-        prisma.booking.aggregate({
-          where: {
-            fieldId: { in: fieldIds },
-            status: 'COMPLETED'
-          },
-          _sum: {
-            fieldOwnerAmount: true
           }
         })
       ]);
@@ -2529,7 +2566,7 @@ class FieldController {
         stats: {
           todayBookings,
           totalBookings,
-          totalEarnings: totalEarnings._sum.fieldOwnerAmount || 0
+          totalEarnings: totalPaidEarnings
         },
         pagination: {
           page: pageNum,
