@@ -2103,7 +2103,7 @@ class FieldController {
         if (isLocked && booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
           fieldOwnerEarnings = booking.fieldOwnerAmount;
         } else {
-          fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee) * 100) / 100;
+          fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee - stripeFee) * 100) / 100;
         }
 
         return {
