@@ -143,10 +143,13 @@ export class PushNotificationService {
           imageUrl: payload.imageUrl,
         },
         data: payload.data || {},
-        // Web push options
+        // Web push options for icon/badge/actions
         webpush: {
           notification: {
+            title: payload.title,
+            body: payload.body,
             icon: payload.data?.senderImage || '/logo.svg',
+            image: payload.imageUrl,
             badge: '/logo-badge.png',
           },
           fcmOptions: {
