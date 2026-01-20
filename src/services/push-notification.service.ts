@@ -273,133 +273,141 @@ export class PushNotificationService {
     type: string,
     data: Record<string, any>
   ): { title: string; body: string; link: string } {
+    const baseUrl = process.env.FRONTEND_URL || 'https://fieldsy.com'; // Fallback to prod domain if env missing
+
+    // Helper to format link
+    const getLink = (path: string) => {
+      if (path.startsWith('http')) return path;
+      return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+    };
+
     const contentMap: Record<string, { title: string; body: string; link: string }> = {
       // Booking notifications
       new_booking_received: {
         title: 'New Booking Request!',
         body: `You have a new booking request for ${data.fieldName || 'your field'}`,
-        link: '/field-owner/bookings',
+        link: getLink('/field-owner/bookings'),
       },
       booking_received: {
         title: 'New Booking Request!',
         body: `You have a new booking request for ${data.fieldName || 'your field'}`,
-        link: '/field-owner/bookings',
+        link: getLink('/field-owner/bookings'),
       },
       booking_confirmed: {
         title: 'Booking Confirmed!',
         body: `Your booking at ${data.fieldName || 'the field'} has been confirmed`,
-        link: '/user/my-bookings',
+        link: getLink('/user/my-bookings'),
       },
       booking_request_sent: {
         title: 'Booking Request Sent',
         body: `Your booking request for ${data.fieldName || 'the field'} has been sent`,
-        link: '/user/my-bookings',
+        link: getLink('/user/my-bookings'),
       },
       booking_cancelled: {
         title: 'Booking Cancelled',
         body: `A booking for ${data.fieldName || 'your field'} has been cancelled`,
-        link: '/user/my-bookings',
+        link: getLink('/user/my-bookings'),
       },
       booking_completed: {
         title: 'Booking Completed',
         body: `Your booking at ${data.fieldName || 'the field'} is complete. Leave a review!`,
-        link: '/user/my-bookings',
+        link: getLink('/user/my-bookings'),
       },
       recurring_booking_created: {
         title: 'Recurring Booking Scheduled',
         body: `Your next recurring booking at ${data.fieldName || 'the field'} has been scheduled`,
-        link: '/user/my-bookings',
+        link: getLink('/user/my-bookings'),
       },
 
       // Message notifications
       new_message: {
         title: data.senderName || 'New Message',
         body: data.messagePreview || 'You have a new message',
-        link: `/user/messages?userId=${data.senderId || ''}`,
+        link: getLink(`/user/messages?userId=${data.senderId || ''}`),
       },
 
       // Payment notifications
       payment_received: {
         title: 'Payment Received!',
         body: `Payment of £${data.amount || '0'} has been received`,
-        link: '/field-owner/earnings',
+        link: getLink('/field-owner/earnings'),
       },
       payment_failed: {
         title: 'Payment Failed',
         body: 'Your payment could not be processed. Please try again.',
-        link: '/user/my-bookings',
+        link: getLink('/user/my-bookings'),
       },
 
       // Payout notifications
       payout_completed: {
         title: 'Payout Completed!',
         body: `£${data.amount || '0'} has been transferred to your bank account`,
-        link: '/field-owner/earnings',
+        link: getLink('/field-owner/earnings'),
       },
       payout_processed: {
         title: 'Payout Processed!',
         body: `£${data.amount || '0'} is on its way to your bank account`,
-        link: '/field-owner/earnings',
+        link: getLink('/field-owner/earnings'),
       },
       payout_failed: {
         title: 'Payout Failed',
         body: 'Your payout could not be processed. Please check your bank details.',
-        link: '/field-owner/settings',
+        link: getLink('/field-owner/settings'),
       },
 
       // Review notifications
       new_review_received: {
         title: 'New Review!',
         body: `${data.reviewerName || 'Someone'} left a ${data.rating || 5}-star review on ${data.fieldName || 'your field'}`,
-        link: data.fieldId ? `/fields/${data.fieldId}` : '/field-owner/my-fields',
+        link: getLink(data.fieldId ? `/fields/${data.fieldId}` : '/field-owner/my-fields'),
       },
       review_posted: {
         title: 'New Review!',
         body: `A new review has been posted on ${data.fieldName || 'your field'}`,
-        link: data.fieldId ? `/fields/${data.fieldId}` : '/field-owner/my-fields',
+        link: getLink(data.fieldId ? `/fields/${data.fieldId}` : '/field-owner/my-fields'),
       },
 
       // Field notifications
       field_approved: {
         title: 'Field Approved!',
         body: `Your field "${data.fieldName || ''}" has been approved and is now live`,
-        link: '/field-owner/my-fields',
+        link: getLink('/field-owner/my-fields'),
       },
       field_submitted: {
         title: 'Field Submitted',
         body: `Your field "${data.fieldName || ''}" has been submitted for review`,
-        link: '/field-owner/my-fields',
+        link: getLink('/field-owner/my-fields'),
       },
       field_added: {
         title: 'New Field Added',
         body: `A new field "${data.fieldName || ''}" has been added`,
-        link: '/admin/fields',
+        link: getLink('/admin/fields'),
       },
 
       // Refund notifications
       refund_processed: {
         title: 'Refund Processed',
         body: `Your refund of £${data.amount || '0'} has been processed`,
-        link: '/user/my-bookings',
+        link: getLink('/user/my-bookings'),
       },
 
       // Stripe Connect notifications
       stripe_account_ready: {
         title: 'Stripe Account Ready!',
         body: 'Your Stripe account is now set up and ready to receive payouts',
-        link: '/field-owner/earnings',
+        link: getLink('/field-owner/earnings'),
       },
       stripe_requirements: {
         title: 'Action Required',
         body: 'Please complete your Stripe account setup to receive payouts',
-        link: '/field-owner/settings',
+        link: getLink('/field-owner/settings'),
       },
 
       // User notifications
       user_registered: {
         title: 'Welcome to Fieldsy!',
         body: 'Your account has been created successfully',
-        link: '/',
+        link: getLink('/'),
       },
     };
 
@@ -407,7 +415,7 @@ export class PushNotificationService {
       contentMap[type] || {
         title: 'Fieldsy',
         body: 'You have a new notification',
-        link: '/',
+        link: getLink('/'),
       }
     );
   }
