@@ -168,7 +168,7 @@ const CONVERSATION_UPDATE_DELAY = 1000; // Wait 1 second before updating convers
 // Initialize Kafka producer and consumer (if enabled)
 export const initializeKafka = async (io: SocketIOServer) => {
   socketIO = io; // Store the Socket.io instance
-  
+
   if (!producer || !consumer) {
     console.log('Kafka is disabled. Messages will be handled directly.');
     kafkaEnabled = false;
@@ -194,7 +194,7 @@ export const initializeKafka = async (io: SocketIOServer) => {
       eachMessage: async ({ topic, partition, message }: EachMessagePayload) => {
         try {
           if (!message.value) return;
-          
+
           const chatMessage: ChatMessage = JSON.parse(message.value.toString());
           await processMessage(chatMessage, io);
         } catch (error) {
@@ -325,7 +325,34 @@ async function processMessage(chatMessage: ChatMessage, io: SocketIOServer) {
       }
     }
 
+    // --- SEND PUSH NOTIFICATION ---
+    // Only send if the user is NOT in the conversation room (i.e., not actively viewing)
+    // Or if we want to notify them regardless (usually better UX to always notify on mobile/background)
+    try {
+      // Import dynamically to avoid circular dependencies if any
+      const { PushNotificationService } = await import('../services/push-notification.service');
+
+      console.log(`[ProcessMessage] Sending push notification to ${chatMessage.receiverId}`);
+      await PushNotificationService.sendNotificationByType(
+        chatMessage.receiverId,
+        'new_message',
+        savedMessage.id,
+        {
+          senderId: chatMessage.senderId,
+          senderName: savedMessage.sender?.name || 'User',
+          senderImage: savedMessage.sender?.image || '',
+          messagePreview: chatMessage.content.length > 50 ? chatMessage.content.substring(0, 50) + '...' : chatMessage.content,
+          conversationId: chatMessage.conversationId,
+          fieldId: (savedMessage as any).conversation?.fieldId || ''
+        }
+      );
+    } catch (pushError) {
+      console.error('[ProcessMessage] Failed to send push notification:', pushError);
+      // Non-blocking error, continue
+    }
+
     return savedMessage;
+
   } catch (error) {
     console.error('[ProcessMessage] Error processing message:', error);
     // Remove from processed set on error so it can be retried
