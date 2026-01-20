@@ -92,7 +92,7 @@ export class PushNotificationService {
         // Web push options
         webpush: {
           notification: {
-            icon: '/logo.svg',
+            icon: payload.data?.senderImage || '/logo.svg',
             badge: '/logo-badge.png',
           },
           fcmOptions: {
@@ -229,9 +229,9 @@ export class PushNotificationService {
 
       // Message notifications
       new_message: {
-        title: `Message from ${data.senderName || 'Someone'}`,
+        title: data.senderName || 'New Message',
         body: data.messagePreview || 'You have a new message',
-        link: '/user/messages',
+        link: `/user/messages?userId=${data.senderId || ''}`,
       },
 
       // Payment notifications
