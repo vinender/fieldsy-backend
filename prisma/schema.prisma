@@ -710,6 +710,7 @@ model SystemSettings {
   enableSmsNotifications     Boolean @default(false)
   bannerText                 String? @default("Find Safe, private dog walking fields") // Hero banner main text
   highlightedText            String? @default("near you") // Text to highlight in the banner
+  isLive                     Boolean @default(true) // Controls if the website is publicly accessible
 
   // About Section Settings
   aboutTitle       String?  @default("At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.")

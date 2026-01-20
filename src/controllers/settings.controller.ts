@@ -9,7 +9,7 @@ export const getSystemSettings = async (req: Request, res: Response) => {
   try {
     // Get the first settings record or create one with defaults
     let settings = await prisma.systemSettings.findFirst();
-    
+
     if (!settings) {
       // Create default settings if none exist
       settings = await prisma.systemSettings.create({
@@ -27,7 +27,8 @@ export const getSystemSettings = async (req: Request, res: Response) => {
           enableEmailNotifications: true,
           enableSmsNotifications: false,
           bannerText: 'Find Safe, private dog walking fields',
-          highlightedText: 'near you'
+          highlightedText: 'near you',
+          isLive: true
         }
       });
     }
@@ -65,6 +66,7 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
       enableSmsNotifications,
       bannerText,
       highlightedText,
+      isLive,
       aboutTitle,
       aboutDogImage,
       aboutFamilyImage,
@@ -94,7 +96,7 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
 
     // Get existing settings or create if not exists
     let settings = await prisma.systemSettings.findFirst();
-    
+
     if (!settings) {
       // Create with provided values
       settings = await prisma.systemSettings.create({
@@ -114,6 +116,7 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
           enableSmsNotifications: enableSmsNotifications ?? false,
           bannerText: bannerText || 'Find Safe, private dog walking fields',
           highlightedText: highlightedText || 'near you',
+          isLive: isLive ?? true,
           aboutTitle: aboutTitle || 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.',
           aboutDogImage: aboutDogImage || '',
           aboutFamilyImage: aboutFamilyImage || '',
@@ -141,6 +144,7 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
           ...(enableSmsNotifications !== undefined && { enableSmsNotifications }),
           ...(bannerText !== undefined && { bannerText }),
           ...(highlightedText !== undefined && { highlightedText }),
+          ...(isLive !== undefined && { isLive }),
           ...(aboutTitle !== undefined && { aboutTitle }),
           ...(aboutDogImage !== undefined && { aboutDogImage }),
           ...(aboutFamilyImage !== undefined && { aboutFamilyImage }),
@@ -184,7 +188,7 @@ export const updatePlatformImages = async (req: Request, res: Response) => {
 
     // Get existing settings or create if not exists
     let settings = await prisma.systemSettings.findFirst();
-    
+
     if (!settings) {
       // Create with provided values
       settings = await prisma.systemSettings.create({
@@ -270,6 +274,7 @@ export const getPublicSettings = async (req: Request, res: Response) => {
         maintenanceMode: true,
         bannerText: true,
         highlightedText: true,
+        isLive: true,
         aboutTitle: true,
         aboutDogImage: true,
         aboutFamilyImage: true,
@@ -285,7 +290,7 @@ export const getPublicSettings = async (req: Request, res: Response) => {
         platformFieldOwnersBullets: true
       }
     });
-    
+
     if (!settings) {
       // Return default values if no settings exist
       settings = {
@@ -300,6 +305,7 @@ export const getPublicSettings = async (req: Request, res: Response) => {
         maintenanceMode: false,
         bannerText: 'Find Safe, private dog walking fields',
         highlightedText: 'near you',
+        isLive: true,
         aboutTitle: 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.',
         aboutDogImage: '',
         aboutFamilyImage: '',
