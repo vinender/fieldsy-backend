@@ -70,7 +70,9 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
       aboutTitle,
       aboutDogImage,
       aboutFamilyImage,
-      aboutDogIcons
+      aboutDogIcons,
+      bypassUsername,
+      bypassPassword
     } = req.body;
 
     // Validate maxAdvanceBookingDays is between 30 and 60
@@ -145,6 +147,8 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
           ...(bannerText !== undefined && { bannerText }),
           ...(highlightedText !== undefined && { highlightedText }),
           ...(isLive !== undefined && { isLive }),
+          ...(bypassUsername !== undefined && { bypassUsername }),
+          ...(bypassPassword !== undefined && { bypassPassword }),
           ...(aboutTitle !== undefined && { aboutTitle }),
           ...(aboutDogImage !== undefined && { aboutDogImage }),
           ...(aboutFamilyImage !== undefined && { aboutFamilyImage }),
@@ -313,15 +317,101 @@ export const getPublicSettings = async (req: Request, res: Response) => {
       };
     }
 
+    // Check access for requesting IP
+    // Try to get IP from x-forwarded-for header (standard for proxies/load balancers)
+    // or fallback to connection remoteAddress
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
+
+    let hasAccess = false;
+    if (ip) {
+      const allowedIp = await prisma.allowedIp.findUnique({
+        where: { ip }
+      });
+      if (allowedIp) {
+        hasAccess = true;
+      }
+    }
+
     res.json({
       success: true,
-      data: settings
+      data: {
+        ...settings,
+        hasAccess
+      }
     });
   } catch (error) {
     console.error('Error fetching public settings:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch public settings'
+    });
+  }
+};
+
+// Verify site password and whitelist IP
+export const verifySiteAccess = async (req: Request, res: Response) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and password are required'
+      });
+    }
+
+    const settings = await prisma.systemSettings.findFirst();
+
+    if (!settings) {
+      return res.status(500).json({
+        success: false,
+        message: 'System settings not found'
+      });
+    }
+
+    // Default credentials if not set
+    const validUsername = settings.bypassUsername || 'admin';
+    const validPassword = settings.bypassPassword || 'fieldsy123';
+
+    if (username !== validUsername || password !== validPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Get IP
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
+
+    if (!ip) {
+      return res.status(400).json({
+        success: false,
+        message: 'Could not determine IP address'
+      });
+    }
+
+    // Add to whitelist
+    await prisma.allowedIp.upsert({
+      where: { ip },
+      update: { updatedAt: new Date() },
+      create: {
+        ip,
+        label: 'User Bypass'
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Access granted'
+    });
+
+  } catch (error) {
+    console.error('Error verifying site access:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify access'
     });
   }
 };

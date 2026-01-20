@@ -729,10 +729,24 @@ model SystemSettings {
   platformFieldOwnersTitle    String?  @default("Turn Your Land into a Dog's Dream & Earn") // Field owners card title
   platformFieldOwnersBullets  String[] @default(["Earn passive income while helping pets", "Host dog owners with full control", "Set your availability and pricing", "List your field for free"]) // Field owners card bullet points
 
+  // Bypass Authentication Settings
+  bypassUsername             String? @default("admin") // Username to bypass coming soon page
+  bypassPassword             String? @default("fieldsy123") // Password to bypass coming soon page
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+model AllowedIp {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  ip        String   @unique
+  label     String?  // Optional label (e.g. "Developer", "Client")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("allowed_ips")
 }
 
 model FAQ {
