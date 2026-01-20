@@ -9,12 +9,16 @@ const prisma = new PrismaClient();
 class FavoriteController {
   // Toggle favorite (save/unsave field)
   toggleFavorite = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { fieldId } = req.params;
+    const { fieldId: providedFieldId } = req.params;
     const userId = (req as any).user.id;
+
+    // Support both internal ID and human-readable fieldId
+    const isObjectId = providedFieldId.length === 24 && /^[0-9a-fA-F]+$/.test(providedFieldId);
+    const where = isObjectId ? { id: providedFieldId } : { fieldId: providedFieldId };
 
     // Check if field exists
     const field = await prisma.field.findUnique({
-      where: { id: fieldId }
+      where
     });
 
     if (!field) {
@@ -26,7 +30,7 @@ class FavoriteController {
       where: {
         userId_fieldId: {
           userId,
-          fieldId
+          fieldId: field.id
         }
       }
     });
@@ -50,7 +54,7 @@ class FavoriteController {
       const favorite = await prisma.favorite.create({
         data: {
           userId,
-          fieldId
+          fieldId: field.id
         }
       });
 
@@ -179,14 +183,35 @@ class FavoriteController {
 
   // Check if field is favorited by user
   checkFavorite = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { fieldId } = req.params;
+    const { fieldId: providedFieldId } = req.params;
     const userId = (req as any).user.id;
+
+    // Support both internal ID and human-readable fieldId
+    const isObjectId = providedFieldId.length === 24 && /^[0-9a-fA-F]+$/.test(providedFieldId);
+
+    let fieldIdToCheck = providedFieldId;
+
+    if (!isObjectId) {
+      const field = await prisma.field.findUnique({
+        where: { fieldId: providedFieldId },
+        select: { id: true }
+      });
+
+      if (!field) {
+        return res.json({
+          success: true,
+          isLiked: false,
+          isFavorited: false
+        });
+      }
+      fieldIdToCheck = field.id;
+    }
 
     const favorite = await prisma.favorite.findUnique({
       where: {
         userId_fieldId: {
           userId,
-          fieldId
+          fieldId: fieldIdToCheck
         }
       }
     });
@@ -200,14 +225,31 @@ class FavoriteController {
 
   // Remove from favorites
   removeFavorite = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { fieldId } = req.params;
+    const { fieldId: providedFieldId } = req.params;
     const userId = (req as any).user.id;
+
+    // Support both internal ID and human-readable fieldId
+    const isObjectId = providedFieldId.length === 24 && /^[0-9a-fA-F]+$/.test(providedFieldId);
+
+    let fieldIdToCheck = providedFieldId;
+
+    if (!isObjectId) {
+      const field = await prisma.field.findUnique({
+        where: { fieldId: providedFieldId },
+        select: { id: true }
+      });
+
+      if (!field) {
+        throw new AppError('Field not found', 404);
+      }
+      fieldIdToCheck = field.id;
+    }
 
     const favorite = await prisma.favorite.findUnique({
       where: {
         userId_fieldId: {
           userId,
-          fieldId
+          fieldId: fieldIdToCheck
         }
       }
     });

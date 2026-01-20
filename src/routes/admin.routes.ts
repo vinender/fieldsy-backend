@@ -267,9 +267,12 @@ router.get('/bookings', authenticateAdmin, async (req, res) => {
     const whereClause: any = {};
     let shortBookingIdSearch: string | null = null;
 
-    // Search filter - supports searching by user name OR booking ID (full or short format)
+    // Search filter - supports searching by user name OR booking ID (full, short, or sequential format)
     if (searchName && typeof searchName === 'string' && searchName.trim()) {
       let searchTerm = searchName.trim();
+
+      // Check if search term is a sequential booking ID (e.g. 1111 or #1111)
+      const isSequentialBookingId = /^(#)?\d+$/.test(searchTerm);
 
       // Check if search term looks like a booking ID (MongoDB ObjectId format: 24 hex characters)
       const isFullBookingId = /^[a-f0-9]{24}$/i.test(searchTerm);
@@ -277,9 +280,13 @@ router.get('/bookings', authenticateAdmin, async (req, res) => {
       // Check if search term looks like a short booking ID (e.g., #ABC123 or ABC123 - 6 hex characters)
       // Remove # prefix if present
       const shortIdTerm = searchTerm.startsWith('#') ? searchTerm.slice(1) : searchTerm;
-      const isShortBookingId = /^[a-f0-9]{6}$/i.test(shortIdTerm);
+      const isShortBookingId = !isSequentialBookingId && /^[a-f0-9]{6}$/i.test(shortIdTerm);
 
-      if (isFullBookingId) {
+      if (isSequentialBookingId) {
+        // Search by new human-readable bookingId
+        const cleanId = searchTerm.startsWith('#') ? searchTerm.slice(1) : searchTerm;
+        whereClause.bookingId = cleanId;
+      } else if (isFullBookingId) {
         // Search by full booking ID directly
         whereClause.id = searchTerm;
       } else if (isShortBookingId) {
@@ -405,8 +412,12 @@ router.get('/bookings', authenticateAdmin, async (req, res) => {
 // Get booking details
 router.get('/bookings/:id', authenticateAdmin, async (req, res) => {
   try {
+    const id = req.params.id;
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    const where = isObjectId ? { id } : { bookingId: id };
+
     const booking = await prisma.booking.findUnique({
-      where: { id: req.params.id },
+      where,
       include: {
         user: true,
         field: {
@@ -558,6 +569,7 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
     // Build search filter
     const searchFilter = search && (search as string).trim() !== '' ? {
       OR: [
+        { fieldId: { contains: search as string, mode: 'insensitive' as const } },
         { name: { contains: search as string, mode: 'insensitive' as const } },
         { address: { contains: search as string, mode: 'insensitive' as const } },
         { city: { contains: search as string, mode: 'insensitive' as const } },

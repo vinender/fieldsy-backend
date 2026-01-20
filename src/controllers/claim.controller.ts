@@ -27,9 +27,13 @@ export const submitFieldClaim = asyncHandler(async (req: Request, res: Response)
     throw new AppError('All fields are required', 400);
   }
 
+  // Support both internal ID and human-readable fieldId
+  const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
+  const where = isObjectId ? { id: fieldId } : { fieldId };
+
   // Check if field exists and get owner info
   const field = await prisma.field.findUnique({
-    where: { id: fieldId },
+    where,
     include: {
       owner: {
         select: {
@@ -54,7 +58,7 @@ export const submitFieldClaim = asyncHandler(async (req: Request, res: Response)
   // Check if this specific user already has a pending claim for this field
   const existingUserClaim = await prisma.fieldClaim.findFirst({
     where: {
-      fieldId,
+      fieldId: field.id,
       email,
       status: 'PENDING'
     }
@@ -67,7 +71,7 @@ export const submitFieldClaim = asyncHandler(async (req: Request, res: Response)
   // Create the claim
   const claim = await prisma.fieldClaim.create({
     data: {
-      fieldId,
+      fieldId: field.id,
       fullName,
       email,
       phoneCode,
@@ -91,12 +95,12 @@ export const submitFieldClaim = asyncHandler(async (req: Request, res: Response)
 
   // Send confirmation email to the claimer
   try {
-    const fieldAddress = field.address ? 
-      `${field.address}${field.city ? ', ' + field.city : ''}${field.state ? ', ' + field.state : ''}` : 
+    const fieldAddress = field.address ?
+      `${field.address}${field.city ? ', ' + field.city : ''}${field.state ? ', ' + field.state : ''}` :
       'Address not specified';
-    
+
     const fullPhoneNumber = `${phoneCode} ${phoneNumber}`;
-    
+
     await emailService.sendFieldClaimEmail({
       fullName,
       email,
@@ -409,9 +413,13 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
   const { fieldId } = req.params;
   const { email } = req.query;
 
+  // Support both internal ID and human-readable fieldId
+  const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
+  const where = isObjectId ? { id: fieldId } : { fieldId };
+
   // Check if field exists - only select fields we need
   const field = await prisma.field.findUnique({
-    where: { id: fieldId },
+    where,
     select: {
       id: true,
       name: true,
@@ -438,7 +446,7 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
   if (email) {
     const userClaim = await prisma.fieldClaim.findFirst({
       where: {
-        fieldId,
+        fieldId: field.id,
         email: email as string,
         status: 'PENDING'
       }
@@ -457,7 +465,7 @@ export const checkClaimEligibility = asyncHandler(async (req: Request, res: Resp
   // Count total pending claims for this field
   const pendingClaimsCount = await prisma.fieldClaim.count({
     where: {
-      fieldId,
+      fieldId: field.id,
       status: 'PENDING'
     }
   });

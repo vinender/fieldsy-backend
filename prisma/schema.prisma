@@ -113,6 +113,7 @@ model Session {
 
 model Field {
   id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  fieldId     String? @unique // Human-readable ID (starting from F1111)
   name        String?
   description String?
 
@@ -213,6 +214,7 @@ model Booking {
   totalPrice         Float
   platformCommission Float? // Platform commission amount (20%)
   fieldOwnerAmount   Float? // Amount to be paid to field owner (80%)
+  bookingId          String?       @unique // Human-readable unique ID starting from 1111
   status             BookingStatus @default(PENDING)
   paymentStatus      String? // e.g., "PENDING", "PAID", "FAILED"
   paymentIntentId    String? // Stripe payment intent ID
@@ -793,6 +795,14 @@ model AboutPage {
   updatedAt DateTime @updatedAt
 
   @@map("about_pages")
+}
+
+model Counter {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  name  String @unique
+  value Int    @default(0)
+
+  @@map("counters")
 }
 
 model ContactQuery {

@@ -16,9 +16,9 @@ const isValidImageUrl = (img: string | null | undefined): boolean => {
 
   // Skip placeholder images
   if (lowerImg.includes('placeholder') ||
-      lowerImg.includes('/fields/field') ||
-      lowerImg === 'null' ||
-      lowerImg === '') {
+    lowerImg.includes('/fields/field') ||
+    lowerImg === 'null' ||
+    lowerImg === '') {
     return false;
   }
 
@@ -36,7 +36,7 @@ const isPremiumImageUrl = (img: string): boolean => {
 
   // WordPress URLs are valid but not "premium"
   if (lowerImg.includes('dogwalkingfields.co.uk/wp-content') ||
-      lowerImg.includes('/wp-content/uploads/')) {
+    lowerImg.includes('/wp-content/uploads/')) {
     return false;
   }
 
@@ -104,6 +104,16 @@ export interface CreateFieldInput {
 }
 
 class FieldModel {
+  // Helper to generate public field ID
+  async generateFieldId(): Promise<string> {
+    const counter = await prisma.counter.upsert({
+      where: { name: 'field' },
+      update: { value: { increment: 1 } },
+      create: { name: 'field', value: 1111 },
+    });
+    return `F${counter.value}`;
+  }
+
   // Create a new field
   async create(data: CreateFieldInput) {
     // Get owner details if not provided
@@ -131,9 +141,13 @@ class FieldModel {
     // Remove apartment field as it doesn't exist in the schema
     const { apartment, ...cleanedData } = data as any;
 
+    // Generate human-friendly field ID
+    const fieldId = await this.generateFieldId();
+
     return prisma.field.create({
       data: {
         ...cleanedData,
+        fieldId,
         ownerName,
         joinedOn,
         type: cleanedData.type || 'PRIVATE',
@@ -155,9 +169,12 @@ class FieldModel {
   // Find field by ID
   async findById(id: string) {
     try {
+      const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+      const where = isObjectId ? { id } : { fieldId: id };
+
       // First, try to fetch with owner relation
       return await prisma.field.findUnique({
-        where: { id },
+        where,
         include: {
           owner: {
             select: {
@@ -188,10 +205,13 @@ class FieldModel {
       });
     } catch (error) {
       // If owner relation fails (orphaned field), fetch without owner
-      console.warn(`Field ${id} has invalid owner reference, fetching without owner relation`);
+      console.warn(`Field ${id} has invalid owner reference or retrieval error, fetching without owner relation`);
+
+      const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+      const where = isObjectId ? { id } : { fieldId: id };
 
       const field = await prisma.field.findUnique({
-        where: { id },
+        where,
         include: {
           reviews: {
             include: {
@@ -226,10 +246,14 @@ class FieldModel {
   // Find field by ID with minimal data (optimized for SSG/ISR builds)
   async findByIdMinimal(id: string) {
     try {
+      const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+      const where = isObjectId ? { id } : { fieldId: id };
+
       return await prisma.field.findUnique({
-        where: { id },
+        where,
         select: {
           id: true,
+          fieldId: true,
           name: true,
           description: true,
           location: true,
@@ -288,12 +312,16 @@ class FieldModel {
       });
     } catch (error) {
       // If owner relation fails, fetch without owner
-      console.warn(`Field ${id} has invalid owner reference, fetching without owner relation`);
+      console.warn(`Field ${id} has invalid owner reference or retrieval error, fetching without owner relation`);
+
+      const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+      const where = isObjectId ? { id } : { fieldId: id };
 
       return await prisma.field.findUnique({
-        where: { id },
+        where,
         select: {
           id: true,
+          fieldId: true,
           name: true,
           description: true,
           location: true,
@@ -904,6 +932,7 @@ class FieldModel {
         // No skip/take here - we'll apply pagination after sorting by image quality
         select: {
           id: true,
+          fieldId: true, // Human-readable ID
           name: true,
           images: true, // First image for card thumbnail
           price: true, // Legacy field
@@ -1488,6 +1517,7 @@ class FieldModel {
 
         return {
           id,
+          fieldId: field.fieldId,
           name: field.name,
           city: field.city,
           state: field.state,
@@ -1534,6 +1564,7 @@ class FieldModel {
       },
       select: {
         id: true,
+        fieldId: true, // Human-readable ID
         name: true,
         city: true,
         state: true,

@@ -140,18 +140,22 @@ const formatRecurringFrequency = (repeatBooking?: string | null) => {
   return labelMap[normalized] || repeatBooking.charAt(0).toUpperCase() + repeatBooking.slice(1);
 };
 
+
 /**
- * Generate a unique orderId from MongoDB ObjectId
- * Uses the LAST 6 characters to match admin panel format:
- * - First 4 bytes (8 hex chars) = timestamp (same for bookings created in same second)
- * - Last 6 hex chars = counter (guaranteed unique per document)
+ * Generate a unique orderId
  */
-const generateOrderId = (bookingId: string): string => {
-  if (!bookingId || bookingId.length < 6) {
-    return `#${bookingId?.toUpperCase() || 'UNKNOWN'}`;
+const generateOrderId = (booking: any): string => {
+  // If we already have the new human-readable bookingId, use it
+  if (booking.bookingId) {
+    return `#${booking.bookingId}`;
   }
-  // Use last 6 characters of the ObjectId for uniqueness (matches admin panel)
-  return `#${bookingId.slice(-6).toUpperCase()}`;
+
+  const id = booking.id || booking._id;
+  if (!id || id.length < 6) {
+    return `#${id?.toUpperCase() || 'UNKNOWN'}`;
+  }
+  // Use last 6 characters of the ObjectId for legacy records
+  return `#${id.slice(-6).toUpperCase()}`;
 };
 
 class FieldController {
@@ -393,6 +397,7 @@ class FieldController {
       // Build optimized response with only necessary fields
       const optimizedField: any = {
         id: field.id,
+        fieldId: field.fieldId, // Human-readable ID
         name: field.name,
         image: getFirstValidImage(field.images), // First valid image (not WordPress URL)
         price: field.price,
@@ -1182,6 +1187,7 @@ class FieldController {
       },
       select: {
         id: true,
+        fieldId: true, // Human-readable ID
         name: true,
         city: true,
         state: true,
@@ -2114,7 +2120,7 @@ class FieldController {
           userEmail: booking.user.email,
           userPhone: booking.user.phone,
           time: `${booking.startTime} - ${booking.endTime}`,
-          orderId: generateOrderId(booking.id),
+          orderId: generateOrderId(booking),
           status: booking.status.toLowerCase(),
           frequency: formatRecurringFrequency(booking.repeatBooking),
           dogs: booking.numberOfDogs || 1,
@@ -2983,9 +2989,12 @@ class FieldController {
   getFieldDetailsForAdmin = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
 
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    const where = isObjectId ? { id } : { fieldId: id };
+
     // Get field with owner and booking details
     const field = await prisma.field.findUnique({
-      where: { id },
+      where,
       include: {
         owner: {
           select: {
@@ -3038,7 +3047,7 @@ class FieldController {
       // Get all bookings for THIS specific field
       const fieldBookings = await prisma.booking.findMany({
         where: {
-          fieldId: id,
+          fieldId: field.id,
           paymentStatus: 'PAID'
         },
         select: { id: true, totalPrice: true }

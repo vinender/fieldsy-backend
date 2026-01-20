@@ -27,6 +27,16 @@ interface BookingFilters {
 }
 
 class BookingModel {
+  // Helper to generate public booking ID
+  async generateBookingId(): Promise<string> {
+    const counter = await prisma.counter.upsert({
+      where: { name: 'booking' },
+      update: { value: { increment: 1 } },
+      create: { name: 'booking', value: 1111 },
+    });
+    return counter.value.toString();
+  }
+
   // Create a new booking
   async create(data: CreateBookingInput): Promise<Booking> {
     const { dogOwnerId, ...rest } = data;
@@ -49,11 +59,15 @@ class BookingModel {
       throw new Error('Field not found');
     }
 
+    // Generate human-friendly booking ID
+    const bookingId = await this.generateBookingId();
+
     return prisma.booking.create({
       data: {
         ...rest,
         userId: dogOwnerId,
-        status: 'PENDING'
+        bookingId,
+        status: data.status || 'PENDING'
       },
       include: {
         field: {
@@ -81,8 +95,11 @@ class BookingModel {
 
   // Find booking by ID
   async findById(id: string): Promise<Booking | null> {
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    const where = isObjectId ? { id } : { bookingId: id };
+
     return prisma.booking.findUnique({
-      where: { id },
+      where,
       include: {
         field: {
           include: {
@@ -625,7 +642,7 @@ class BookingModel {
   // Get booking statistics for a field owner
   async getFieldOwnerStats(ownerId: string) {
     const bookings = await this.findByFieldOwner(ownerId);
-    
+
     const stats = {
       total: bookings.length,
       pending: bookings.filter(b => b.status === 'PENDING').length,
@@ -643,10 +660,10 @@ class BookingModel {
   // Get booking statistics for a dog owner
   async getDogOwnerStats(dogOwnerId: string) {
     const bookings = await this.findByDogOwner(dogOwnerId);
-    
+
     const stats = {
       total: bookings.length,
-      upcoming: bookings.filter(b => 
+      upcoming: bookings.filter(b =>
         b.status === 'CONFIRMED' && new Date(b.date) >= new Date()
       ).length,
       completed: bookings.filter(b => b.status === 'COMPLETED').length,

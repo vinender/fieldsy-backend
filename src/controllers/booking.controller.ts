@@ -269,9 +269,12 @@ class BookingController {
     const systemSettings = await prisma.systemSettings.findFirst();
     const cancellationWindowHours = systemSettings?.cancellationWindowHours || 24;
 
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    const where = isObjectId ? { id } : { bookingId: id };
+
     // Fetch booking with only necessary fields for the modal
     const booking = await prisma.booking.findUnique({
-      where: { id },
+      where,
       select: {
         id: true,
         userId: true,
@@ -287,6 +290,7 @@ class BookingController {
         repeatBooking: true,
         rescheduleCount: true,
         subscriptionId: true,
+        bookingId: true,
         createdAt: true,
         updatedAt: true,
         fieldReview: {
@@ -429,6 +433,7 @@ class BookingController {
       repeatBooking: booking.repeatBooking,
       rescheduleCount: booking.rescheduleCount,
       subscriptionId: booking.subscriptionId,
+      bookingId: booking.bookingId,
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
       // Eligibility flags for cancellation/reschedule
@@ -790,6 +795,7 @@ class BookingController {
           paymentStatus: booking.paymentStatus,
           repeatBooking: booking.repeatBooking,
           rescheduleCount: booking.rescheduleCount,
+          bookingId: booking.bookingId,
           createdAt: booking.createdAt,
           updatedAt: booking.updatedAt,
           // Calculated fields for frontend/mobile apps
@@ -809,6 +815,7 @@ class BookingController {
           // Field data - only what's needed for display
           field: {
             id: field?.id,
+            fieldId: field?.fieldId,
             name: field?.name,
             address: field?.address,
             city: field?.city,
@@ -2297,8 +2304,11 @@ class BookingController {
 
     // If not found, the ID might be a booking ID - try to find subscription through booking
     if (!subscription) {
+      const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+      const bookingWhere = isObjectId ? { id: id } : { bookingId: id };
+
       const booking = await prisma.booking.findUnique({
-        where: { id: id },
+        where: bookingWhere,
         select: { subscriptionId: true }
       });
 

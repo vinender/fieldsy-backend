@@ -1,6 +1,7 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import PushNotificationService from '../services/push-notification.service';
 
 const prisma = new PrismaClient();
 
@@ -220,7 +221,7 @@ export const notificationController = {
     try {
       const userId = req.user?.id;
       console.log('Getting unread count for user:', userId);
-      
+
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -248,6 +249,7 @@ export const notificationController = {
     }
   },
 };
+
 
 // Notification creation helper (to be used in other controllers)
 export async function createNotification({
@@ -317,7 +319,7 @@ export async function createNotification({
         data,
       },
     });
-    
+
     console.log('Notification created in DB with ID:', notification.id);
     console.log('Notification userId:', notification.userId);
 
@@ -326,11 +328,11 @@ export async function createNotification({
     if (io) {
       const roomName = `user-${userId}`;  // Using user- format to match socket.ts
       console.log('Emitting notification to WebSocket room:', roomName);
-      
+
       // Get all sockets in the room to verify
       const sockets = await io.in(roomName).fetchSockets();
       console.log(`Found ${sockets.length} socket(s) in room ${roomName}`);
-      
+
       if (sockets.length > 0) {
         io.to(roomName).emit('notification', notification);
         console.log('Notification emitted successfully to room:', roomName);
@@ -339,6 +341,22 @@ export async function createNotification({
       }
     } else {
       console.log('WebSocket server not available, notification saved to DB only');
+    }
+
+    // Send Push Notification
+    try {
+      console.log('Attempting to send push notification...');
+      const pushData = { ...data, message }; // Include message in data for push payload if needed by FE
+      await PushNotificationService.sendNotificationByType(
+        userId,
+        type,
+        notification.id,
+        pushData
+      );
+      console.log('Push notification sent call completed');
+    } catch (pushError) {
+      console.error('Failed to send push notification:', pushError);
+      // We don't return null here because the notification IS created in DB
     }
 
     return notification;

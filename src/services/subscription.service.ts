@@ -54,7 +54,7 @@ export class SubscriptionService {
         metadata: { userId: user.id }
       });
       customerId = customer.id;
-      
+
       await prisma.user.update({
         where: { id: userId },
         data: { stripeCustomerId: customerId }
@@ -378,6 +378,7 @@ export class SubscriptionService {
           subscription: {
             connect: { id: subscription.id }
           },
+          bookingId: await BookingModel.generateBookingId(),
           platformCommission: slotPrice * (commissionRate / 100),
           fieldOwnerAmount: slotPrice * (1 - commissionRate / 100)
         }
@@ -609,15 +610,15 @@ export class SubscriptionService {
       case 'invoice.payment_succeeded':
         await this.handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
         break;
-      
+
       case 'invoice.payment_failed':
         await this.handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
         break;
-      
+
       case 'customer.subscription.updated':
         await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
         break;
-      
+
       case 'customer.subscription.deleted':
         await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
