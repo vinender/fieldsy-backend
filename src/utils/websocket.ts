@@ -55,25 +55,29 @@ export function setupWebSocket(server: HTTPServer) {
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
-      
+
       if (!token) {
         return next(new Error('Authentication error'));
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-      console.log('WebSocket Auth - Decoded token:', { 
-        id: decoded.id, 
+      console.log('WebSocket Auth - Decoded token:', {
+        id: decoded.id,
         userId: decoded.userId,
         email: decoded.email,
-        role: decoded.role 
+        role: decoded.role
       });
-      
+
       // The token uses 'id' not 'userId'
       const userId = decoded.id || decoded.userId;
-      
+
+      // Support both ObjectID and human-readable userId
+      const isObjectId = userId.length === 24 && /^[0-9a-fA-F]+$/.test(userId);
+      const where = isObjectId ? { id: userId } : { userId: userId };
+
       const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, role: true, email: true, name: true },
+        where,
+        select: { id: true, userId: true, role: true, email: true, name: true },
       });
 
       if (!user) {
@@ -115,6 +119,14 @@ export function setupWebSocket(server: HTTPServer) {
     const userRoom = `user-${userId}`;
     socket.join(userRoom);
     socketLog(`  - Joined room: ${userRoom}`);
+
+    // Join room based on human-readable userId if it exists
+    const humanUserId = (socket as any).user?.userId;
+    if (humanUserId) {
+      const humanRoom = `user-${humanUserId}`;
+      socket.join(humanRoom);
+      socketLog(`  - Joined human-readable room: ${humanRoom}`);
+    }
 
     // Auto-join all conversation rooms for this user
     try {
@@ -607,7 +619,7 @@ export function setupWebSocket(server: HTTPServer) {
       const unreadCount = await prisma.notification.count({
         where: { userId, read: false },
       });
-      
+
       io.to(`user-${userId}`).emit('unreadCount', unreadCount);
     } catch (error) {
       console.error('Error sending unread count:', error);

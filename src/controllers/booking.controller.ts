@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import BookingModel from '../models/booking.model';
 import FieldModel from '../models/field.model';
+import UserModel from '../models/user.model';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 import prisma from '../config/database';
@@ -16,6 +17,9 @@ class BookingController {
   createBooking = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const dogOwnerId = (req as any).user.id;
     const { fieldId, date, startTime, endTime, notes, numberOfDogs = 1 } = req.body;
+
+    // Resolve fieldId if it's external (e.g. F1111)
+    const resolvedFieldId = await FieldModel.resolveId(fieldId);
 
     // Check if user is blocked (field might not exist in production yet)
     try {
@@ -73,7 +77,7 @@ class BookingController {
 
     const existingBooking = await prisma.booking.findFirst({
       where: {
-        fieldId,
+        fieldId: resolvedFieldId,
         date: {
           gte: startOfDayDate,
           lte: endOfDayDate
@@ -94,7 +98,7 @@ class BookingController {
 
     // Check full availability (including recurring booking reservations)
     const availabilityCheck = await BookingModel.checkFullAvailability(
-      fieldId,
+      resolvedFieldId,
       new Date(date),
       startTime,
       endTime
@@ -148,7 +152,7 @@ class BookingController {
     // Create booking
     const booking = await BookingModel.create({
       dogOwnerId,
-      fieldId,
+      fieldId: resolvedFieldId,
       date: new Date(date),
       startTime,
       endTime,
@@ -176,7 +180,7 @@ class BookingController {
           message: `You have a new booking request for ${field.name} on ${new Date(date).toLocaleDateString()} from ${startTime} to ${endTime}. Please review and confirm.`,
           data: {
             bookingId: booking.id,
-            fieldId: field.id,
+            fieldId: resolvedFieldId,
             fieldName: field.name,
             date,
             startTime,
@@ -218,7 +222,7 @@ class BookingController {
     res.status(201).json({
       success: true,
       message: 'Booking created successfully',
-      data: booking,
+      data: BookingModel.sanitize(booking),
     });
   });
 
@@ -237,9 +241,13 @@ class BookingController {
 
     const skip = (Number(page) - 1) * Number(limit);
 
+    // Resolve IDs if they are human-readable
+    const resolvedDogOwnerId = dogOwnerId ? await UserModel.resolveId(dogOwnerId as string) : undefined;
+    const resolvedFieldId = fieldId ? await FieldModel.resolveId(fieldId as string) : undefined;
+
     const bookings = await BookingModel.findAll({
-      dogOwnerId: dogOwnerId as string,
-      fieldId: fieldId as string,
+      dogOwnerId: resolvedDogOwnerId,
+      fieldId: resolvedFieldId,
       status: status as any,
       date: date ? new Date(date as string) : undefined,
       startDate: startDate ? new Date(startDate as string) : undefined,
@@ -667,6 +675,7 @@ class BookingController {
           user: {
             select: {
               id: true,
+              userId: true,
               name: true,
               email: true,
             },
@@ -782,9 +791,9 @@ class BookingController {
           isCancellable;
 
         return {
-          id: booking.id,
-          userId: booking.userId,
-          fieldId: booking.fieldId,
+          id: booking.bookingId || booking.id,
+          userId: user?.userId || booking.userId,
+          fieldId: field?.fieldId || booking.fieldId,
           date: booking.date,
           startTime: booking.startTime,
           endTime: booking.endTime,
@@ -814,8 +823,7 @@ class BookingController {
           } : null,
           // Field data - only what's needed for display
           field: {
-            id: field?.id,
-            fieldId: field?.fieldId,
+            id: field?.fieldId || field?.id,
             name: field?.name,
             address: field?.address,
             city: field?.city,
@@ -837,7 +845,7 @@ class BookingController {
             amenities: transformedAmenities,
             // Owner information
             owner: owner ? {
-              id: owner.id,
+              id: owner.userId || owner.id,
               name: owner.name,
               email: owner.email,
               emailVerified: owner.emailVerified,

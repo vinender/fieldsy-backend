@@ -105,6 +105,23 @@ export interface CreateFieldInput {
 }
 
 class FieldModel {
+  // Helper to translate fieldId (human or ObjectID) to internal ObjectID
+  async resolveId(id: string): Promise<string> {
+    if (!id) return id;
+
+    // Check if it's already an ObjectID
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    if (isObjectId) return id;
+
+    // Look up by human-readable fieldId
+    const field = await prisma.field.findUnique({
+      where: { fieldId: id },
+      select: { id: true }
+    });
+
+    return field ? field.id : id;
+  }
+
   // Helper to generate public field ID
   async generateFieldId(): Promise<string> {
     const counter = await prisma.counter.upsert({

@@ -139,6 +139,21 @@ class UserModel {
     });
   }
 
+  // Helper to resolve an input ID (could be human ID or ObjectID) to an ObjectID
+  async resolveId(id: string): Promise<string> {
+    if (!id) return id;
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    if (isObjectId) return id;
+
+    const user = await prisma.user.findUnique({
+      where: { userId: id },
+      select: { id: true }
+    });
+
+    if (!user) throw new AppError('User not found', 404);
+    return user.id;
+  }
+
   // Update user
   async update(id: string, data: UpdateUserInput) {
     const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);

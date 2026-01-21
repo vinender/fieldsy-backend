@@ -458,6 +458,7 @@ router.get('/users/:id', authenticateAdmin, async (req, res) => {
       where: { id: req.params.id },
       select: {
         id: true,
+        userId: true,
         email: true,
         name: true,
         role: true,
@@ -527,6 +528,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
+          userId: true,
           email: true,
           name: true,
           role: true,

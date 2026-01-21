@@ -675,6 +675,42 @@ class BookingModel {
 
     return stats;
   }
+  // Sanitize booking object for API responses
+  sanitize(booking: any) {
+    if (!booking) return null;
+
+    const { id, userId, fieldId, bookingId, ...rest } = booking;
+
+    // Handle nested field and user if they exist
+    if (rest.field) {
+      const { id: fid, ...fieldRest } = rest.field;
+      rest.field = {
+        id: rest.field.fieldId || fid,
+        ...fieldRest
+      };
+      // Sanitize field owner if it exists
+      if (rest.field.owner) {
+        const { id: oid, ...ownerRest } = rest.field.owner;
+        rest.field.owner = {
+          id: rest.field.owner.userId || oid,
+          ...ownerRest
+        };
+      }
+    }
+
+    if (rest.user) {
+      const { id: uid, ...userRest } = rest.user;
+      rest.user = {
+        id: rest.user.userId || uid,
+        ...userRest
+      };
+    }
+
+    return {
+      id: bookingId || id,
+      ...rest
+    };
+  }
 }
 
 export default new BookingModel();

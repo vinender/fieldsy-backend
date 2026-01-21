@@ -15,8 +15,11 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Receiver ID is required' });
     }
 
+    // Resolve receiverId to internal ObjectID if it's a human-readable ID
+    const resolvedReceiverId = await UserModel.resolveId(receiverId);
+
     // Sort participants to ensure consistent ordering for deduplication
-    const sortedParticipants = [senderId, receiverId].sort();
+    const sortedParticipants = [senderId, resolvedReceiverId].sort();
 
     // Check if conversation already exists between these two users
     // Important: Find ANY conversation between these users to prevent duplicates
@@ -26,12 +29,12 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
         OR: [
           {
             participants: {
-              equals: [senderId, receiverId]
+              equals: [senderId, resolvedReceiverId]
             }
           },
           {
             participants: {
-              equals: [receiverId, senderId]
+              equals: [resolvedReceiverId, senderId]
             }
           },
           // Also check sorted order for consistency
@@ -59,7 +62,7 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
       const existingConversation = await prisma.conversation.findFirst({
         where: {
           participants: {
-            hasEvery: [senderId, receiverId]
+            hasEvery: [senderId, resolvedReceiverId]
           }
         },
         include: {
@@ -99,7 +102,7 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
     const participants = await prisma.user.findMany({
       where: {
         id: {
-          in: [senderId, receiverId]
+          in: [senderId, resolvedReceiverId]
         }
       },
       select: {
@@ -126,7 +129,7 @@ export const getConversations = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
     const { page = 1, limit = 20 } = req.query;
-    
+
     const skip = (Number(page) - 1) * Number(limit);
 
     const conversations = await prisma.conversation.findMany({
@@ -231,7 +234,7 @@ export const getMessages = async (req: Request, res: Response) => {
     const { conversationId } = req.params;
     const userId = (req as any).user.id;
     const { page = 1, limit = 50 } = req.query;
-    
+
     const skip = (Number(page) - 1) * Number(limit);
 
     // Verify user is part of the conversation
@@ -323,6 +326,9 @@ export const sendMessage = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Resolve receiverId to internal ObjectID if it's a human-readable ID
+    const resolvedReceiverId = await UserModel.resolveId(receiverId);
+
     // Verify user is part of the conversation
     const conversation = await prisma.conversation.findFirst({
       where: {
@@ -343,14 +349,14 @@ export const sendMessage = async (req: Request, res: Response) => {
         where: {
           blockerId_blockedUserId: {
             blockerId: senderId,
-            blockedUserId: receiverId
+            blockedUserId: resolvedReceiverId
           }
         }
       }),
       prisma.userBlock.findUnique({
         where: {
           blockerId_blockedUserId: {
-            blockerId: receiverId,
+            blockerId: resolvedReceiverId,
             blockedUserId: senderId
           }
         }
@@ -358,25 +364,25 @@ export const sendMessage = async (req: Request, res: Response) => {
     ]);
 
     if (senderBlockedReceiver || receiverBlockedSender) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Cannot send messages. One or both users have blocked each other.',
-        blocked: true 
+        blocked: true
       });
     }
 
     // Send message to Kafka for processing
     console.log('[Chat] Sending message:', { conversationId, senderId, receiverId, contentLength: content.length });
-    
+
     const savedMessage = await sendMessageToKafka({
       conversationId,
       senderId,
-      receiverId,
+      receiverId: resolvedReceiverId,
       content,
       timestamp: new Date()
     });
 
     console.log('[Chat] Message sent successfully:', savedMessage?.id);
-    
+
     // Return the saved message
     res.json(savedMessage || { success: true, message: 'Message queued for delivery' });
   } catch (error) {

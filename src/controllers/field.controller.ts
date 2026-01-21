@@ -396,8 +396,8 @@ class FieldController {
 
       // Build optimized response with only necessary fields
       const optimizedField: any = {
-        id: field.id,
-        fieldId: field.fieldId, // Human-readable ID
+        id: field.fieldId, // Use human-readable ID as primary ID for frontend
+        _objectId: field.id, // Store ObjectID temporarily for liking logic
         name: field.name,
         image: getFirstValidImage(field.images), // First valid image (not WordPress URL)
         price: field.price,
@@ -462,11 +462,14 @@ class FieldController {
       userLikedFieldIds = new Set(userFavorites.map(f => f.fieldId));
     }
 
-    // Add isLiked to each field
-    const fieldsWithLikeStatus = enrichedFields.map((field: any) => ({
-      ...field,
-      isLiked: userLikedFieldIds.has(field.id)
-    }));
+    // Add isLiked to each field and remove internal ID
+    const fieldsWithLikeStatus = enrichedFields.map((field: any) => {
+      const { _objectId, ...fieldData } = field;
+      return {
+        ...fieldData,
+        isLiked: userLikedFieldIds.has(_objectId)
+      };
+    });
 
     const totalPages = Math.ceil(result.total / limitNum);
 

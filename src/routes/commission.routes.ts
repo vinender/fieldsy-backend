@@ -12,7 +12,7 @@ router.get('/settings', authenticateAdmin, async (req, res) => {
 
     // Get or create system settings
     let settings = await prisma.systemSettings.findFirst();
-    
+
     if (!settings) {
       settings = await prisma.systemSettings.create({
         data: {
@@ -27,9 +27,9 @@ router.get('/settings', authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching commission settings:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch commission settings' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch commission settings'
     });
   }
 });
@@ -123,9 +123,9 @@ router.get('/field-owner/:userId', authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching field owner commission:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch field owner commission' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch field owner commission'
     });
   }
 });
@@ -222,11 +222,11 @@ router.get('/field-owners', authenticateAdmin, async (req, res) => {
     // Build search filter
     const searchFilter = search
       ? {
-          OR: [
-            { name: { contains: String(search), mode: 'insensitive' as const } },
-            { email: { contains: String(search), mode: 'insensitive' as const } }
-          ]
-        }
+        OR: [
+          { name: { contains: String(search), mode: 'insensitive' as const } },
+          { email: { contains: String(search), mode: 'insensitive' as const } }
+        ]
+      }
       : {};
 
     // Get field owners with commission rates
@@ -237,6 +237,7 @@ router.get('/field-owners', authenticateAdmin, async (req, res) => {
       },
       select: {
         id: true,
+        userId: true,
         name: true,
         email: true,
         phone: true,
@@ -291,9 +292,9 @@ router.get('/field-owners', authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching field owners with commission:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch field owners' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch field owners'
     });
   }
 });
