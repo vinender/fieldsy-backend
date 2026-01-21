@@ -325,17 +325,17 @@ const getFieldClaimStatusTemplate = (statusData: {
               <p style="margin-bottom: 10px; color: #666;">For your reference, these were the documents you submitted:</p>
               <ul style="margin: 10px 0; padding-left: 20px;">
                 ${statusData.documents.map((doc, index) => {
-                  const fileName = doc.split('/').pop() || `Document ${index + 1}`;
-                  const isFullUrl = doc.startsWith('http://') || doc.startsWith('https://');
-                  return `
+    const fileName = doc.split('/').pop() || `Document ${index + 1}`;
+    const isFullUrl = doc.startsWith('http://') || doc.startsWith('https://');
+    return `
                     <li style="margin: 8px 0;">
-                      ${isFullUrl ? 
-                        `<a href="${doc}" style="color: #4CAF50; text-decoration: none; font-weight: 500;" target="_blank">${fileName}</a>` :
-                        `<span style="color: #555;">${fileName}</span>`
-                      }
+                      ${isFullUrl ?
+        `<a href="${doc}" style="color: #4CAF50; text-decoration: none; font-weight: 500;" target="_blank">${fileName}</a>` :
+        `<span style="color: #555;">${fileName}</span>`
+      }
                     </li>
                   `;
-                }).join('')}
+  }).join('')}
               </ul>
             </div>
             ` : ''}
@@ -523,19 +523,19 @@ const getFieldClaimTemplate = (claimData: {
               <p style="margin-bottom: 10px; color: #666;">The following ownership documents were submitted with your claim:</p>
               <ul style="margin: 10px 0; padding-left: 20px;">
                 ${claimData.documents.map((doc, index) => {
-                  // Extract filename from URL or path
-                  const fileName = doc.split('/').pop() || `Document ${index + 1}`;
-                  // Check if it's a full URL or just a path
-                  const isFullUrl = doc.startsWith('http://') || doc.startsWith('https://');
-                  return `
+    // Extract filename from URL or path
+    const fileName = doc.split('/').pop() || `Document ${index + 1}`;
+    // Check if it's a full URL or just a path
+    const isFullUrl = doc.startsWith('http://') || doc.startsWith('https://');
+    return `
                     <li style="margin: 8px 0;">
-                      ${isFullUrl ? 
-                        `<a href="${doc}" style="color: #4CAF50; text-decoration: none; font-weight: 500;" target="_blank">${fileName}</a>` :
-                        `<span style="color: #555;">${fileName}</span>`
-                      }
+                      ${isFullUrl ?
+        `<a href="${doc}" style="color: #4CAF50; text-decoration: none; font-weight: 500;" target="_blank">${fileName}</a>` :
+        `<span style="color: #555;">${fileName}</span>`
+      }
                     </li>
                   `;
-                }).join('')}
+  }).join('')}
               </ul>
               <p style="margin-top: 10px; font-size: 12px; color: #888;">
                 <em>Note: These documents are securely stored and will be reviewed by our verification team.</em>
@@ -1268,7 +1268,6 @@ const getFieldApprovalTemplate = (data: {
 
             <p><strong>💰 Payment & Earnings:</strong></p>
             <ul>
-              <li>You'll receive 80% of each booking amount (we take 20% platform fee)</li>
               <li>Payments are processed via Stripe after each completed booking</li>
               <li>Set up your Stripe Connect account to receive payouts</li>
             </ul>
@@ -1900,7 +1899,7 @@ class EmailService {
   }): Promise<boolean> {
     const subject = 'Field Claim Submitted - Fieldsy';
     const html = getFieldClaimTemplate(claimData);
-    
+
     try {
       const result = await this.sendMail(claimData.email, subject, html);
       console.log(`✅ Field claim confirmation email sent to ${claimData.email}`);
@@ -2736,7 +2735,7 @@ const getCustomCommissionChangeTemplate = (data: {
 };
 
 // Add methods to EmailService class for commission notifications
-EmailService.prototype.sendDefaultCommissionChangeEmail = async function(data: {
+EmailService.prototype.sendDefaultCommissionChangeEmail = async function (data: {
   email: string;
   ownerName: string;
   previousRate: number;
@@ -2759,7 +2758,7 @@ EmailService.prototype.sendDefaultCommissionChangeEmail = async function(data: {
   }
 };
 
-EmailService.prototype.sendCustomCommissionChangeEmail = async function(data: {
+EmailService.prototype.sendCustomCommissionChangeEmail = async function (data: {
   email: string;
   ownerName: string;
   previousRate: number;
