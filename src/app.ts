@@ -30,6 +30,9 @@ import fieldPropertiesRoutes from "./routes/field-properties.routes"
 import contactQueryRoutes from "./routes/contact-query.routes"
 import docsRoutes from "./routes/docs.routes"
 import faqRoutes from "./routes/faq.routes"
+import settingsRoutes from "./routes/settings.routes"
+import termsRoutes from "./routes/terms.routes"
+import aboutPageRoutes from "./routes/about-page.routes"
 // Note: Slot lock cleanup is initialized in server.ts (the main entry point)
 // Load environment variables
 
@@ -44,11 +47,11 @@ const PORT = process.env.PORT || 5000
 export const prisma = new PrismaClient()
 
 // Middleware
-app.set('trust proxy', 1); 
+app.set('trust proxy', 1);
 app.use(helmet());
 
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
 
@@ -81,10 +84,10 @@ app.use(cors({
 
     // Check if the origin is in the allowed list or is a local development URL
     if (allowedOrigins.includes(origin) ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1') ||
-        origin.includes('192.168.') || // Local network IPs for physical devices
-        origin.includes('10.0.') // Local network IPs
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      origin.includes('192.168.') || // Local network IPs for physical devices
+      origin.includes('10.0.') // Local network IPs
     ) {
       callback(null, true);
     } else {
@@ -107,7 +110,7 @@ app.use(cookieParser());
 // API Documentation - Root route for production
 app.get("/", (req, res) => {
   const acceptHeader = req.headers.accept || '';
-  
+
   if (acceptHeader.includes('text/html')) {
     // Serve HTML documentation for browsers
     res.setHeader('Content-Type', 'text/html');
@@ -121,7 +124,7 @@ app.get("/", (req, res) => {
       documentation: 'Visit this URL in a browser for interactive documentation',
       endpoints: {
         auth: '/api/auth',
-        users: '/api/users', 
+        users: '/api/users',
         fields: '/api/fields',
         bookings: '/api/bookings',
         reviews: '/api/reviews',
@@ -434,6 +437,10 @@ app.use('/api/field-properties', fieldPropertiesRoutes)
 app.use('/api/contact-queries', contactQueryRoutes)
 app.use('/api/docs', docsRoutes)
 app.use('/api/faqs', faqRoutes)
+app.use('/api/settings', settingsRoutes)
+console.log('Registering terms routes...');
+app.use('/api/terms', termsRoutes)
+app.use('/api/about-page', aboutPageRoutes)
 
 
 // Health check endpoint

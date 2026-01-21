@@ -4,6 +4,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// (Removed DEFAULT_TERMS)
+
 // Get system settings
 export const getSystemSettings = async (req: Request, res: Response) => {
   try {
@@ -27,6 +29,7 @@ export const getSystemSettings = async (req: Request, res: Response) => {
           enableEmailNotifications: true,
           enableSmsNotifications: false,
           bannerText: 'Find Safe, private dog walking fields',
+          highlightedText: 'near you',
           highlightedText: 'near you',
           isLive: true
         }
@@ -72,7 +75,8 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
       aboutFamilyImage,
       aboutDogIcons,
       bypassUsername,
-      bypassPassword
+      bypassPassword,
+
     } = req.body;
 
     // Validate maxAdvanceBookingDays is between 30 and 60
@@ -122,6 +126,8 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
           aboutTitle: aboutTitle || 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.',
           aboutDogImage: aboutDogImage || '',
           aboutFamilyImage: aboutFamilyImage || '',
+          aboutDogImage: aboutDogImage || '',
+          aboutFamilyImage: aboutFamilyImage || '',
           aboutDogIcons: aboutDogIcons || []
         }
       });
@@ -156,7 +162,8 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
           ...(req.body.platformDogOwnersImage !== undefined && { platformDogOwnersImage: req.body.platformDogOwnersImage }),
           ...(req.body.platformFieldOwnersImage !== undefined && { platformFieldOwnersImage: req.body.platformFieldOwnersImage }),
           ...(req.body.platformWaveImage !== undefined && { platformWaveImage: req.body.platformWaveImage }),
-          ...(req.body.platformHoverImage !== undefined && { platformHoverImage: req.body.platformHoverImage })
+          ...(req.body.platformHoverImage !== undefined && { platformHoverImage: req.body.platformHoverImage }),
+
         }
       });
     }
@@ -291,7 +298,9 @@ export const getPublicSettings = async (req: Request, res: Response) => {
         platformDogOwnersBullets: true,
         platformFieldOwnersSubtitle: true,
         platformFieldOwnersTitle: true,
-        platformFieldOwnersBullets: true
+
+        platformFieldOwnersBullets: true,
+
       }
     });
 
@@ -313,7 +322,10 @@ export const getPublicSettings = async (req: Request, res: Response) => {
         aboutTitle: 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.',
         aboutDogImage: '',
         aboutFamilyImage: '',
-        aboutDogIcons: []
+        aboutDogImage: '',
+        aboutFamilyImage: '',
+        aboutDogIcons: [],
+
       };
     }
 

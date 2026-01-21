@@ -61,6 +61,7 @@ import amenityRoutes from './routes/amenity.routes';
 import fieldPropertiesRoutes from './routes/field-properties.routes';
 import contactQueryRoutes from './routes/contact-query.routes';
 import deviceTokenRoutes from './routes/device-token.routes';
+import termsRoutes from './routes/terms.routes';
 
 // Import Firebase for push notifications
 import { initializeFirebase } from './config/firebase.config';
@@ -532,6 +533,7 @@ class Server {
     this.app.use('/api/upload', bypassInDevelopment(uploadLimiter), uploadRoutes);
 
     this.app.use('/api/about-page', aboutPageRoutes);
+    this.app.use('/api/terms', termsRoutes);
 
     // Amenities routes
     this.app.use('/api/amenities', amenityRoutes);

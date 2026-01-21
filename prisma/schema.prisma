@@ -214,7 +214,7 @@ model Booking {
   totalPrice         Float
   platformCommission Float? // Platform commission amount (20%)
   fieldOwnerAmount   Float? // Amount to be paid to field owner (80%)
-  bookingId          String?       @unique // Human-readable unique ID starting from 1111
+  bookingId          String? // Human-readable unique ID starting from 1111
   status             BookingStatus @default(PENDING)
   paymentStatus      String? // e.g., "PENDING", "PAID", "FAILED"
   paymentIntentId    String? // Stripe payment intent ID
@@ -737,6 +737,19 @@ model SystemSettings {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+model Term {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  title String
+  content Json? // string or string[]
+  isList Boolean @default(false)
+  order Int @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("terms")
 }
 
 model AllowedIp {
