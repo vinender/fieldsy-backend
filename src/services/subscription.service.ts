@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import { createNotification } from '../controllers/notification.controller';
 import { addDays, addMonths, format, parse } from 'date-fns';
 import { calculatePayoutAmounts } from '../utils/commission.utils';
+import { emailService } from './email.service';
 
 export class SubscriptionService {
   /**
@@ -905,6 +906,46 @@ export class SubscriptionService {
     }
 
     console.log(`[SubscriptionService] Subscription ${subscription.id} cancelled due to payment failure. Reason: ${cancellationReason}`);
+
+    // Send email notifications
+    try {
+      // Send email to dog owner
+      if (subscription.user?.email) {
+        emailService.sendSubscriptionCancelledEmail({
+          email: subscription.user.email,
+          userName: subscription.user.name || 'Valued Customer',
+          fieldName: subscription.field?.name || 'the field',
+          interval: subscription.interval,
+          cancelledAt: new Date(),
+          reason: `Auto-cancelled after multiple failed payment attempts. Latest error: ${failureReason}`,
+          isFieldOwner: false
+        }).catch(err => console.error('Error sending subscription cancellation email to dog owner:', err));
+      }
+
+      // Send email to field owner
+      if (subscription.field?.ownerId) {
+        // Since we need the field owner's email, fetch it if not already available
+        prisma.user.findUnique({
+          where: { id: subscription.field.ownerId },
+          select: { email: true, name: true }
+        }).then(fieldOwner => {
+          if (fieldOwner?.email) {
+            emailService.sendSubscriptionCancelledEmail({
+              email: fieldOwner.email,
+              userName: fieldOwner.name || 'Field Owner',
+              dogOwnerName: subscription.user?.name || 'A customer',
+              fieldName: subscription.field?.name || 'the field',
+              interval: subscription.interval,
+              cancelledAt: new Date(),
+              reason: 'The recurring booking subscription has been automatically cancelled due to repeated payment failures.',
+              isFieldOwner: true
+            }).catch(err => console.error('Error sending subscription cancellation email to field owner:', err));
+          }
+        });
+      }
+    } catch (emailError) {
+      console.error('Error processing subscription cancellation failure emails:', emailError);
+    }
   }
 
   /**
@@ -1038,6 +1079,51 @@ export class SubscriptionService {
         subscriptionId: subscription.id
       }
     });
+    // Send email notifications
+    try {
+      // Fetch full subscription details
+      const fullSubscription = await prisma.subscription.findUnique({
+        where: { id: subscription.id },
+        include: {
+          field: { include: { owner: true } },
+          user: true
+        }
+      });
+
+      if (fullSubscription) {
+        const { field, user } = fullSubscription;
+        const cancelledAt = new Date();
+
+        // Send email to dog owner
+        if (user?.email) {
+          emailService.sendSubscriptionCancelledEmail({
+            email: user.email,
+            userName: user.name || 'Valued Customer',
+            fieldName: field.name,
+            interval: fullSubscription.interval,
+            cancelledAt,
+            reason: 'Subscription cancelled via payment provider or at your request',
+            isFieldOwner: false
+          }).catch(err => console.error('Error sending subscription cancellation email to dog owner (webhook):', err));
+        }
+
+        // Send email to field owner
+        if (field?.owner?.email) {
+          emailService.sendSubscriptionCancelledEmail({
+            email: field.owner.email,
+            userName: field.owner.name || 'Field Owner',
+            dogOwnerName: user.name || 'A customer',
+            fieldName: field.name,
+            interval: fullSubscription.interval,
+            cancelledAt,
+            reason: 'The recurring booking subscription has been cancelled.',
+            isFieldOwner: true
+          }).catch(err => console.error('Error sending subscription cancellation email to field owner (webhook):', err));
+        }
+      }
+    } catch (notificationError) {
+      console.error('Error processing subscription deleted notifications:', notificationError);
+    }
   }
 
   /**
@@ -1121,9 +1207,55 @@ export class SubscriptionService {
       }
     }
 
-    // Note: Notification removed to prevent duplicate toast notifications
-    // Frontend already shows a toast when subscription is cancelled
-    // If you need to add notification back, make sure to suppress toast in NotificationContext
+    // Send cancellation notifications and emails
+    try {
+      // Fetch full subscription details for email notification
+      const fullSubscription = await prisma.subscription.findUnique({
+        where: { id: subscriptionId },
+        include: {
+          field: {
+            include: {
+              owner: true
+            }
+          },
+          user: true
+        }
+      });
+
+      if (fullSubscription) {
+        const { field, user } = fullSubscription;
+        const cancelledAt = new Date();
+
+        // Send email to dog owner
+        if (user?.email) {
+          emailService.sendSubscriptionCancelledEmail({
+            email: user.email,
+            userName: user.name || 'Valued Customer',
+            fieldName: field.name,
+            interval: fullSubscription.interval,
+            cancelledAt,
+            reason: 'Cancelled at your request',
+            isFieldOwner: false
+          }).catch(err => console.error('Error sending subscription cancellation email to dog owner:', err));
+        }
+
+        // Send email to field owner
+        if (field?.owner?.email) {
+          emailService.sendSubscriptionCancelledEmail({
+            email: field.owner.email,
+            userName: field.owner.name || 'Field Owner',
+            dogOwnerName: user.name || 'A customer',
+            fieldName: field.name,
+            interval: fullSubscription.interval,
+            cancelledAt,
+            reason: 'The dog owner has cancelled their recurring booking subscription.',
+            isFieldOwner: true
+          }).catch(err => console.error('Error sending subscription cancellation email to field owner:', err));
+        }
+      }
+    } catch (notificationError) {
+      console.error('Error processing subscription cancellation notifications:', notificationError);
+    }
 
     return subscription;
   }
