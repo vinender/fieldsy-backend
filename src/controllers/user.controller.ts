@@ -17,7 +17,7 @@ class UserController {
 
     res.json({
       success: true,
-      data: users,
+      data: users.map(u => UserModel.stripInternalId(u)),
       pagination: {
         page,
         limit,
@@ -44,7 +44,7 @@ class UserController {
 
     res.json({
       success: true,
-      data: user,
+      data: UserModel.stripInternalId(user),
     });
   });
 
@@ -80,7 +80,7 @@ class UserController {
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      data: updatedUser,
+      data: UserModel.stripInternalId(updatedUser),
     });
   });
 

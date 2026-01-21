@@ -21,6 +21,23 @@ export interface UpdateUserInput {
 }
 
 class UserModel {
+  // Helper to generate unique userId
+  private async generateUserId(): Promise<string> {
+    const counter = await prisma.counter.upsert({
+      where: { name: 'user' },
+      update: { value: { increment: 1 } },
+      create: { name: 'user', value: 7777 },
+    });
+    return counter.value.toString();
+  }
+
+  // Helper to strip sensitive/internal IDs from user object for response
+  stripInternalId(user: any) {
+    if (!user) return null;
+    const { id, ...userWithoutId } = user;
+    return userWithoutId;
+  }
+
   // Create a new user
   async create(data: CreateUserInput) {
     const hashedPassword = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
@@ -34,9 +51,13 @@ class UserModel {
       commissionRate = settings?.defaultCommissionRate || 15.0; // Use 15% as fallback
     }
 
+    // Generate unique human-readable userId
+    const userId = await this.generateUserId();
+
     return prisma.user.create({
       data: {
         ...data,
+        userId,
         password: hashedPassword,
         role,
         provider: data.provider || 'general',
@@ -44,6 +65,7 @@ class UserModel {
       },
       select: {
         id: true,
+        userId: true,
         email: true,
         name: true,
         role: true,
@@ -84,12 +106,16 @@ class UserModel {
     });
   }
 
-  // Find user by ID
+  // Find user by ID (handles both ObjectId and human-readable userId)
   async findById(id: string) {
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    const where = isObjectId ? { id } : { userId: id };
+
     return prisma.user.findUnique({
-      where: { id },
+      where,
       select: {
         id: true,
+        userId: true,
         email: true,
         name: true,
         role: true,
@@ -106,13 +132,24 @@ class UserModel {
     });
   }
 
+  // Find user by ObjectId ONLY (for internal use)
+  async findByInternalId(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
   // Update user
   async update(id: string, data: UpdateUserInput) {
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    const where = isObjectId ? { id } : { userId: id };
+
     return prisma.user.update({
-      where: { id },
+      where,
       data,
       select: {
         id: true,
+        userId: true,
         email: true,
         name: true,
         role: true,
@@ -129,8 +166,11 @@ class UserModel {
 
   // Delete user
   async delete(id: string) {
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    const where = isObjectId ? { id } : { userId: id };
+
     return prisma.user.delete({
-      where: { id },
+      where,
     });
   }
 
@@ -163,6 +203,7 @@ class UserModel {
       take,
       select: {
         id: true,
+        userId: true,
         email: true,
         name: true,
         role: true,
@@ -225,6 +266,7 @@ class UserModel {
         data: updateData,
         select: {
           id: true,
+          userId: true,
           email: true,
           name: true,
           role: true,
@@ -240,7 +282,10 @@ class UserModel {
     }
 
     // Create new user from social login with specific role
+    const userId = await this.generateUserId();
     const createData: any = {
+      ...data,
+      userId,
       email: data.email,
       name: data.name || data.email.split('@')[0],
       image: data.image,
@@ -258,6 +303,7 @@ class UserModel {
       data: createData,
       select: {
         id: true,
+        userId: true,
         email: true,
         name: true,
         role: true,
@@ -271,13 +317,18 @@ class UserModel {
       },
     });
   }
+
   // Update user role
   async updateRole(id: string, role: 'DOG_OWNER' | 'FIELD_OWNER' | 'ADMIN') {
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    const where = isObjectId ? { id } : { userId: id };
+
     return prisma.user.update({
-      where: { id },
+      where,
       data: { role },
       select: {
         id: true,
+        userId: true,
         email: true,
         name: true,
         role: true,

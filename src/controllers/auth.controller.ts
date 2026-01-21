@@ -105,7 +105,7 @@ class AuthController {
     // Generate JWT token
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user.userId,
         email: user.email,
         role: user.role
       },
@@ -119,7 +119,7 @@ class AuthController {
       success: true,
       message: 'Registration successful',
       data: {
-        user,
+        user: UserModel.stripInternalId(user),
         token,
       },
     });
@@ -166,7 +166,7 @@ class AuthController {
     // Generate JWT token
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user.userId,
         email: user.email,
         role: user.role
       },
@@ -183,7 +183,7 @@ class AuthController {
       success: true,
       message: 'Login successful',
       data: {
-        user: userWithoutPassword,
+        user: UserModel.stripInternalId(userWithoutPassword),
         token,
       },
     });
@@ -204,7 +204,7 @@ class AuthController {
 
     res.json({
       success: true,
-      data: user,
+      data: UserModel.stripInternalId(user),
     });
   });
 
@@ -246,7 +246,7 @@ class AuthController {
       // Generate new access token with current user data (in case role changed)
       const newToken = jwt.sign(
         {
-          id: user.id,
+          id: user.userId,
           email: user.email,
           role: user.role
         },
@@ -427,7 +427,7 @@ class AuthController {
       console.log('✅ Role matches - logging in immediately');
       const token = jwt.sign(
         {
-          id: existingUser.id,
+          id: existingUser.userId,
           email: existingUser.email,
           role: existingUser.role,
           provider: existingUser.provider
@@ -443,7 +443,7 @@ class AuthController {
         success: true,
         message: 'Social login successful',
         data: {
-          user: existingUser,
+          user: UserModel.stripInternalId(existingUser),
           token,
         },
       });
@@ -483,7 +483,7 @@ class AuthController {
 
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user.userId,
         email: user.email,
         role: user.role,
         provider: user.provider
@@ -499,7 +499,7 @@ class AuthController {
       success: true,
       message: 'Social login successful',
       data: {
-        user,
+        user: UserModel.stripInternalId(user),
         token,
       },
     });
@@ -542,7 +542,7 @@ class AuthController {
     // Generate new token with updated role
     const token = jwt.sign(
       {
-        id: updatedUser.id,
+        id: updatedUser.userId,
         email: updatedUser.email,
         role: updatedUser.role
       },
@@ -556,7 +556,7 @@ class AuthController {
       success: true,
       message: 'Role updated successfully',
       data: {
-        user: updatedUser,
+        user: UserModel.stripInternalId(updatedUser),
         token,
       },
     });
@@ -653,7 +653,7 @@ class AuthController {
         console.log('✅ Role matches - logging in immediately');
         const token = jwt.sign(
           {
-            id: existingUser.id,
+            id: existingUser.userId,
             email: existingUser.email,
             role: existingUser.role,
             provider: 'apple'
@@ -669,7 +669,7 @@ class AuthController {
           success: true,
           message: 'Apple sign in successful',
           data: {
-            user: existingUser,
+            user: UserModel.stripInternalId(existingUser),
             token,
           },
         });
@@ -720,7 +720,7 @@ class AuthController {
 
       const token = jwt.sign(
         {
-          id: user.id,
+          id: user.userId,
           email: user.email,
           role: user.role,
           provider: 'apple'
@@ -737,7 +737,7 @@ class AuthController {
         success: true,
         message: 'Apple sign in successful',
         data: {
-          user,
+          user: UserModel.stripInternalId(user),
           token,
         },
       });

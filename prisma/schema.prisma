@@ -31,6 +31,7 @@ enum FieldType {
 
 model User {
   id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String?   @unique // Human-readable unique user ID (e.g., 7777, 7778)
   email            String
   emailVerified    DateTime?
   name             String?
@@ -155,6 +156,7 @@ model Field {
   // Additional field details
   fieldFeatures Json? // Store complex field features as JSON
   numberOfDogs  Int? // Number of dogs allowed at once
+  areaType      String? // e.g., "paddock", "open-field", etc.
 
   // Step completion tracking
   fieldDetailsCompleted        Boolean @default(false)
