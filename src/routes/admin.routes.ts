@@ -414,20 +414,33 @@ router.get('/bookings/:id', authenticateAdmin, async (req, res) => {
   try {
     const id = req.params.id;
     const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-    const where = isObjectId ? { id } : { bookingId: id };
 
-    const booking = await prisma.booking.findUnique({
-      where,
-      include: {
-        user: true,
-        field: {
+    // Use findUnique for ObjectId, findFirst for human-readable bookingId
+    const booking = isObjectId
+      ? await prisma.booking.findUnique({
+          where: { id },
           include: {
-            owner: true
+            user: true,
+            field: {
+              include: {
+                owner: true
+              }
+            },
+            payment: true
           }
-        },
-        payment: true
-      }
-    });
+        })
+      : await prisma.booking.findFirst({
+          where: { bookingId: id },
+          include: {
+            user: true,
+            field: {
+              include: {
+                owner: true
+              }
+            },
+            payment: true
+          }
+        });
 
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });

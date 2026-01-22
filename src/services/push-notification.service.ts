@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { getMessaging } from '../config/firebase.config';
 import * as admin from 'firebase-admin';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
+import { FRONTEND_URL } from '../config/constants';
 
 const prisma = new PrismaClient();
 
@@ -273,7 +274,10 @@ export class PushNotificationService {
     type: string,
     data: Record<string, any>
   ): { title: string; body: string; link: string } {
-    const baseUrl = process.env.FRONTEND_URL || 'https://fieldsy.com'; // Fallback to prod domain if env missing
+    // Use the shared FRONTEND_URL constant which handles environment detection
+    // In development: http://localhost:3000
+    // In production: uses FRONTEND_URL or PRODUCTION_FRONTEND_URL env vars
+    const baseUrl = FRONTEND_URL;
 
     // Helper to format link
     const getLink = (path: string) => {
