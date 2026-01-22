@@ -156,7 +156,6 @@ model Field {
   // Additional field details
   fieldFeatures Json? // Store complex field features as JSON
   numberOfDogs  Int? // Number of dogs allowed at once
-  areaType      String? // e.g., "paddock", "open-field", etc.
 
   // Step completion tracking
   fieldDetailsCompleted        Boolean @default(false)

@@ -22,21 +22,6 @@ async function main() {
         });
     }
 
-    // 2. Add/Update Field Properties for areaType
-    const areaTypes = [
-        { label: "Paddock", value: "paddock" },
-        { label: "Open field/Meadow", value: "open-field-meadow" },
-        { label: "Mixture of Fields and Trees", value: "mixture-of-fields-trees" },
-        { label: "Outdoor Enrichment Area", value: "outdoor-enrichment-area" }
-    ];
-
-    for (const at of areaTypes) {
-        await prisma.fieldProperty.upsert({
-            where: { category_value: { category: 'areaType', value: at.value } },
-            update: { label: at.label, isActive: true },
-            create: { category: 'areaType', value: at.value, label: at.label, isActive: true }
-        });
-    }
 
     // 3. Helper to update counter and get fieldId
     async function getNextFieldId() {
@@ -56,7 +41,6 @@ async function main() {
             lng: -1.202872,
             size: "1 – 2 Acres",
             fenceType: "deer-fencing, stock-fencing",
-            areaType: "paddock",
             price30min: 7,
             price1hr: 12,
             openingTime: "07:15",
@@ -68,7 +52,6 @@ async function main() {
             address: "taunton", // No specific address given
             size: "3 acres",
             fenceType: "deer-fencing",
-            areaType: "open-field-meadow, paddock, mixture-of-fields-trees, outdoor-enrichment-area",
             price30min: 6.5,
             price1hr: 10.5,
             maxDogs: 1
@@ -89,7 +72,6 @@ async function main() {
             address: "Midge Hall", // No specific address given
             size: "2-4 acre",
             fenceType: "deer-fencing",
-            areaType: "paddock",
             amenities: ["Shelter", "Seating or Benches Available", "Child friendly"],
             price30min: 7,
             price1hr: 12,
@@ -118,7 +100,6 @@ async function main() {
                 ownerId: adminId,
                 size: f.size,
                 fenceType: f.fenceType,
-                areaType: f.areaType,
                 price30min: f.price30min,
                 price1hr: f.price1hr,
                 openingTime: f.openingTime,

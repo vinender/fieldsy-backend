@@ -101,7 +101,6 @@ export interface CreateFieldInput {
   ownerName?: string;
   joinedOn?: string;
   entryCode?: string;
-  areaType?: string;
 }
 
 class FieldModel {
@@ -294,7 +293,6 @@ class FieldModel {
           surfaceType: true,
           fenceType: true,
           fenceSize: true,
-          areaType: true,
           maxDogs: true,
           amenities: true,
           rules: true,
@@ -363,7 +361,6 @@ class FieldModel {
           surfaceType: true,
           fenceType: true,
           fenceSize: true,
-          areaType: true,
           maxDogs: true,
           amenities: true,
           rules: true,
