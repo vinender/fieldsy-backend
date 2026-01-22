@@ -114,9 +114,18 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
       }
     });
 
+    // Identify the other participant
+    const otherUser = participants.find(p => p.id !== senderId);
+
     res.json({
       ...conversation,
-      participants: participants
+      participants: participants,
+      otherUser: otherUser ? {
+        id: otherUser.id,
+        name: otherUser.name,
+        image: otherUser.image,
+        role: otherUser.role
+      } : null
     });
   } catch (error) {
     console.error('Error creating conversation:', error);
@@ -196,9 +205,18 @@ export const getConversations = async (req: Request, res: Response) => {
           }
         });
 
+        // Identify the other participant
+        const otherUser = participants.find(p => p.id !== userId);
+
         return {
           ...conv,
           participants,
+          otherUser: otherUser ? {
+            id: otherUser.id,
+            name: otherUser.name,
+            image: otherUser.image,
+            role: otherUser.role
+          } : null,
           unreadCount
         };
       })
