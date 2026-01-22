@@ -34,8 +34,7 @@ class UserModel {
   // Helper to strip sensitive/internal IDs from user object for response
   stripInternalId(user: any) {
     if (!user) return null;
-    const { id, ...userWithoutId } = user;
-    return userWithoutId;
+    return user;
   }
 
   // Create a new user
