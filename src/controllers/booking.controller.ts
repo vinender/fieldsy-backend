@@ -2322,7 +2322,7 @@ class BookingController {
     if (!subscription) {
       const bookingWhere = isValidObjectId(id) ? { id: id } : { bookingId: id };
 
-      const booking = await prisma.booking.findUnique({
+      const booking = await prisma.booking.findFirst({
         where: bookingWhere,
         select: { subscriptionId: true }
       });

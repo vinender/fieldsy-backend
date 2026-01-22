@@ -98,7 +98,7 @@ class BookingModel {
     const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
     const where = isObjectId ? { id } : { bookingId: id };
 
-    return prisma.booking.findUnique({
+    return prisma.booking.findFirst({
       where,
       include: {
         field: {
