@@ -63,7 +63,7 @@ export const createRateLimiter = (options: {
   const message = options.message || 'Too many requests from this IP/user, please try again after a minute.';
   const config: any = {
     windowMs: options.windowMs || 60000, // Default: 1 minute
-    max: options.max || 60, // Default: 60 requests per minute
+    max: options.max || 120, // Default: 60 requests per minute
     handler: rateLimitHandler(message),
     standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
@@ -89,7 +89,7 @@ export const createRateLimiter = (options: {
 // Base rate limiters (internal use) - all use custom handler to return 200 status
 const _generalLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 100, // 100 requests per minute
+  max: 800, // 100 requests per minute
   handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
@@ -97,7 +97,7 @@ const _generalLimiter = rateLimit({
 
 const _strictLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 20, // 20 requests per minute
+  max: 100, // 20 requests per minute
   handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
@@ -105,7 +105,7 @@ const _strictLimiter = rateLimit({
 
 const _authLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 20, // 20 requests per minute (increased from 5 to handle social login flow)
+  max: 50, // 20 requests per minute (increased from 5 to handle social login flow)
   handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   skipSuccessfulRequests: true, // Don't count successful login attempts
   standardHeaders: true,
