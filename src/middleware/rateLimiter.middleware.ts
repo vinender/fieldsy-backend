@@ -42,6 +42,16 @@ const keyGenerator = (req: Request): string => {
   return undefined as any;
 };
 
+// Custom handler to return 200 status with rate limit message instead of 429
+const rateLimitHandler = (message: string) => (req: Request, res: Response) => {
+  res.status(200).json({
+    success: false,
+    message: message,
+    rateLimited: true,
+    retryAfter: 60, // Retry after 60 seconds
+  });
+};
+
 // Different rate limit configurations for different endpoints
 export const createRateLimiter = (options: {
   windowMs?: number;
@@ -50,10 +60,11 @@ export const createRateLimiter = (options: {
   skipSuccessfulRequests?: boolean;
   skipFailedRequests?: boolean;
 }) => {
+  const message = options.message || 'Too many requests from this IP/user, please try again after a minute.';
   const config: any = {
     windowMs: options.windowMs || 60000, // Default: 1 minute
     max: options.max || 60, // Default: 60 requests per minute
-    message: options.message || 'Too many requests, please try again later.',
+    handler: rateLimitHandler(message),
     standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     keyGenerator: options.skipSuccessfulRequests || options.skipFailedRequests ? keyGenerator : undefined,
@@ -75,28 +86,27 @@ export const createRateLimiter = (options: {
   return conditionalRateLimit(limiter);
 };
 
-// Base rate limiters (internal use)
+// Base rate limiters (internal use) - all use custom handler to return 200 status
 const _generalLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 100, // 60 requests per minute
-  message: 'Too many requests from this IP/user, please try again after a minute.',
+  max: 100, // 100 requests per minute
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
-  // Use default key generator for IP-based limiting
 });
 
 const _strictLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 20, // 10 requests per minute
-  message: 'Too many requests to this endpoint, please try again after a minute.',
+  max: 20, // 20 requests per minute
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const _authLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 20, // 15 requests per minute (increased from 5 to handle social login flow)
-  message: 'Too many authentication attempts, please try again after a minute.',
+  max: 20, // 20 requests per minute (increased from 5 to handle social login flow)
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   skipSuccessfulRequests: true, // Don't count successful login attempts
   standardHeaders: true,
   legacyHeaders: false,
@@ -104,8 +114,8 @@ const _authLimiter = rateLimit({
 
 const _socialAuthLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 60, // 30 requests per minute (OAuth flow involves multiple requests)
-  message: 'Too many social login attempts, please try again after a minute.',
+  max: 60, // 60 requests per minute (OAuth flow involves multiple requests)
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   skipSuccessfulRequests: true, // Don't count successful attempts
   standardHeaders: true,
   legacyHeaders: false,
@@ -113,48 +123,48 @@ const _socialAuthLimiter = rateLimit({
 
 const _passwordResetLimiter = rateLimit({
   windowMs: 15 * 60000, // 15 minutes
-  max: 5, // 3 requests per 15 minutes
-  message: 'Too many password reset requests, please try again later.',
+  max: 5, // 5 requests per 15 minutes
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const _uploadLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 80, // 20 uploads per minute
-  message: 'Too many upload requests, please slow down.',
+  max: 80, // 80 uploads per minute
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const _searchLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 50, // 30 searches per minute
-  message: 'Too many search requests, please try again after a minute.',
+  max: 50, // 50 searches per minute
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const _bookingLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 55, // 5 bookings per minute
-  message: 'Too many booking attempts, please slow down.',
+  max: 55, // 55 bookings per minute
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const _reviewLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 15, // 3 reviews per minute
-  message: 'Too many review submissions, please wait before submitting another review.',
+  max: 15, // 15 reviews per minute
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const _messageLimiter = rateLimit({
   windowMs: 60000, // 1 minute
-  max: 70, // 30 messages per minute
-  message: 'Too many messages sent, please slow down.',
+  max: 70, // 70 messages per minute
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -162,7 +172,7 @@ const _messageLimiter = rateLimit({
 const _paymentLimiter = rateLimit({
   windowMs: 60000, // 1 minute
   max: 5, // 5 payment attempts per minute
-  message: 'Too many payment attempts, please try again after a minute.',
+  handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -208,6 +218,7 @@ export const dynamicLimiter = (req: Request, res: Response, next: NextFunction) 
       limiter = rateLimit({
         windowMs: 60000,
         max: 200, // 200 requests per minute for admins
+        handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
         standardHeaders: true,
         legacyHeaders: false,
       });
@@ -217,6 +228,7 @@ export const dynamicLimiter = (req: Request, res: Response, next: NextFunction) 
       limiter = rateLimit({
         windowMs: 60000,
         max: 100, // 100 requests per minute for field owners
+        handler: rateLimitHandler('Too many requests from this IP/user, please try again after a minute.'),
         standardHeaders: true,
         legacyHeaders: false,
       });
@@ -299,9 +311,10 @@ export const slidingWindowMiddleware = (windowMs: number = 60000, max: number = 
     const key = userId ? `user_${userId}` : (req.ip || req.socket.remoteAddress || 'unknown');
 
     if (!limiter.isAllowed(key)) {
-      return res.status(429).json({
+      return res.status(200).json({
         success: false,
-        message: 'Too many requests, please try again later.',
+        message: 'Too many requests from this IP/user, please try again after a minute.',
+        rateLimited: true,
         retryAfter: Math.ceil(windowMs / 1000), // Retry after X seconds
       });
     }
