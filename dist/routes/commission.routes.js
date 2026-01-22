@@ -214,6 +214,7 @@ router.get('/field-owners', admin_middleware_1.authenticateAdmin, async (req, re
             },
             select: {
                 id: true,
+                userId: true,
                 name: true,
                 email: true,
                 phone: true,

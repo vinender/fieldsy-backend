@@ -6,6 +6,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const database_1 = __importDefault(require("../config/database"));
 const date_fns_1 = require("date-fns");
 class BookingModel {
+    // Helper to generate public booking ID
+    async generateBookingId() {
+        const counter = await database_1.default.counter.upsert({
+            where: { name: 'booking' },
+            update: { value: { increment: 1 } },
+            create: { name: 'booking', value: 1111 },
+        });
+        return counter.value.toString();
+    }
     // Create a new booking
     async create(data) {
         const { dogOwnerId, ...rest } = data;
@@ -25,11 +34,14 @@ class BookingModel {
         if (!field) {
             throw new Error('Field not found');
         }
+        // Generate human-friendly booking ID
+        const bookingId = await this.generateBookingId();
         return database_1.default.booking.create({
             data: {
                 ...rest,
                 userId: dogOwnerId,
-                status: 'PENDING'
+                bookingId,
+                status: data.status || 'PENDING'
             },
             include: {
                 field: {
@@ -56,8 +68,10 @@ class BookingModel {
     }
     // Find booking by ID
     async findById(id) {
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        const where = isObjectId ? { id } : { bookingId: id };
         return database_1.default.booking.findUnique({
-            where: { id },
+            where,
             include: {
                 field: {
                     include: {
@@ -534,6 +548,39 @@ class BookingModel {
                 .reduce((sum, b) => sum + b.totalPrice, 0),
         };
         return stats;
+    }
+    // Sanitize booking object for API responses
+    sanitize(booking) {
+        if (!booking)
+            return null;
+        const { id, userId, fieldId, bookingId, ...rest } = booking;
+        // Handle nested field and user if they exist
+        if (rest.field) {
+            const { id: fid, ...fieldRest } = rest.field;
+            rest.field = {
+                id: rest.field.fieldId || fid,
+                ...fieldRest
+            };
+            // Sanitize field owner if it exists
+            if (rest.field.owner) {
+                const { id: oid, ...ownerRest } = rest.field.owner;
+                rest.field.owner = {
+                    id: rest.field.owner.userId || oid,
+                    ...ownerRest
+                };
+            }
+        }
+        if (rest.user) {
+            const { id: uid, ...userRest } = rest.user;
+            rest.user = {
+                id: rest.user.userId || uid,
+                ...userRest
+            };
+        }
+        return {
+            id: bookingId || id,
+            ...rest
+        };
     }
 }
 exports.default = new BookingModel();

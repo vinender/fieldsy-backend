@@ -1195,7 +1195,6 @@ const getFieldApprovalTemplate = (data) => {
 
             <p><strong>💰 Payment & Earnings:</strong></p>
             <ul>
-              <li>You'll receive 80% of each booking amount (we take 20% platform fee)</li>
               <li>Payments are processed via Stripe after each completed booking</li>
               <li>Set up your Stripe Connect account to receive payouts</li>
             </ul>
@@ -1716,6 +1715,128 @@ const getRecurringBookingCreatedTemplateFieldOwner = (data) => {
     </html>
   `;
 };
+const getSubscriptionCancelledTemplate = (data) => {
+    const formattedDate = new Date(data.cancelledAt).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    const title = data.isFieldOwner ? 'Recurring Booking Cancelled' : 'Subscription Cancelled';
+    const personGreeting = data.isFieldOwner ? `Hi ${data.userName}!` : `Hi ${data.userName},`;
+    let mainMessage = '';
+    if (data.isFieldOwner) {
+        mainMessage = `We're writing to inform you that the <span class="highlight">${data.interval}</span> recurring booking for <span class="highlight">${data.fieldName}</span> has been cancelled by ${data.dogOwnerName || 'the dog owner'}.`;
+    }
+    else {
+        mainMessage = `Your <span class="highlight">${data.interval}</span> recurring booking subscription for <span class="highlight">${data.fieldName}</span> has been cancelled successfully.`;
+    }
+    return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #f44336;
+          }
+          .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+          }
+          .content {
+            padding: 30px 20px;
+          }
+          .highlight {
+            font-weight: bold;
+            color: #4CAF50;
+          }
+          .info-box {
+            background-color: #fff5f5;
+            border-left: 4px solid #f44336;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+          }
+          .reason-box {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 14px;
+          }
+          .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666666;
+            font-size: 14px;
+            border-top: 1px solid #eeeeee;
+            margin-top: 30px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">🐾 Fieldsy</div>
+          </div>
+          <div class="content">
+            <h2>${personGreeting} 👋</h2>
+            <p>${mainMessage}</p>
+
+            <div class="info-box">
+              <p style="margin: 5px 0;"><strong>Subscription Details:</strong></p>
+              <p style="margin: 5px 0;">Field: ${data.fieldName}</p>
+              <p style="margin: 5px 0;">Frequency: ${data.interval}</p>
+              <p style="margin: 5px 0;">Cancelled On: ${formattedDate}</p>
+            </div>
+
+            ${data.reason ? `
+              <div class="reason-box">
+                <strong>Reason for cancellation:</strong><br>
+                ${data.reason}
+              </div>
+            ` : ''}
+
+            ${!data.isFieldOwner ? `
+              <p>All future recurring bookings for this time slot have been cancelled. Any bookings already scheduled within the cancellation window may still be active according to our policy.</p>
+              <p>We hope to see you and your furry friends back soon! 🐕</p>
+            ` : `
+              <p>The time slot has been released and is now available for other dog owners to book.</p>
+              <p>Thank you for being a part of the Fieldsy community! 🏞️</p>
+            `}
+          </div>
+          <div class="footer">
+            <p>© 2025 Fieldsy. All rights reserved.</p>
+            <p>Find or Host secure fields for your furry friends 🐕</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+};
 // Email service class
 class EmailService {
     async sendMail(to, subject, html) {
@@ -2007,6 +2128,19 @@ class EmailService {
         }
         catch (error) {
             console.error(`❌ Failed to send payout failed email to ${data.email}:`, error);
+            return false;
+        }
+    }
+    async sendSubscriptionCancelledEmail(data) {
+        const subject = data.isFieldOwner ? 'Recurring Booking Cancelled - Fieldsy' : 'Subscription Cancelled - Fieldsy';
+        const html = getSubscriptionCancelledTemplate(data);
+        try {
+            const result = await this.sendMail(data.email, subject, html);
+            console.log(`✅ Subscription cancellation email sent to ${data.email}`);
+            return result;
+        }
+        catch (error) {
+            console.error(`❌ Failed to send subscription cancellation email to ${data.email}:`, error);
             return false;
         }
     }

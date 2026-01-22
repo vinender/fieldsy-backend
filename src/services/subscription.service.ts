@@ -208,6 +208,13 @@ export class SubscriptionService {
    * Create bookings from a subscription (handles multi-slot subscriptions)
    */
   async createBookingFromSubscription(subscriptionId: string, bookingDate: Date) {
+    // Helper to check if string is a valid MongoDB ObjectId
+    const isValidObjectId = (str: string) => str.length === 24 && /^[0-9a-fA-F]+$/.test(str);
+
+    if (!isValidObjectId(subscriptionId)) {
+      throw new Error(`Invalid subscription ID format: ${subscriptionId}`);
+    }
+
     const subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
       include: {
@@ -1130,6 +1137,13 @@ export class SubscriptionService {
    * Cancel a subscription
    */
   async cancelSubscription(subscriptionId: string, cancelImmediately = false) {
+    // Helper to check if string is a valid MongoDB ObjectId
+    const isValidObjectId = (str: string) => str.length === 24 && /^[0-9a-fA-F]+$/.test(str);
+
+    if (!isValidObjectId(subscriptionId)) {
+      throw new Error(`Invalid subscription ID format: ${subscriptionId}`);
+    }
+
     const subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId }
     });

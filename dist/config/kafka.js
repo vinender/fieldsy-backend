@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.shutdownKafka = exports.sendMessageToKafka = exports.initializeKafka = void 0;
 exports.getMessageStats = getMessageStats;
@@ -282,6 +315,26 @@ async function processMessage(chatMessage, io) {
                     correlationId: chatMessage.correlationId
                 });
             }
+        }
+        // --- SEND PUSH NOTIFICATION ---
+        // Only send if the user is NOT in the conversation room (i.e., not actively viewing)
+        // Or if we want to notify them regardless (usually better UX to always notify on mobile/background)
+        try {
+            // Import dynamically to avoid circular dependencies if any
+            const { PushNotificationService } = await Promise.resolve().then(() => __importStar(require('../services/push-notification.service')));
+            console.log(`[ProcessMessage] Sending push notification to ${chatMessage.receiverId}`);
+            await PushNotificationService.sendNotificationByType(chatMessage.receiverId, 'new_message', savedMessage.id, {
+                senderId: chatMessage.senderId,
+                senderName: savedMessage.sender?.name || 'User',
+                senderImage: savedMessage.sender?.image || '',
+                messagePreview: chatMessage.content.length > 50 ? chatMessage.content.substring(0, 50) + '...' : chatMessage.content,
+                conversationId: chatMessage.conversationId,
+                fieldId: savedMessage.conversation?.fieldId || ''
+            });
+        }
+        catch (pushError) {
+            console.error('[ProcessMessage] Failed to send push notification:', pushError);
+            // Non-blocking error, continue
         }
         return savedMessage;
     }

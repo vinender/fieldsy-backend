@@ -8,6 +8,21 @@ const database_1 = __importDefault(require("../config/database"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const constants_1 = require("../config/constants");
 class UserModel {
+    // Helper to generate unique userId
+    async generateUserId() {
+        const counter = await database_1.default.counter.upsert({
+            where: { name: 'user' },
+            update: { value: { increment: 1 } },
+            create: { name: 'user', value: 7777 },
+        });
+        return counter.value.toString();
+    }
+    // Helper to strip sensitive/internal IDs from user object for response
+    stripInternalId(user) {
+        if (!user)
+            return null;
+        return user;
+    }
     // Create a new user
     async create(data) {
         const hashedPassword = await bcryptjs_1.default.hash(data.password, constants_1.BCRYPT_ROUNDS);
@@ -19,9 +34,12 @@ class UserModel {
             const settings = await database_1.default.systemSettings.findFirst();
             commissionRate = settings?.defaultCommissionRate || 15.0; // Use 15% as fallback
         }
+        // Generate unique human-readable userId
+        const userId = await this.generateUserId();
         return database_1.default.user.create({
             data: {
                 ...data,
+                userId,
                 password: hashedPassword,
                 role,
                 provider: data.provider || 'general',
@@ -29,6 +47,7 @@ class UserModel {
             },
             select: {
                 id: true,
+                userId: true,
                 email: true,
                 name: true,
                 role: true,
@@ -65,12 +84,15 @@ class UserModel {
             where: { phone },
         });
     }
-    // Find user by ID
+    // Find user by ID (handles both ObjectId and human-readable userId)
     async findById(id) {
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        const where = isObjectId ? { id } : { userId: id };
         return database_1.default.user.findUnique({
-            where: { id },
+            where,
             select: {
                 id: true,
+                userId: true,
                 email: true,
                 name: true,
                 role: true,
@@ -86,13 +108,37 @@ class UserModel {
             },
         });
     }
+    // Find user by ObjectId ONLY (for internal use)
+    async findByInternalId(id) {
+        return database_1.default.user.findUnique({
+            where: { id },
+        });
+    }
+    // Helper to resolve an input ID (could be human ID or ObjectID) to an ObjectID
+    async resolveId(id) {
+        if (!id)
+            return id;
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        if (isObjectId)
+            return id;
+        const user = await database_1.default.user.findUnique({
+            where: { userId: id },
+            select: { id: true }
+        });
+        if (!user)
+            throw new AppError('User not found', 404);
+        return user.id;
+    }
     // Update user
     async update(id, data) {
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        const where = isObjectId ? { id } : { userId: id };
         return database_1.default.user.update({
-            where: { id },
+            where,
             data,
             select: {
                 id: true,
+                userId: true,
                 email: true,
                 name: true,
                 role: true,
@@ -108,8 +154,10 @@ class UserModel {
     }
     // Delete user
     async delete(id) {
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        const where = isObjectId ? { id } : { userId: id };
         return database_1.default.user.delete({
-            where: { id },
+            where,
         });
     }
     // Verify password
@@ -138,6 +186,7 @@ class UserModel {
             take,
             select: {
                 id: true,
+                userId: true,
                 email: true,
                 name: true,
                 role: true,
@@ -188,6 +237,7 @@ class UserModel {
                 data: updateData,
                 select: {
                     id: true,
+                    userId: true,
                     email: true,
                     name: true,
                     role: true,
@@ -202,7 +252,10 @@ class UserModel {
             });
         }
         // Create new user from social login with specific role
+        const userId = await this.generateUserId();
         const createData = {
+            ...data,
+            userId,
             email: data.email,
             name: data.name || data.email.split('@')[0],
             image: data.image,
@@ -218,6 +271,7 @@ class UserModel {
             data: createData,
             select: {
                 id: true,
+                userId: true,
                 email: true,
                 name: true,
                 role: true,
@@ -233,11 +287,14 @@ class UserModel {
     }
     // Update user role
     async updateRole(id, role) {
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        const where = isObjectId ? { id } : { userId: id };
         return database_1.default.user.update({
-            where: { id },
+            where,
             data: { role },
             select: {
                 id: true,
+                userId: true,
                 email: true,
                 name: true,
                 role: true,

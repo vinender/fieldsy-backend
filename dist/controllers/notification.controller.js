@@ -1,8 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.notificationController = void 0;
 exports.createNotification = createNotification;
 const client_1 = require("@prisma/client");
+const push_notification_service_1 = __importDefault(require("../services/push-notification.service"));
 const prisma = new client_1.PrismaClient();
 exports.notificationController = {
     // Get all notifications for a user
@@ -289,6 +293,17 @@ async function createNotification({ userId, type, title, message, data, }) {
         }
         else {
             console.log('WebSocket server not available, notification saved to DB only');
+        }
+        // Send Push Notification
+        try {
+            console.log('Attempting to send push notification...');
+            const pushData = { ...data, message }; // Include message in data for push payload if needed by FE
+            await push_notification_service_1.default.sendNotificationByType(userId, type, notification.id, pushData);
+            console.log('Push notification sent call completed');
+        }
+        catch (pushError) {
+            console.error('Failed to send push notification:', pushError);
+            // We don't return null here because the notification IS created in DB
         }
         return notification;
     }

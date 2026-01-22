@@ -52,6 +52,7 @@ const amenity_routes_1 = __importDefault(require("./routes/amenity.routes"));
 const field_properties_routes_1 = __importDefault(require("./routes/field-properties.routes"));
 const contact_query_routes_1 = __importDefault(require("./routes/contact-query.routes"));
 const device_token_routes_1 = __importDefault(require("./routes/device-token.routes"));
+const terms_routes_1 = __importDefault(require("./routes/terms.routes"));
 // Import Firebase for push notifications
 const firebase_config_1 = require("./config/firebase.config");
 // Import API documentation
@@ -448,6 +449,7 @@ class Server {
         // Upload routes - 20 uploads per minute
         this.app.use('/api/upload', (0, rateLimiter_middleware_1.bypassInDevelopment)(rateLimiter_middleware_1.uploadLimiter), upload_routes_1.default);
         this.app.use('/api/about-page', about_page_routes_1.default);
+        this.app.use('/api/terms', terms_routes_1.default);
         // Amenities routes
         this.app.use('/api/amenities', amenity_routes_1.default);
         // Field Options routes

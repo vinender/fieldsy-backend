@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPublicSettings = exports.updatePlatformImages = exports.updateSystemSettings = exports.getSystemSettings = void 0;
+exports.verifySiteAccess = exports.getPublicSettings = exports.updatePlatformImages = exports.updateSystemSettings = exports.getSystemSettings = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
+// (Removed DEFAULT_TERMS)
 // Get system settings
 const getSystemSettings = async (req, res) => {
     try {
@@ -25,7 +26,9 @@ const getSystemSettings = async (req, res) => {
                     enableEmailNotifications: true,
                     enableSmsNotifications: false,
                     bannerText: 'Find Safe, private dog walking fields',
-                    highlightedText: 'near you'
+                    highlightedText: 'near you',
+                    highlightedText: 'near you',
+                    isLive: true
                 }
             });
         }
@@ -46,7 +49,7 @@ exports.getSystemSettings = getSystemSettings;
 // Update system settings (Admin only)
 const updateSystemSettings = async (req, res) => {
     try {
-        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons } = req.body;
+        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, bypassUsername, bypassPassword, } = req.body;
         // Validate maxAdvanceBookingDays is between 30 and 60
         if (maxAdvanceBookingDays !== undefined) {
             if (maxAdvanceBookingDays < 30 || maxAdvanceBookingDays > 60) {
@@ -87,7 +90,10 @@ const updateSystemSettings = async (req, res) => {
                     enableSmsNotifications: enableSmsNotifications ?? false,
                     bannerText: bannerText || 'Find Safe, private dog walking fields',
                     highlightedText: highlightedText || 'near you',
+                    isLive: isLive ?? true,
                     aboutTitle: aboutTitle || 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.',
+                    aboutDogImage: aboutDogImage || '',
+                    aboutFamilyImage: aboutFamilyImage || '',
                     aboutDogImage: aboutDogImage || '',
                     aboutFamilyImage: aboutFamilyImage || '',
                     aboutDogIcons: aboutDogIcons || []
@@ -115,6 +121,9 @@ const updateSystemSettings = async (req, res) => {
                     ...(enableSmsNotifications !== undefined && { enableSmsNotifications }),
                     ...(bannerText !== undefined && { bannerText }),
                     ...(highlightedText !== undefined && { highlightedText }),
+                    ...(isLive !== undefined && { isLive }),
+                    ...(bypassUsername !== undefined && { bypassUsername }),
+                    ...(bypassPassword !== undefined && { bypassPassword }),
                     ...(aboutTitle !== undefined && { aboutTitle }),
                     ...(aboutDogImage !== undefined && { aboutDogImage }),
                     ...(aboutFamilyImage !== undefined && { aboutFamilyImage }),
@@ -122,7 +131,7 @@ const updateSystemSettings = async (req, res) => {
                     ...(req.body.platformDogOwnersImage !== undefined && { platformDogOwnersImage: req.body.platformDogOwnersImage }),
                     ...(req.body.platformFieldOwnersImage !== undefined && { platformFieldOwnersImage: req.body.platformFieldOwnersImage }),
                     ...(req.body.platformWaveImage !== undefined && { platformWaveImage: req.body.platformWaveImage }),
-                    ...(req.body.platformHoverImage !== undefined && { platformHoverImage: req.body.platformHoverImage })
+                    ...(req.body.platformHoverImage !== undefined && { platformHoverImage: req.body.platformHoverImage }),
                 }
             });
         }
@@ -233,6 +242,7 @@ const getPublicSettings = async (req, res) => {
                 maintenanceMode: true,
                 bannerText: true,
                 highlightedText: true,
+                isLive: true,
                 aboutTitle: true,
                 aboutDogImage: true,
                 aboutFamilyImage: true,
@@ -245,7 +255,7 @@ const getPublicSettings = async (req, res) => {
                 platformDogOwnersBullets: true,
                 platformFieldOwnersSubtitle: true,
                 platformFieldOwnersTitle: true,
-                platformFieldOwnersBullets: true
+                platformFieldOwnersBullets: true,
             }
         });
         if (!settings) {
@@ -262,15 +272,35 @@ const getPublicSettings = async (req, res) => {
                 maintenanceMode: false,
                 bannerText: 'Find Safe, private dog walking fields',
                 highlightedText: 'near you',
+                isLive: true,
                 aboutTitle: 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.',
                 aboutDogImage: '',
                 aboutFamilyImage: '',
-                aboutDogIcons: []
+                aboutDogImage: '',
+                aboutFamilyImage: '',
+                aboutDogIcons: [],
             };
+        }
+        // Check access for requesting IP
+        // Try to get IP from x-forwarded-for header (standard for proxies/load balancers)
+        // or fallback to connection remoteAddress
+        const forwarded = req.headers['x-forwarded-for'];
+        const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
+        let hasAccess = false;
+        if (ip) {
+            const allowedIp = await prisma.allowedIp.findUnique({
+                where: { ip }
+            });
+            if (allowedIp) {
+                hasAccess = true;
+            }
         }
         res.json({
             success: true,
-            data: settings
+            data: {
+                ...settings,
+                hasAccess
+            }
         });
     }
     catch (error) {
@@ -282,3 +312,61 @@ const getPublicSettings = async (req, res) => {
     }
 };
 exports.getPublicSettings = getPublicSettings;
+// Verify site password and whitelist IP
+const verifySiteAccess = async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        if (!username || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username and password are required'
+            });
+        }
+        const settings = await prisma.systemSettings.findFirst();
+        if (!settings) {
+            return res.status(500).json({
+                success: false,
+                message: 'System settings not found'
+            });
+        }
+        // Default credentials if not set
+        const validUsername = settings.bypassUsername || 'admin';
+        const validPassword = settings.bypassPassword || 'fieldsy123';
+        if (username !== validUsername || password !== validPassword) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+        // Get IP
+        const forwarded = req.headers['x-forwarded-for'];
+        const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
+        if (!ip) {
+            return res.status(400).json({
+                success: false,
+                message: 'Could not determine IP address'
+            });
+        }
+        // Add to whitelist
+        await prisma.allowedIp.upsert({
+            where: { ip },
+            update: { updatedAt: new Date() },
+            create: {
+                ip,
+                label: 'User Bypass'
+            }
+        });
+        res.json({
+            success: true,
+            message: 'Access granted'
+        });
+    }
+    catch (error) {
+        console.error('Error verifying site access:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to verify access'
+        });
+    }
+};
+exports.verifySiteAccess = verifySiteAccess;

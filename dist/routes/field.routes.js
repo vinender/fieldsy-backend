@@ -37,6 +37,7 @@ router.get('/owner/bookings/today', (0, auth_middleware_1.restrictTo)('FIELD_OWN
 router.get('/owner/bookings/upcoming', (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), field_controller_1.default.getUpcomingBookings);
 router.get('/owner/bookings/completed', (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), field_controller_1.default.getCompletedBookings);
 router.post('/save-progress', (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), field_controller_1.default.saveFieldProgress);
+router.put('/save-progress', (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), field_controller_1.default.saveFieldProgress);
 router.post('/submit-for-review', (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), field_controller_1.default.submitFieldForReview);
 router.post('/', (0, auth_middleware_1.restrictTo)('FIELD_OWNER', 'ADMIN'), field_controller_1.default.createField);
 // Field management routes

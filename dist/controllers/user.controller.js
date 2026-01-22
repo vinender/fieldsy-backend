@@ -17,7 +17,7 @@ class UserController {
         const users = await user_model_1.default.findAll(skip, limit);
         res.json({
             success: true,
-            data: users,
+            data: users.map(u => user_model_1.default.stripInternalId(u)),
             pagination: {
                 page,
                 limit,
@@ -40,7 +40,7 @@ class UserController {
         }
         res.json({
             success: true,
-            data: user,
+            data: user_model_1.default.stripInternalId(user),
         });
     });
     // Update user profile
@@ -69,7 +69,7 @@ class UserController {
         res.json({
             success: true,
             message: 'Profile updated successfully',
-            data: updatedUser,
+            data: user_model_1.default.stripInternalId(updatedUser),
         });
     });
     // Delete user (admin only or self)

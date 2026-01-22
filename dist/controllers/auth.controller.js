@@ -96,7 +96,7 @@ class AuthController {
         // }
         // Generate JWT token
         const token = jsonwebtoken_1.default.sign({
-            id: user.id,
+            id: user.userId,
             email: user.email,
             role: user.role
         }, constants_1.JWT_SECRET, {
@@ -106,7 +106,7 @@ class AuthController {
             success: true,
             message: 'Registration successful',
             data: {
-                user,
+                user: user_model_1.default.stripInternalId(user),
                 token,
             },
         });
@@ -146,7 +146,7 @@ class AuthController {
         }
         // Generate JWT token
         const token = jsonwebtoken_1.default.sign({
-            id: user.id,
+            id: user.userId,
             email: user.email,
             role: user.role
         }, constants_1.JWT_SECRET, {
@@ -158,7 +158,7 @@ class AuthController {
             success: true,
             message: 'Login successful',
             data: {
-                user: userWithoutPassword,
+                user: user_model_1.default.stripInternalId(userWithoutPassword),
                 token,
             },
         });
@@ -175,7 +175,7 @@ class AuthController {
         }
         res.json({
             success: true,
-            data: user,
+            data: user_model_1.default.stripInternalId(user),
         });
     });
     // Logout (if using sessions/cookies)
@@ -207,7 +207,7 @@ class AuthController {
             }
             // Generate new access token with current user data (in case role changed)
             const newToken = jsonwebtoken_1.default.sign({
-                id: user.id,
+                id: user.userId,
                 email: user.email,
                 role: user.role
             }, constants_1.JWT_SECRET, { expiresIn: constants_1.JWT_EXPIRES_IN });
@@ -366,7 +366,7 @@ class AuthController {
             // User exists, is verified, and role matches - log them in immediately
             console.log('✅ Role matches - logging in immediately');
             const token = jsonwebtoken_1.default.sign({
-                id: existingUser.id,
+                id: existingUser.userId,
                 email: existingUser.email,
                 role: existingUser.role,
                 provider: existingUser.provider
@@ -378,7 +378,7 @@ class AuthController {
                 success: true,
                 message: 'Social login successful',
                 data: {
-                    user: existingUser,
+                    user: user_model_1.default.stripInternalId(existingUser),
                     token,
                 },
             });
@@ -410,7 +410,7 @@ class AuthController {
         // Generate token and log them in immediately
         console.log('✅ Social login user - auto-verifying and logging in');
         const token = jsonwebtoken_1.default.sign({
-            id: user.id,
+            id: user.userId,
             email: user.email,
             role: user.role,
             provider: user.provider
@@ -422,7 +422,7 @@ class AuthController {
             success: true,
             message: 'Social login successful',
             data: {
-                user,
+                user: user_model_1.default.stripInternalId(user),
                 token,
             },
         });
@@ -456,7 +456,7 @@ class AuthController {
         // See comment in register method for more details.
         // Generate new token with updated role
         const token = jsonwebtoken_1.default.sign({
-            id: updatedUser.id,
+            id: updatedUser.userId,
             email: updatedUser.email,
             role: updatedUser.role
         }, constants_1.JWT_SECRET, {
@@ -466,7 +466,7 @@ class AuthController {
             success: true,
             message: 'Role updated successfully',
             data: {
-                user: updatedUser,
+                user: user_model_1.default.stripInternalId(updatedUser),
                 token,
             },
         });
@@ -549,7 +549,7 @@ class AuthController {
                 // User exists, is verified, and role matches - log them in immediately
                 console.log('✅ Role matches - logging in immediately');
                 const token = jsonwebtoken_1.default.sign({
-                    id: existingUser.id,
+                    id: existingUser.userId,
                     email: existingUser.email,
                     role: existingUser.role,
                     provider: 'apple'
@@ -561,7 +561,7 @@ class AuthController {
                     success: true,
                     message: 'Apple sign in successful',
                     data: {
-                        user: existingUser,
+                        user: user_model_1.default.stripInternalId(existingUser),
                         token,
                     },
                 });
@@ -602,7 +602,7 @@ class AuthController {
             // No OTP needed - log them in immediately (same as Google Sign In)
             console.log('✅ Apple Sign In - Auto-verifying user (Apple verified email)');
             const token = jsonwebtoken_1.default.sign({
-                id: user.id,
+                id: user.userId,
                 email: user.email,
                 role: user.role,
                 provider: 'apple'
@@ -615,7 +615,7 @@ class AuthController {
                 success: true,
                 message: 'Apple sign in successful',
                 data: {
-                    user,
+                    user: user_model_1.default.stripInternalId(user),
                     token,
                 },
             });

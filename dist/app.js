@@ -34,6 +34,9 @@ const field_properties_routes_1 = __importDefault(require("./routes/field-proper
 const contact_query_routes_1 = __importDefault(require("./routes/contact-query.routes"));
 const docs_routes_1 = __importDefault(require("./routes/docs.routes"));
 const faq_routes_1 = __importDefault(require("./routes/faq.routes"));
+const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
+const terms_routes_1 = __importDefault(require("./routes/terms.routes"));
+const about_page_routes_1 = __importDefault(require("./routes/about-page.routes"));
 // Note: Slot lock cleanup is initialized in server.ts (the main entry point)
 // Load environment variables
 dotenv_1.default.config();
@@ -59,6 +62,16 @@ app.use((0, cors_1.default)({
             "http://localhost:8081", // Expo web
             "http://localhost:19006", // Expo web alternate port
             "exp://localhost:8081", // Expo development
+            // Production domains - fieldsy.co.uk
+            "https://fieldsy.co.uk",
+            "https://www.fieldsy.co.uk",
+            "https://admin.fieldsy.co.uk",
+            "https://api.fieldsy.co.uk",
+            "http://fieldsy.co.uk",
+            "http://www.fieldsy.co.uk",
+            "http://admin.fieldsy.co.uk",
+            "http://api.fieldsy.co.uk",
+            // Legacy production domains - indiitserver.in
             "https://fieldsy.indiitserver.in", // Production frontend
             "https://fieldsy-admin.indiitserver.in", // Production admin
             "https://fieldsy-api.indiitserver.in", // Production API (for self-referential calls)
@@ -410,6 +423,10 @@ app.use('/api/field-properties', field_properties_routes_1.default);
 app.use('/api/contact-queries', contact_query_routes_1.default);
 app.use('/api/docs', docs_routes_1.default);
 app.use('/api/faqs', faq_routes_1.default);
+app.use('/api/settings', settings_routes_1.default);
+console.log('Registering terms routes...');
+app.use('/api/terms', terms_routes_1.default);
+app.use('/api/about-page', about_page_routes_1.default);
 // Health check endpoint
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });

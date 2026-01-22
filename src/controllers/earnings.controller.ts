@@ -378,7 +378,18 @@ class EarningsController {
             user: { select: { name: true, email: true } }
           }
         });
-        
+
+        // Get the first booking's details for display (most payouts have 1 booking)
+        const firstBooking = bookings[0];
+        const fieldName = firstBooking?.field?.name || null;
+        const customerName = bookings.length === 1
+          ? (firstBooking?.user?.name || firstBooking?.user?.email || null)
+          : bookings.length > 1
+            ? `${bookings.length} bookings`
+            : null;
+        // Use human-readable bookingId if available
+        const humanReadableBookingId = firstBooking?.bookingId || null;
+
         return {
           id: payout.id,
           stripePayoutId: payout.stripePayoutId,
@@ -390,8 +401,13 @@ class EarningsController {
           arrivalDate: payout.arrivalDate,
           createdAt: payout.createdAt,
           bookingCount: bookings.length,
+          // Top-level booking info for easy display
+          fieldName,
+          customerName,
+          humanReadableBookingId,
           bookings: bookings.map(b => ({
             id: b.id,
+            bookingId: b.bookingId, // Human-readable booking ID
             fieldName: b.field.name,
             customerName: b.user.name || b.user.email,
             date: b.date,

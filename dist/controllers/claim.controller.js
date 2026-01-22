@@ -19,9 +19,12 @@ exports.submitFieldClaim = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
     if (!fieldId || !fullName || !email || !phoneNumber || isLegalOwner === undefined || !documents || documents.length === 0) {
         throw new AppError_1.AppError('All fields are required', 400);
     }
+    // Support both internal ID and human-readable fieldId
+    const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
+    const where = isObjectId ? { id: fieldId } : { fieldId };
     // Check if field exists and get owner info
     const field = await prisma.field.findUnique({
-        where: { id: fieldId },
+        where,
         include: {
             owner: {
                 select: {
@@ -43,7 +46,7 @@ exports.submitFieldClaim = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
     // Check if this specific user already has a pending claim for this field
     const existingUserClaim = await prisma.fieldClaim.findFirst({
         where: {
-            fieldId,
+            fieldId: field.id,
             email,
             status: 'PENDING'
         }
@@ -54,7 +57,7 @@ exports.submitFieldClaim = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
     // Create the claim
     const claim = await prisma.fieldClaim.create({
         data: {
-            fieldId,
+            fieldId: field.id,
             fullName,
             email,
             phoneCode,
@@ -363,9 +366,12 @@ exports.updateClaimStatus = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
 exports.checkClaimEligibility = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { fieldId } = req.params;
     const { email } = req.query;
+    // Support both internal ID and human-readable fieldId
+    const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
+    const where = isObjectId ? { id: fieldId } : { fieldId };
     // Check if field exists - only select fields we need
     const field = await prisma.field.findUnique({
-        where: { id: fieldId },
+        where,
         select: {
             id: true,
             name: true,
@@ -389,7 +395,7 @@ exports.checkClaimEligibility = (0, asyncHandler_1.asyncHandler)(async (req, res
     if (email) {
         const userClaim = await prisma.fieldClaim.findFirst({
             where: {
-                fieldId,
+                fieldId: field.id,
                 email: email,
                 status: 'PENDING'
             }
@@ -407,7 +413,7 @@ exports.checkClaimEligibility = (0, asyncHandler_1.asyncHandler)(async (req, res
     // Count total pending claims for this field
     const pendingClaimsCount = await prisma.fieldClaim.count({
         where: {
-            fieldId,
+            fieldId: field.id,
             status: 'PENDING'
         }
     });

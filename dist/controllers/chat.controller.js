@@ -12,8 +12,10 @@ const getOrCreateConversation = async (req, res) => {
         if (!receiverId) {
             return res.status(400).json({ error: 'Receiver ID is required' });
         }
+        // Resolve receiverId to internal ObjectID if it's a human-readable ID
+        const resolvedReceiverId = await UserModel.resolveId(receiverId);
         // Sort participants to ensure consistent ordering for deduplication
-        const sortedParticipants = [senderId, receiverId].sort();
+        const sortedParticipants = [senderId, resolvedReceiverId].sort();
         // Check if conversation already exists between these two users
         // Important: Find ANY conversation between these users to prevent duplicates
         // We search for both possible orderings of participants array
@@ -22,12 +24,12 @@ const getOrCreateConversation = async (req, res) => {
                 OR: [
                     {
                         participants: {
-                            equals: [senderId, receiverId]
+                            equals: [senderId, resolvedReceiverId]
                         }
                     },
                     {
                         participants: {
-                            equals: [receiverId, senderId]
+                            equals: [resolvedReceiverId, senderId]
                         }
                     },
                     // Also check sorted order for consistency
@@ -54,7 +56,7 @@ const getOrCreateConversation = async (req, res) => {
             const existingConversation = await prisma.conversation.findFirst({
                 where: {
                     participants: {
-                        hasEvery: [senderId, receiverId]
+                        hasEvery: [senderId, resolvedReceiverId]
                     }
                 },
                 include: {
@@ -93,7 +95,7 @@ const getOrCreateConversation = async (req, res) => {
         const participants = await prisma.user.findMany({
             where: {
                 id: {
-                    in: [senderId, receiverId]
+                    in: [senderId, resolvedReceiverId]
                 }
             },
             select: {
@@ -104,9 +106,17 @@ const getOrCreateConversation = async (req, res) => {
                 role: true
             }
         });
+        // Identify the other participant
+        const otherUser = participants.find(p => p.id !== senderId);
         res.json({
             ...conversation,
-            participants: participants
+            participants: participants,
+            otherUser: otherUser ? {
+                id: otherUser.id,
+                name: otherUser.name,
+                image: otherUser.image,
+                role: otherUser.role
+            } : null
         });
     }
     catch (error) {
@@ -181,9 +191,17 @@ const getConversations = async (req, res) => {
                     isRead: false
                 }
             });
+            // Identify the other participant
+            const otherUser = participants.find(p => p.id !== userId);
             return {
                 ...conv,
                 participants,
+                otherUser: otherUser ? {
+                    id: otherUser.id,
+                    name: otherUser.name,
+                    image: otherUser.image,
+                    role: otherUser.role
+                } : null,
                 unreadCount
             };
         }));
@@ -301,6 +319,8 @@ const sendMessage = async (req, res) => {
         if (!conversationId || !content || !receiverId) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
+        // Resolve receiverId to internal ObjectID if it's a human-readable ID
+        const resolvedReceiverId = await UserModel.resolveId(receiverId);
         // Verify user is part of the conversation
         const conversation = await prisma.conversation.findFirst({
             where: {
@@ -319,14 +339,14 @@ const sendMessage = async (req, res) => {
                 where: {
                     blockerId_blockedUserId: {
                         blockerId: senderId,
-                        blockedUserId: receiverId
+                        blockedUserId: resolvedReceiverId
                     }
                 }
             }),
             prisma.userBlock.findUnique({
                 where: {
                     blockerId_blockedUserId: {
-                        blockerId: receiverId,
+                        blockerId: resolvedReceiverId,
                         blockedUserId: senderId
                     }
                 }
@@ -343,7 +363,7 @@ const sendMessage = async (req, res) => {
         const savedMessage = await (0, kafka_1.sendMessageToKafka)({
             conversationId,
             senderId,
-            receiverId,
+            receiverId: resolvedReceiverId,
             content,
             timestamp: new Date()
         });

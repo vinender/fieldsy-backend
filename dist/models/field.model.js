@@ -52,6 +52,30 @@ const getFirstValidImage = (images) => {
     return anyValidImage || null;
 };
 class FieldModel {
+    // Helper to translate fieldId (human or ObjectID) to internal ObjectID
+    async resolveId(id) {
+        if (!id)
+            return id;
+        // Check if it's already an ObjectID
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        if (isObjectId)
+            return id;
+        // Look up by human-readable fieldId
+        const field = await database_1.default.field.findUnique({
+            where: { fieldId: id },
+            select: { id: true }
+        });
+        return field ? field.id : id;
+    }
+    // Helper to generate public field ID
+    async generateFieldId() {
+        const counter = await database_1.default.counter.upsert({
+            where: { name: 'field' },
+            update: { value: { increment: 1 } },
+            create: { name: 'field', value: 1111 },
+        });
+        return `F${counter.value}`;
+    }
     // Create a new field
     async create(data) {
         // Get owner details if not provided
@@ -75,9 +99,12 @@ class FieldModel {
         }
         // Remove apartment field as it doesn't exist in the schema
         const { apartment, ...cleanedData } = data;
+        // Generate human-friendly field ID
+        const fieldId = await this.generateFieldId();
         return database_1.default.field.create({
             data: {
                 ...cleanedData,
+                fieldId,
                 ownerName,
                 joinedOn,
                 type: cleanedData.type || 'PRIVATE',
@@ -98,9 +125,11 @@ class FieldModel {
     // Find field by ID
     async findById(id) {
         try {
+            const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+            const where = isObjectId ? { id } : { fieldId: id };
             // First, try to fetch with owner relation
             return await database_1.default.field.findUnique({
-                where: { id },
+                where,
                 include: {
                     owner: {
                         select: {
@@ -132,9 +161,11 @@ class FieldModel {
         }
         catch (error) {
             // If owner relation fails (orphaned field), fetch without owner
-            console.warn(`Field ${id} has invalid owner reference, fetching without owner relation`);
+            console.warn(`Field ${id} has invalid owner reference or retrieval error, fetching without owner relation`);
+            const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+            const where = isObjectId ? { id } : { fieldId: id };
             const field = await database_1.default.field.findUnique({
-                where: { id },
+                where,
                 include: {
                     reviews: {
                         include: {
@@ -167,10 +198,13 @@ class FieldModel {
     // Find field by ID with minimal data (optimized for SSG/ISR builds)
     async findByIdMinimal(id) {
         try {
+            const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+            const where = isObjectId ? { id } : { fieldId: id };
             return await database_1.default.field.findUnique({
-                where: { id },
+                where,
                 select: {
                     id: true,
+                    fieldId: true,
                     name: true,
                     description: true,
                     location: true,
@@ -230,11 +264,14 @@ class FieldModel {
         }
         catch (error) {
             // If owner relation fails, fetch without owner
-            console.warn(`Field ${id} has invalid owner reference, fetching without owner relation`);
+            console.warn(`Field ${id} has invalid owner reference or retrieval error, fetching without owner relation`);
+            const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+            const where = isObjectId ? { id } : { fieldId: id };
             return await database_1.default.field.findUnique({
-                where: { id },
+                where,
                 select: {
                     id: true,
+                    fieldId: true,
                     name: true,
                     description: true,
                     location: true,
@@ -744,6 +781,7 @@ class FieldModel {
                 // No skip/take here - we'll apply pagination after sorting by image quality
                 select: {
                     id: true,
+                    fieldId: true, // Human-readable ID
                     name: true,
                     images: true, // First image for card thumbnail
                     price: true, // Legacy field
@@ -1271,6 +1309,7 @@ class FieldModel {
                 const id = field._id?.$oid || field._id || field.id;
                 return {
                     id,
+                    fieldId: field.fieldId,
                     name: field.name,
                     city: field.city,
                     state: field.state,
@@ -1315,6 +1354,7 @@ class FieldModel {
             },
             select: {
                 id: true,
+                fieldId: true, // Human-readable ID
                 name: true,
                 city: true,
                 state: true,

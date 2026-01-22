@@ -2300,20 +2300,27 @@ class BookingController {
     const { id } = req.params;
     const { cancelImmediately = false } = req.body;
 
-    // Find the subscription - try direct lookup first
-    let subscription = await prisma.subscription.findUnique({
-      where: {
-        id: id
-      },
-      include: {
-        field: true
-      }
-    });
+    // Helper to check if string is a valid MongoDB ObjectId
+    const isValidObjectId = (str: string) => str.length === 24 && /^[0-9a-fA-F]+$/.test(str);
 
-    // If not found, the ID might be a booking ID - try to find subscription through booking
+    // Find the subscription - try direct lookup first only if it's a valid ObjectId
+    let subscription = null;
+
+    if (isValidObjectId(id)) {
+      subscription = await prisma.subscription.findUnique({
+        where: {
+          id: id
+        },
+        include: {
+          field: true
+        }
+      });
+    }
+
+    // If not found, the ID might be a booking ID (either ObjectId or human-readable bookingId)
+    // Try to find subscription through booking
     if (!subscription) {
-      const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-      const bookingWhere = isObjectId ? { id: id } : { bookingId: id };
+      const bookingWhere = isValidObjectId(id) ? { id: id } : { bookingId: id };
 
       const booking = await prisma.booking.findUnique({
         where: bookingWhere,

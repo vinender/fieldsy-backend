@@ -46,7 +46,7 @@ const amenity_converter_1 = require("../utils/amenity.converter");
 const client_s3_1 = require("@aws-sdk/client-s3");
 // Initialize S3 client for image deletion
 const s3Client = new client_s3_1.S3Client({
-    region: process.env.AWS_REGION || 'us-east-1',
+    region: process.env.AWS_REGION || 'eu-west-2',
     credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -158,17 +158,19 @@ const formatRecurringFrequency = (repeatBooking) => {
     return labelMap[normalized] || repeatBooking.charAt(0).toUpperCase() + repeatBooking.slice(1);
 };
 /**
- * Generate a unique orderId from MongoDB ObjectId
- * Uses the LAST 6 characters to match admin panel format:
- * - First 4 bytes (8 hex chars) = timestamp (same for bookings created in same second)
- * - Last 6 hex chars = counter (guaranteed unique per document)
+ * Generate a unique orderId
  */
-const generateOrderId = (bookingId) => {
-    if (!bookingId || bookingId.length < 6) {
-        return `#${bookingId?.toUpperCase() || 'UNKNOWN'}`;
+const generateOrderId = (booking) => {
+    // If we already have the new human-readable bookingId, use it
+    if (booking.bookingId) {
+        return `#${booking.bookingId}`;
     }
-    // Use last 6 characters of the ObjectId for uniqueness (matches admin panel)
-    return `#${bookingId.slice(-6).toUpperCase()}`;
+    const id = booking.id || booking._id;
+    if (!id || id.length < 6) {
+        return `#${id?.toUpperCase() || 'UNKNOWN'}`;
+    }
+    // Use last 6 characters of the ObjectId for legacy records
+    return `#${id.slice(-6).toUpperCase()}`;
 };
 class FieldController {
     // Create new field
@@ -328,7 +330,8 @@ class FieldController {
             const fieldLng = locationData?.lng || field.longitude;
             // Build optimized response with only necessary fields
             const optimizedField = {
-                id: field.id,
+                id: field.fieldId, // Use human-readable ID as primary ID for frontend
+                _objectId: field.id, // Store ObjectID temporarily for liking logic
                 name: field.name,
                 image: getFirstValidImage(field.images), // First valid image (not WordPress URL)
                 price: field.price,
@@ -383,11 +386,14 @@ class FieldController {
             });
             userLikedFieldIds = new Set(userFavorites.map(f => f.fieldId));
         }
-        // Add isLiked to each field
-        const fieldsWithLikeStatus = enrichedFields.map((field) => ({
-            ...field,
-            isLiked: userLikedFieldIds.has(field.id)
-        }));
+        // Add isLiked to each field and remove internal ID
+        const fieldsWithLikeStatus = enrichedFields.map((field) => {
+            const { _objectId, ...fieldData } = field;
+            return {
+                ...fieldData,
+                isLiked: userLikedFieldIds.has(_objectId)
+            };
+        });
         const totalPages = Math.ceil(result.total / limitNum);
         res.json({
             success: true,
@@ -984,6 +990,7 @@ class FieldController {
             },
             select: {
                 id: true,
+                fieldId: true, // Human-readable ID
                 name: true,
                 city: true,
                 state: true,
@@ -1612,6 +1619,23 @@ class FieldController {
                 }),
                 database_1.default.booking.count({ where: bookingFilter })
             ]);
+            // Calculate total earnings from successful payouts (PAID status only)
+            const stripeAccount = await database_1.default.stripeAccount.findUnique({
+                where: { userId: ownerId }
+            });
+            let totalPaidEarnings = 0;
+            if (stripeAccount) {
+                const payouts = await database_1.default.payout.aggregate({
+                    where: {
+                        stripeAccountId: stripeAccount.id,
+                        status: 'paid'
+                    },
+                    _sum: {
+                        amount: true
+                    }
+                });
+                totalPaidEarnings = payouts._sum.amount || 0;
+            }
             // Get overall stats across all fields
             const totalBookings = await database_1.default.booking.count({
                 where: { fieldId: { in: fieldIds } }
@@ -1623,15 +1647,6 @@ class FieldController {
                         gte: today,
                         lt: tomorrow
                     }
-                }
-            });
-            const totalEarnings = await database_1.default.booking.aggregate({
-                where: {
-                    fieldId: { in: fieldIds },
-                    status: 'COMPLETED'
-                },
-                _sum: {
-                    fieldOwnerAmount: true
                 }
             });
             // Format bookings for frontend
@@ -1653,7 +1668,7 @@ class FieldController {
                 stats: {
                     todayBookings,
                     totalBookings,
-                    totalEarnings: totalEarnings._sum.fieldOwnerAmount || 0
+                    totalEarnings: totalPaidEarnings
                 },
                 pagination: {
                     page: pageNum,
@@ -1744,19 +1759,25 @@ class FieldController {
                 }),
                 database_1.default.booking.count({ where: bookingFilter })
             ]);
-            // Get overall stats across all fields
-            const [totalBookings, totalEarnings] = await Promise.all([
-                database_1.default.booking.count({ where: { fieldId: { in: fieldIds } } }),
-                database_1.default.booking.aggregate({
+            // Calculate total earnings from successful payouts (PAID status only)
+            const stripeAccount = await database_1.default.stripeAccount.findUnique({
+                where: { userId: ownerId }
+            });
+            let totalPaidEarnings = 0;
+            if (stripeAccount) {
+                const payouts = await database_1.default.payout.aggregate({
                     where: {
-                        fieldId: { in: fieldIds },
-                        status: 'COMPLETED'
+                        stripeAccountId: stripeAccount.id,
+                        status: 'paid'
                     },
                     _sum: {
-                        fieldOwnerAmount: true
+                        amount: true
                     }
-                })
-            ]);
+                });
+                totalPaidEarnings = payouts._sum.amount || 0;
+            }
+            // Get overall stats across all fields
+            const totalBookings = await database_1.default.booking.count({ where: { fieldId: { in: fieldIds } } });
             // Format bookings for frontend with fee breakdown
             const formattedBookings = bookings.map((booking) => {
                 // Calculate Stripe fee (1.5% + 20p)
@@ -1801,7 +1822,7 @@ class FieldController {
                     fieldOwnerEarnings = booking.fieldOwnerAmount;
                 }
                 else {
-                    fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee) * 100) / 100;
+                    fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee - stripeFee) * 100) / 100;
                 }
                 return {
                     id: booking.id,
@@ -1811,7 +1832,7 @@ class FieldController {
                     userEmail: booking.user.email,
                     userPhone: booking.user.phone,
                     time: `${booking.startTime} - ${booking.endTime}`,
-                    orderId: generateOrderId(booking.id),
+                    orderId: generateOrderId(booking),
                     status: booking.status.toLowerCase(),
                     frequency: formatRecurringFrequency(booking.repeatBooking),
                     dogs: booking.numberOfDogs || 1,
@@ -1838,7 +1859,7 @@ class FieldController {
                 stats: {
                     todayBookings: totalFilteredBookings,
                     totalBookings,
-                    totalEarnings: totalEarnings._sum.fieldOwnerAmount || 0
+                    totalEarnings: totalPaidEarnings
                 },
                 pagination: {
                     page: pageNum,
@@ -1931,8 +1952,25 @@ class FieldController {
                 }),
                 database_1.default.booking.count({ where: bookingFilter })
             ]);
+            // Calculate total earnings from successful payouts (PAID status only)
+            const stripeAccount = await database_1.default.stripeAccount.findUnique({
+                where: { userId: ownerId }
+            });
+            let totalPaidEarnings = 0;
+            if (stripeAccount) {
+                const payouts = await database_1.default.payout.aggregate({
+                    where: {
+                        stripeAccountId: stripeAccount.id,
+                        status: 'paid'
+                    },
+                    _sum: {
+                        amount: true
+                    }
+                });
+                totalPaidEarnings = payouts._sum.amount || 0;
+            }
             // Get overall stats across all fields
-            const [totalBookings, todayBookings, totalEarnings] = await Promise.all([
+            const [totalBookings, todayBookings] = await Promise.all([
                 database_1.default.booking.count({ where: { fieldId: { in: fieldIds } } }),
                 database_1.default.booking.count({
                     where: {
@@ -1941,15 +1979,6 @@ class FieldController {
                             gte: today,
                             lt: tomorrow
                         }
-                    }
-                }),
-                database_1.default.booking.aggregate({
-                    where: {
-                        fieldId: { in: fieldIds },
-                        status: 'COMPLETED'
-                    },
-                    _sum: {
-                        fieldOwnerAmount: true
                     }
                 })
             ]);
@@ -2034,7 +2063,7 @@ class FieldController {
                 stats: {
                     todayBookings,
                     totalBookings,
-                    totalEarnings: totalEarnings._sum.fieldOwnerAmount || 0
+                    totalEarnings: totalPaidEarnings
                 },
                 pagination: {
                     page: pageNum,
@@ -2120,10 +2149,27 @@ class FieldController {
                 }),
                 database_1.default.booking.count({ where: bookingFilter })
             ]);
+            // Calculate total earnings from successful payouts (PAID status only)
+            const stripeAccount = await database_1.default.stripeAccount.findUnique({
+                where: { userId: ownerId }
+            });
+            let totalPaidEarnings = 0;
+            if (stripeAccount) {
+                const payouts = await database_1.default.payout.aggregate({
+                    where: {
+                        stripeAccountId: stripeAccount.id,
+                        status: 'paid'
+                    },
+                    _sum: {
+                        amount: true
+                    }
+                });
+                totalPaidEarnings = payouts._sum.amount || 0;
+            }
             // Get overall stats across all fields
             const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
-            const [totalBookings, todayBookings, totalEarnings] = await Promise.all([
+            const [totalBookings, todayBookings] = await Promise.all([
                 database_1.default.booking.count({ where: { fieldId: { in: fieldIds } } }),
                 database_1.default.booking.count({
                     where: {
@@ -2132,15 +2178,6 @@ class FieldController {
                             gte: today,
                             lt: tomorrow
                         }
-                    }
-                }),
-                database_1.default.booking.aggregate({
-                    where: {
-                        fieldId: { in: fieldIds },
-                        status: 'COMPLETED'
-                    },
-                    _sum: {
-                        fieldOwnerAmount: true
                     }
                 })
             ]);
@@ -2212,7 +2249,7 @@ class FieldController {
                 stats: {
                     todayBookings,
                     totalBookings,
-                    totalEarnings: totalEarnings._sum.fieldOwnerAmount || 0
+                    totalEarnings: totalPaidEarnings
                 },
                 pagination: {
                     page: pageNum,
@@ -2587,9 +2624,11 @@ class FieldController {
     // Get field details for admin with all necessary data
     getFieldDetailsForAdmin = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
         const { id } = req.params;
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        const where = isObjectId ? { id } : { fieldId: id };
         // Get field with owner and booking details
         const field = await database_1.default.field.findUnique({
-            where: { id },
+            where,
             include: {
                 owner: {
                     select: {
@@ -2638,7 +2677,7 @@ class FieldController {
             // Get all bookings for THIS specific field
             const fieldBookings = await database_1.default.booking.findMany({
                 where: {
-                    fieldId: id,
+                    fieldId: field.id,
                     paymentStatus: 'PAID'
                 },
                 select: { id: true, totalPrice: true }

@@ -11,7 +11,7 @@ const sharp_1 = __importDefault(require("sharp"));
 const uuid_1 = require("uuid");
 // Initialize S3 client
 const s3Client = new client_s3_1.S3Client({
-    region: process.env.AWS_REGION || 'us-east-1',
+    region: process.env.AWS_REGION || 'eu-west-2',
     credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -72,7 +72,7 @@ const uploadDirect = async (req, res) => {
         });
         await s3Client.send(command);
         // Return the file URL
-        const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+        const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'eu-west-2'}.amazonaws.com/${key}`;
         res.status(200).json({
             success: true,
             url: fileUrl, // Return 'url' field for consistency
@@ -128,7 +128,7 @@ const uploadMultiple = async (req, res) => {
                 ACL: 'public-read',
             });
             await s3Client.send(command);
-            const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+            const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'eu-west-2'}.amazonaws.com/${key}`;
             uploadedFiles.push({
                 fileUrl,
                 key,
@@ -178,7 +178,7 @@ const getPresignedUrl = async (req, res) => {
         // Return the presigned URL and form fields
         res.status(200).json({
             uploadUrl: url,
-            fileUrl: `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`,
+            fileUrl: `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'eu-west-2'}.amazonaws.com/${key}`,
             fields,
         });
     }

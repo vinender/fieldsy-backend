@@ -8,6 +8,7 @@ const admin_middleware_1 = require("../middleware/admin.middleware");
 const router = (0, express_1.Router)();
 // Public route - get settings needed for frontend (no auth required)
 router.get('/public', settings_controller_1.getPublicSettings);
+router.post('/verify-access', settings_controller_1.verifySiteAccess);
 // Admin routes
 router.get('/admin', admin_middleware_1.authenticateAdmin, settings_controller_1.getSystemSettings);
 router.put('/admin', admin_middleware_1.authenticateAdmin, settings_controller_1.updateSystemSettings);

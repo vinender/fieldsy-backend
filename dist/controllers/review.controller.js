@@ -15,8 +15,11 @@ class ReviewController {
             const sortBy = req.query.sortBy || 'recent';
             const rating = req.query.rating ? parseInt(req.query.rating) : undefined;
             const skip = (page - 1) * limit;
+            // Support both internal ID and human-readable fieldId
+            const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
+            const whereClause = isObjectId ? { fieldId } : { field: { fieldId } };
             // Build where clause
-            const where = { fieldId };
+            const where = { ...whereClause };
             if (rating) {
                 where.rating = rating;
             }
@@ -100,9 +103,24 @@ class ReviewController {
     // Create a new review
     async createReview(req, res) {
         try {
-            const { fieldId } = req.params;
+            const { fieldId: providedFieldId } = req.params;
             const userId = req.user?.id;
             const { rating, title, comment, images = [], bookingId } = req.body;
+            // Support both internal ID and human-readable fieldId
+            const isObjectId = providedFieldId.length === 24 && /^[0-9a-fA-F]+$/.test(providedFieldId);
+            const whereField = isObjectId ? { id: providedFieldId } : { fieldId: providedFieldId };
+            // Find the field to get its canonical ID and owner info
+            const field = await database_1.default.field.findUnique({
+                where: whereField,
+                select: { id: true, ownerId: true, name: true }
+            });
+            if (!field) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Field not found',
+                });
+            }
+            const fieldId = field.id; // Use canonical ID
             if (!userId) {
                 return res.status(401).json({
                     success: false,
@@ -233,11 +251,6 @@ class ReviewController {
                         },
                     },
                 },
-            });
-            // Get field details for notifications
-            const field = await database_1.default.field.findUnique({
-                where: { id: fieldId },
-                select: { ownerId: true, name: true },
             });
             // Update field's average rating and total reviews
             const reviewStats = await database_1.default.fieldReview.aggregate({

@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const booking_model_1 = __importDefault(require("../models/booking.model"));
 const field_model_1 = __importDefault(require("../models/field.model"));
+const user_model_1 = __importDefault(require("../models/user.model"));
 const asyncHandler_1 = require("../utils/asyncHandler");
 const AppError_1 = require("../utils/AppError");
 const database_1 = __importDefault(require("../config/database"));
@@ -51,6 +52,8 @@ class BookingController {
     createBooking = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
         const dogOwnerId = req.user.id;
         const { fieldId, date, startTime, endTime, notes, numberOfDogs = 1 } = req.body;
+        // Resolve fieldId if it's external (e.g. F1111)
+        const resolvedFieldId = await field_model_1.default.resolveId(fieldId);
         // Check if user is blocked (field might not exist in production yet)
         try {
             const user = await database_1.default.user.findUnique({
@@ -97,7 +100,7 @@ class BookingController {
         endOfDayDate.setHours(23, 59, 59, 999);
         const existingBooking = await database_1.default.booking.findFirst({
             where: {
-                fieldId,
+                fieldId: resolvedFieldId,
                 date: {
                     gte: startOfDayDate,
                     lte: endOfDayDate
@@ -112,7 +115,7 @@ class BookingController {
             throw new AppError_1.AppError('This time slot is already booked. Once booked, a slot becomes private for that dog owner.', 400);
         }
         // Check full availability (including recurring booking reservations)
-        const availabilityCheck = await booking_model_1.default.checkFullAvailability(fieldId, new Date(date), startTime, endTime);
+        const availabilityCheck = await booking_model_1.default.checkFullAvailability(resolvedFieldId, new Date(date), startTime, endTime);
         if (!availabilityCheck.available) {
             throw new AppError_1.AppError(availabilityCheck.reason || 'This time slot is not available', 400);
         }
@@ -154,7 +157,7 @@ class BookingController {
         // Create booking
         const booking = await booking_model_1.default.create({
             dogOwnerId,
-            fieldId,
+            fieldId: resolvedFieldId,
             date: new Date(date),
             startTime,
             endTime,
@@ -180,7 +183,7 @@ class BookingController {
                     message: `You have a new booking request for ${field.name} on ${new Date(date).toLocaleDateString()} from ${startTime} to ${endTime}. Please review and confirm.`,
                     data: {
                         bookingId: booking.id,
-                        fieldId: field.id,
+                        fieldId: resolvedFieldId,
                         fieldName: field.name,
                         date,
                         startTime,
@@ -223,16 +226,19 @@ class BookingController {
         res.status(201).json({
             success: true,
             message: 'Booking created successfully',
-            data: booking,
+            data: booking_model_1.default.sanitize(booking),
         });
     });
     // Get all bookings (admin only)
     getAllBookings = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
         const { dogOwnerId, fieldId, status, date, startDate, endDate, page = 1, limit = 10, } = req.query;
         const skip = (Number(page) - 1) * Number(limit);
+        // Resolve IDs if they are human-readable
+        const resolvedDogOwnerId = dogOwnerId ? await user_model_1.default.resolveId(dogOwnerId) : undefined;
+        const resolvedFieldId = fieldId ? await field_model_1.default.resolveId(fieldId) : undefined;
         const bookings = await booking_model_1.default.findAll({
-            dogOwnerId: dogOwnerId,
-            fieldId: fieldId,
+            dogOwnerId: resolvedDogOwnerId,
+            fieldId: resolvedFieldId,
             status: status,
             date: date ? new Date(date) : undefined,
             startDate: startDate ? new Date(startDate) : undefined,
@@ -258,9 +264,11 @@ class BookingController {
         // Get system settings for cancellation window
         const systemSettings = await database_1.default.systemSettings.findFirst();
         const cancellationWindowHours = systemSettings?.cancellationWindowHours || 24;
+        const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+        const where = isObjectId ? { id } : { bookingId: id };
         // Fetch booking with only necessary fields for the modal
         const booking = await database_1.default.booking.findUnique({
-            where: { id },
+            where,
             select: {
                 id: true,
                 userId: true,
@@ -276,6 +284,7 @@ class BookingController {
                 repeatBooking: true,
                 rescheduleCount: true,
                 subscriptionId: true,
+                bookingId: true,
                 createdAt: true,
                 updatedAt: true,
                 fieldReview: {
@@ -296,6 +305,7 @@ class BookingController {
                         price: true,
                         bookingDuration: true,
                         size: true,
+                        customFieldSize: true,
                         terrainType: true,
                         fenceType: true,
                         fenceSize: true,
@@ -404,6 +414,7 @@ class BookingController {
             repeatBooking: booking.repeatBooking,
             rescheduleCount: booking.rescheduleCount,
             subscriptionId: booking.subscriptionId,
+            bookingId: booking.bookingId,
             createdAt: booking.createdAt,
             updatedAt: booking.updatedAt,
             // Eligibility flags for cancellation/reschedule
@@ -431,6 +442,7 @@ class BookingController {
                 price: booking.field?.price,
                 bookingDuration: booking.field?.bookingDuration,
                 size: booking.field?.size,
+                customFieldSize: booking.field?.customFieldSize,
                 terrainType: booking.field?.terrainType,
                 fenceType: booking.field?.fenceType,
                 fenceSize: booking.field?.fenceSize,
@@ -617,6 +629,7 @@ class BookingController {
                     user: {
                         select: {
                             id: true,
+                            userId: true,
                             name: true,
                             email: true,
                         },
@@ -720,9 +733,9 @@ class BookingController {
                 isUpcoming &&
                 isCancellable;
             return {
-                id: booking.id,
-                userId: booking.userId,
-                fieldId: booking.fieldId,
+                id: booking.bookingId || booking.id,
+                userId: user?.userId || booking.userId,
+                fieldId: field?.fieldId || booking.fieldId,
                 date: booking.date,
                 startTime: booking.startTime,
                 endTime: booking.endTime,
@@ -733,6 +746,7 @@ class BookingController {
                 paymentStatus: booking.paymentStatus,
                 repeatBooking: booking.repeatBooking,
                 rescheduleCount: booking.rescheduleCount,
+                bookingId: booking.bookingId,
                 createdAt: booking.createdAt,
                 updatedAt: booking.updatedAt,
                 // Calculated fields for frontend/mobile apps
@@ -751,7 +765,7 @@ class BookingController {
                 } : null,
                 // Field data - only what's needed for display
                 field: {
-                    id: field?.id,
+                    id: field?.fieldId || field?.id,
                     name: field?.name,
                     address: field?.address,
                     city: field?.city,
@@ -761,6 +775,7 @@ class BookingController {
                     price: field?.price,
                     bookingDuration: field?.bookingDuration,
                     size: field?.size,
+                    customFieldSize: field?.customFieldSize,
                     terrainType: field?.terrainType,
                     fenceType: field?.fenceType,
                     fenceSize: field?.fenceSize,
@@ -772,7 +787,7 @@ class BookingController {
                     amenities: transformedAmenities,
                     // Owner information
                     owner: owner ? {
-                        id: owner.id,
+                        id: owner.userId || owner.id,
                         name: owner.name,
                         email: owner.email,
                         emailVerified: owner.emailVerified,
@@ -2041,19 +2056,26 @@ class BookingController {
         const userId = req.user.id;
         const { id } = req.params;
         const { cancelImmediately = false } = req.body;
-        // Find the subscription - try direct lookup first
-        let subscription = await database_1.default.subscription.findUnique({
-            where: {
-                id: id
-            },
-            include: {
-                field: true
-            }
-        });
-        // If not found, the ID might be a booking ID - try to find subscription through booking
+        // Helper to check if string is a valid MongoDB ObjectId
+        const isValidObjectId = (str) => str.length === 24 && /^[0-9a-fA-F]+$/.test(str);
+        // Find the subscription - try direct lookup first only if it's a valid ObjectId
+        let subscription = null;
+        if (isValidObjectId(id)) {
+            subscription = await database_1.default.subscription.findUnique({
+                where: {
+                    id: id
+                },
+                include: {
+                    field: true
+                }
+            });
+        }
+        // If not found, the ID might be a booking ID (either ObjectId or human-readable bookingId)
+        // Try to find subscription through booking
         if (!subscription) {
+            const bookingWhere = isValidObjectId(id) ? { id: id } : { bookingId: id };
             const booking = await database_1.default.booking.findUnique({
-                where: { id: id },
+                where: bookingWhere,
                 select: { subscriptionId: true }
             });
             if (booking?.subscriptionId) {
