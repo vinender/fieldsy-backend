@@ -34,21 +34,9 @@ class GoogleSignInService {
     this.client = new OAuth2Client(this.webClientId);
 
 
-    // Validate configuration on initialization
+    // Log warning if not configured
     if (!this.webClientId) {
-      console.warn('⚠️  Google Sign In is not fully configured. GOOGLE_CLIENT_ID is missing.');
-    } else {
-      console.log('✅ Google Sign In Service initialized');
-      console.log('  Web Client ID:', this.webClientId.substring(0, 20) + '...');
-      if (this.iosClientId !== this.webClientId) {
-        console.log('  iOS Client ID:', this.iosClientId.substring(0, 20) + '...');
-      }
-      if (this.androidClientId !== this.webClientId) {
-        console.log('   Android Client ID:', this.androidClientId.substring(0, 20) + '...');
-      }
-      if (this.firebaseClientId !== this.webClientId) {
-        console.log('   Firebase Client ID:', this.firebaseClientId.substring(0, 20) + '...');
-      }
+      console.warn('[GoogleSignIn] Not fully configured - GOOGLE_CLIENT_ID is missing');
     }
   }
 
@@ -62,36 +50,18 @@ class GoogleSignInService {
    */
   async verifyIdToken(idToken: string): Promise<GoogleUserInfo> {
     try {
-      console.log('🔐 Verifying Google ID token...');
-
-      // Get all valid client IDs (web, iOS, Android)
-      const validAudiences = [
+      // Get all valid client IDs (web, iOS, Android) and remove duplicates
+      const uniqueAudiences = [...new Set([
         this.webClientId,
         this.iosClientId,
         this.androidClientId,
         this.firebaseClientId,
-      ].filter(Boolean); // Remove empty strings
-
-      // Remove duplicates
-      const uniqueAudiences = [...new Set(validAudiences)];
-      console.log('   Valid audiences configured:', uniqueAudiences.map(a => a.substring(0, 30) + '...'));
-
-      // Decode token to see the audience (for debugging)
-      try {
-        const tokenParts = idToken.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-          console.log(' Token audience (aud):', payload.aud);
-          console.log(' Token issuer (iss):', payload.iss);
-        }
-      } catch (decodeError) {
-        console.log('   Could not decode token for debugging');
-      }
+      ].filter(Boolean))];
 
       // Verify the token using Google's OAuth2Client
       const ticket = await this.client.verifyIdToken({
         idToken: idToken,
-        audience: uniqueAudiences, // Accept tokens from any of our client IDs
+        audience: uniqueAudiences,
       });
 
       const payload = ticket.getPayload();
@@ -99,12 +69,6 @@ class GoogleSignInService {
       if (!payload) {
         throw new Error('Unable to get token payload');
       }
-
-      console.log('✅ Google ID token verified successfully');
-      console.log('   User ID (sub):', payload.sub);
-      console.log('   Email:', payload.email);
-      console.log('   Email Verified:', payload.email_verified);
-      console.log('   Name:', payload.name);
 
       return {
         email: payload.email || '',
@@ -114,7 +78,7 @@ class GoogleSignInService {
         picture: payload.picture,
       };
     } catch (error: any) {
-      console.error('❌ Google ID token verification failed:', error.message);
+      console.error('[GoogleSignIn] Verification failed:', error.message);
 
       // Provide more specific error messages
       if (error.message?.includes('Token used too late')) {
@@ -144,9 +108,9 @@ class GoogleSignInService {
    */
   getConfigStatus() {
     return {
-      webClientId: this.webClientId ? '✅ Set' : '❌ Missing',
-      iosClientId: this.iosClientId ? '✅ Set' : '❌ Missing',
-      androidClientId: this.androidClientId ? '✅ Set' : '❌ Missing',
+      webClientId: !!this.webClientId,
+      iosClientId: !!this.iosClientId,
+      androidClientId: !!this.androidClientId,
       configured: this.isConfigured(),
     };
   }
