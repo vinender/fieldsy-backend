@@ -48,21 +48,9 @@ class AppleSignInService {
     this.mobileClientId = process.env.APPLE_MOBILE_CLIENT_ID || process.env.APPLE_BUNDLE_ID || ''; // iOS Bundle ID (e.g., com.fieldsy.app)
     this.privateKey = process.env.APPLE_SECRET || '';
 
-    // Validate configuration on initialization
+    // Log configuration status (only warn if not configured)
     if (!this.teamId || !this.keyId || !this.clientId || !this.privateKey) {
-      console.warn('⚠️  Apple Sign In is not fully configured. Some features may not work.');
-      console.warn('Missing:', {
-        teamId: !this.teamId,
-        keyId: !this.keyId,
-        clientId: !this.clientId,
-        privateKey: !this.privateKey
-      });
-    } else {
-      console.log('✅ Apple Sign In Service initialized');
-      console.log('   Team ID:', this.teamId);
-      console.log('   Key ID:', this.keyId);
-      console.log('   Web Client ID:', this.clientId);
-      console.log('   Mobile Client ID:', this.mobileClientId || '(not configured - will use web client ID)');
+      console.warn('[AppleSignIn] Not fully configured - missing required env vars');
     }
   }
 
@@ -76,116 +64,34 @@ class AppleSignInService {
    * @returns Decoded and verified user information
    */
   async verifyIdToken(idToken: string, clientId?: string, source: string = 'unknown'): Promise<AppleUserInfo> {
-    const timestamp = new Date().toISOString();
-    console.log('\n');
-    console.log('╔══════════════════════════════════════════════════════════════════╗');
-    console.log('║          APPLE ID TOKEN VERIFICATION - DEBUG LOG                 ║');
-    console.log('╚══════════════════════════════════════════════════════════════════╝');
-    console.log(`[${timestamp}] Source: ${source}`);
-
     try {
-      // Step 1: Log the incoming token details (first/last chars only for security)
-      console.log('\n📥 STEP 1: Received Token Analysis');
-      console.log('─────────────────────────────────────');
       if (!idToken) {
-        console.log('❌ ERROR: idToken is null/undefined/empty');
         throw new Error('ID token is missing');
       }
-      console.log(`   Token length: ${idToken.length} characters`);
-      console.log(`   Token preview: ${idToken.substring(0, 50)}...${idToken.substring(idToken.length - 20)}`);
 
-      // Step 2: Decode token WITHOUT verification to inspect contents
-      console.log('\n🔍 STEP 2: Decoding Token (without verification)');
-      console.log('─────────────────────────────────────');
+      // Decode token to get audience for client ID resolution
       let decodedToken: AppleTokenPayload | null = null;
-      let decodedHeader: any = null;
       try {
         decodedToken = jwt.decode(idToken, { complete: false }) as AppleTokenPayload;
-        const completeDecoded = jwt.decode(idToken, { complete: true });
-        decodedHeader = completeDecoded?.header;
-
-        if (decodedToken) {
-          console.log('   ✅ Token decoded successfully');
-          console.log('   Token Header:');
-          console.log(`      - Algorithm: ${decodedHeader?.alg || 'N/A'}`);
-          console.log(`      - Key ID (kid): ${decodedHeader?.kid || 'N/A'}`);
-          console.log('   Token Payload:');
-          console.log(`      - Issuer (iss): ${decodedToken.iss}`);
-          console.log(`      - Subject (sub): ${decodedToken.sub}`);
-          console.log(`      - Audience (aud): ${decodedToken.aud}`);
-          console.log(`      - Email: ${decodedToken.email || 'N/A'}`);
-          console.log(`      - Email Verified: ${decodedToken.email_verified}`);
-          console.log(`      - Is Private Email: ${decodedToken.is_private_email}`);
-
-          // Check token times
-          const now = Math.floor(Date.now() / 1000);
-          const issuedAt = decodedToken.iat;
-          const expiresAt = decodedToken.exp;
-          const issuedAtDate = new Date(issuedAt * 1000).toISOString();
-          const expiresAtDate = new Date(expiresAt * 1000).toISOString();
-          const isExpired = now > expiresAt;
-          const tokenAge = now - issuedAt;
-          const timeUntilExpiry = expiresAt - now;
-
-          console.log('   Token Timestamps:');
-          console.log(`      - Issued At (iat): ${issuedAt} (${issuedAtDate})`);
-          console.log(`      - Expires At (exp): ${expiresAt} (${expiresAtDate})`);
-          console.log(`      - Current Time: ${now} (${new Date(now * 1000).toISOString()})`);
-          console.log(`      - Token Age: ${tokenAge} seconds (${Math.round(tokenAge / 60)} minutes)`);
-          if (isExpired) {
-            console.log(`      - ⚠️  TOKEN IS EXPIRED by ${Math.abs(timeUntilExpiry)} seconds (${Math.round(Math.abs(timeUntilExpiry) / 60)} minutes)`);
-          } else {
-            console.log(`      - ✅ Token valid for ${timeUntilExpiry} seconds (${Math.round(timeUntilExpiry / 60)} minutes)`);
-          }
-        } else {
-          console.log('   ⚠️  Could not decode token - may be malformed');
-        }
-      } catch (decodeError: any) {
-        console.log(`   ❌ Failed to decode token: ${decodeError.message}`);
+      } catch {
+        // Continue with verification even if decode fails
       }
-
-      // Step 3: Determine which client ID to use
-      console.log('\n🎯 STEP 3: Client ID Resolution');
-      console.log('─────────────────────────────────────');
-      const tokenAudience = decodedToken?.aud;
-      console.log(`   Token audience (aud): ${tokenAudience}`);
-      console.log(`   Web Client ID (env): ${this.clientId}`);
-      console.log(`   Mobile Client ID (env): ${this.mobileClientId || 'not set'}`);
-      console.log(`   Provided clientId param: ${clientId || 'not provided'}`);
 
       // Determine the correct client ID to use for verification
+      const tokenAudience = decodedToken?.aud;
       let audienceToVerify = clientId || this.clientId;
 
-      // If the token audience matches the mobile client ID, use that
+      // Match audience to configured client IDs
       if (tokenAudience && this.mobileClientId && tokenAudience === this.mobileClientId) {
         audienceToVerify = this.mobileClientId;
-        console.log(`   ✅ Token audience matches Mobile Client ID - using: ${audienceToVerify}`);
       } else if (tokenAudience && tokenAudience === this.clientId) {
         audienceToVerify = this.clientId;
-        console.log(`   ✅ Token audience matches Web Client ID - using: ${audienceToVerify}`);
-      } else if (tokenAudience) {
-        // Token has a different audience - this might be the issue!
-        console.log(`   ⚠️  TOKEN AUDIENCE MISMATCH!`);
-        console.log(`      Token expects: ${tokenAudience}`);
-        console.log(`      We have configured: Web=${this.clientId}, Mobile=${this.mobileClientId || 'not set'}`);
-
-        // For mobile apps, the audience should be the Bundle ID
-        // Let's try using the token's audience if it looks like a bundle ID
-        if (tokenAudience.startsWith('com.') || tokenAudience.includes('.')) {
-          console.log(`   🔄 Attempting to verify with token's audience: ${tokenAudience}`);
-          audienceToVerify = tokenAudience;
-        }
+      } else if (tokenAudience && (tokenAudience.startsWith('com.') || tokenAudience.includes('.'))) {
+        // For mobile apps, try using token's audience if it looks like a bundle ID
+        audienceToVerify = tokenAudience;
       }
 
-      console.log(`   Final audience for verification: ${audienceToVerify}`);
-
-      // Step 4: Verify with apple-signin-auth library
-      console.log('\n🔐 STEP 4: Apple Token Verification');
-      console.log('─────────────────────────────────────');
-      console.log(`   Using audience: ${audienceToVerify}`);
-      console.log(`   Ignore expiration: ${process.env.NODE_ENV === 'development'}`);
-      console.log(`   Environment: ${process.env.NODE_ENV || 'not set'}`);
-
+      // Verify with apple-signin-auth library
       let appleRes: any;
       try {
         appleRes = await appleSignin.verifyIdToken(idToken, {
@@ -193,39 +99,18 @@ class AppleSignInService {
           nonce: undefined,
           ignoreExpiration: process.env.NODE_ENV === 'development',
         });
-        console.log('   ✅ Apple verification PASSED');
       } catch (verifyError: any) {
-        console.log(`   ❌ Apple verification FAILED: ${verifyError.message}`);
-
-        // If verification failed and we haven't tried the mobile client ID, try it
+        // If verification failed, try mobile client ID as fallback
         if (this.mobileClientId && audienceToVerify !== this.mobileClientId) {
-          console.log(`\n   🔄 Retrying with Mobile Client ID: ${this.mobileClientId}`);
-          try {
-            appleRes = await appleSignin.verifyIdToken(idToken, {
-              audience: this.mobileClientId,
-              nonce: undefined,
-              ignoreExpiration: process.env.NODE_ENV === 'development',
-            });
-            console.log('   ✅ Apple verification PASSED with Mobile Client ID');
-          } catch (retryError: any) {
-            console.log(`   ❌ Retry with Mobile Client ID also FAILED: ${retryError.message}`);
-            throw verifyError; // Throw the original error
-          }
+          appleRes = await appleSignin.verifyIdToken(idToken, {
+            audience: this.mobileClientId,
+            nonce: undefined,
+            ignoreExpiration: process.env.NODE_ENV === 'development',
+          });
         } else {
           throw verifyError;
         }
       }
-
-      // Step 5: Log successful verification result
-      console.log('\n✅ STEP 5: Verification Success');
-      console.log('─────────────────────────────────────');
-      console.log(`   User ID (sub): ${appleRes.sub}`);
-      console.log(`   Email: ${appleRes.email}`);
-      console.log(`   Email Verified: ${appleRes.email_verified}`);
-      console.log('╔══════════════════════════════════════════════════════════════════╗');
-      console.log('║          APPLE VERIFICATION COMPLETE - SUCCESS                   ║');
-      console.log('╚══════════════════════════════════════════════════════════════════╝');
-      console.log('\n');
 
       return {
         email: appleRes.email || '',
@@ -234,36 +119,8 @@ class AppleSignInService {
         name: undefined, // Name is only provided on first sign-in from client
       };
     } catch (error: any) {
-      console.log('\n❌ APPLE VERIFICATION FAILED');
-      console.log('─────────────────────────────────────');
-      console.log(`   Error Type: ${error.name || 'Unknown'}`);
-      console.log(`   Error Message: ${error.message}`);
-      if (error.stack) {
-        console.log(`   Stack Trace:\n${error.stack}`);
-      }
-
-      // Provide helpful debugging hints
-      console.log('\n💡 DEBUGGING HINTS:');
-      console.log('─────────────────────────────────────');
-      if (error.message?.includes('expired')) {
-        console.log('   - Token has expired. Apple ID tokens are short-lived (typically 5-10 minutes)');
-        console.log('   - Ensure the mobile app sends the token immediately after receiving it');
-        console.log('   - Check if device time is synchronized correctly');
-      }
-      if (error.message?.includes('audience') || error.message?.includes('aud')) {
-        console.log('   - Client ID mismatch. The token was issued for a different app');
-        console.log('   - For iOS apps, set APPLE_MOBILE_CLIENT_ID or APPLE_BUNDLE_ID in .env');
-        console.log('   - Mobile apps use Bundle ID, web apps use Service ID');
-      }
-      if (error.message?.includes('signature')) {
-        console.log('   - Token signature is invalid');
-        console.log('   - Token may have been tampered with or corrupted');
-      }
-      console.log('╔══════════════════════════════════════════════════════════════════╗');
-      console.log('║          APPLE VERIFICATION COMPLETE - FAILED                    ║');
-      console.log('╚══════════════════════════════════════════════════════════════════╝');
-      console.log('\n');
-
+      // Log error with context for debugging
+      console.error(`[AppleSignIn] Verification failed (source: ${source}):`, error.message);
       throw new Error(`Invalid Apple ID token: ${error.message}`);
     }
   }
@@ -276,40 +133,27 @@ class AppleSignInService {
    * @returns JWT token to use as client secret
    */
   generateClientSecret(): string {
-    try {
-      console.log('🔑 Generating Apple client secret...');
-
-      if (!this.privateKey) {
-        throw new Error('Apple private key not configured');
-      }
-
-      // Create JWT token for Apple
-      const token = jwt.sign(
-        {
-          iss: this.teamId,
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 15777000, // 6 months
-          aud: 'https://appleid.apple.com',
-          sub: this.clientId,
-        },
-        this.privateKey,
-        {
-          algorithm: 'ES256',
-          header: {
-            alg: 'ES256',
-            kid: this.keyId,
-          },
-        }
-      );
-
-      console.log('✅ Apple client secret generated');
-      console.log('   Expires in: 6 months');
-
-      return token;
-    } catch (error) {
-      console.error('❌ Failed to generate Apple client secret:', error);
-      throw new Error('Failed to generate Apple client secret');
+    if (!this.privateKey) {
+      throw new Error('Apple private key not configured');
     }
+
+    return jwt.sign(
+      {
+        iss: this.teamId,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 15777000, // 6 months
+        aud: 'https://appleid.apple.com',
+        sub: this.clientId,
+      },
+      this.privateKey,
+      {
+        algorithm: 'ES256',
+        header: {
+          alg: 'ES256',
+          kid: this.keyId,
+        },
+      }
+    );
   }
 
   /**
@@ -320,23 +164,13 @@ class AppleSignInService {
    * @returns Access token and ID token
    */
   async getAuthorizationToken(code: string): Promise<any> {
-    try {
-      console.log('🔄 Exchanging authorization code for tokens...');
+    const clientSecret = this.generateClientSecret();
 
-      const clientSecret = this.generateClientSecret();
-
-      const response = await appleSignin.getAuthorizationToken(code, {
-        clientID: this.clientId,
-        clientSecret: clientSecret,
-        redirectUri: process.env.APPLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback/apple',
-      });
-
-      console.log('✅ Authorization tokens received');
-      return response;
-    } catch (error) {
-      console.error('❌ Failed to exchange authorization code:', error);
-      throw new Error('Failed to exchange authorization code');
-    }
+    return appleSignin.getAuthorizationToken(code, {
+      clientID: this.clientId,
+      clientSecret: clientSecret,
+      redirectUri: process.env.APPLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback/apple',
+    });
   }
 
   /**
@@ -346,22 +180,12 @@ class AppleSignInService {
    * @returns New access token
    */
   async refreshAuthorizationToken(refreshToken: string): Promise<any> {
-    try {
-      console.log('🔄 Refreshing Apple access token...');
+    const clientSecret = this.generateClientSecret();
 
-      const clientSecret = this.generateClientSecret();
-
-      const response = await appleSignin.refreshAuthorizationToken(refreshToken, {
-        clientID: this.clientId,
-        clientSecret: clientSecret,
-      });
-
-      console.log('✅ Access token refreshed');
-      return response;
-    } catch (error) {
-      console.error('❌ Failed to refresh access token:', error);
-      throw new Error('Failed to refresh access token');
-    }
+    return appleSignin.refreshAuthorizationToken(refreshToken, {
+      clientID: this.clientId,
+      clientSecret: clientSecret,
+    });
   }
 
   /**
@@ -369,13 +193,7 @@ class AppleSignInService {
    * Cached by the library
    */
   async getApplePublicKeys(): Promise<any> {
-    try {
-      const keys = await appleSignin.getAuthorizationToken.getApplePublicKeys();
-      return keys;
-    } catch (error) {
-      console.error('❌ Failed to get Apple public keys:', error);
-      throw error;
-    }
+    return appleSignin.getAuthorizationToken.getApplePublicKeys();
   }
 
   /**

@@ -18,32 +18,15 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
     // Resolve receiverId to internal ObjectID if it's a human-readable ID
     const resolvedReceiverId = await UserModel.resolveId(receiverId);
 
-    // Sort participants to ensure consistent ordering for deduplication
+    // Sort participants for consistent ordering when creating
     const sortedParticipants = [senderId, resolvedReceiverId].sort();
 
-    // Check if conversation already exists between these two users
-    // Important: Find ANY conversation between these users to prevent duplicates
-    // We search for both possible orderings of participants array
+    // Check if conversation already exists using hasEvery (order-agnostic)
     let conversation = await prisma.conversation.findFirst({
       where: {
-        OR: [
-          {
-            participants: {
-              equals: [senderId, resolvedReceiverId]
-            }
-          },
-          {
-            participants: {
-              equals: [resolvedReceiverId, senderId]
-            }
-          },
-          // Also check sorted order for consistency
-          {
-            participants: {
-              equals: sortedParticipants
-            }
-          }
-        ]
+        participants: {
+          hasEvery: [senderId, resolvedReceiverId]
+        }
       },
       include: {
         field: {
@@ -57,13 +40,11 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
     });
 
     if (!conversation) {
-      // Double-check one more time to avoid race conditions
-      // This helps prevent duplicates when multiple requests come simultaneously
-      const existingConversation = await prisma.conversation.findFirst({
-        where: {
-          participants: {
-            hasEvery: [senderId, resolvedReceiverId]
-          }
+      // Create new conversation with sorted participants for consistency
+      conversation = await prisma.conversation.create({
+        data: {
+          participants: sortedParticipants,
+          fieldId: fieldId || undefined
         },
         include: {
           field: {
@@ -75,27 +56,6 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
           }
         }
       });
-
-      if (existingConversation) {
-        conversation = existingConversation;
-      } else {
-        // Create new conversation with sorted participants for consistency
-        conversation = await prisma.conversation.create({
-          data: {
-            participants: sortedParticipants,
-            fieldId: fieldId || undefined
-          },
-          include: {
-            field: {
-              select: {
-                id: true,
-                name: true,
-                images: true
-              }
-            }
-          }
-        });
-      }
     }
 
     // Get participants info
