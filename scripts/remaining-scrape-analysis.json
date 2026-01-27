@@ -1,0 +1,229 @@
+{
+  "summary": {
+    "total": 37,
+    "wrongMatches": 9,
+    "copyrightBoilerplate": 19,
+    "goodUpdates": 9,
+    "reverted": 28,
+    "analyzedAt": "2026-01-27T14:12:23.892Z"
+  },
+  "goodUpdates": [
+    {
+      "id": "695f7c10fe74eb993b61fc3a",
+      "name": "Twister’s Barn, Dog Arena",
+      "description": "Twister’s Barn is a 5400sqft indoor arena at Ettington Dog Walking Meadows. It has a woodchip base and is perfect for winter training or to escape the heat in the summer. Sessions are 45minutes with a"
+    },
+    {
+      "id": "695f7c16fe74eb993b61fc63",
+      "name": "Phoebe’s Place",
+      "description": "‘Phoebe’s Place’ is a super dog field located approximately 7 miles from both Stevenage and Hitchin in Hertfordshire. It is 3.5 acres and offers countryside views in a farm setting and is surrounded b"
+    },
+    {
+      "id": "695f7c16fe74eb993b61fc66",
+      "name": "Gilbert’s Gallop",
+      "description": "Gilbert’s Gallop is series of enclosed paddocks set over 1.5 acres situated approximately 11 miles north west of central Leicester. It’s very easy to access from the M1 so great for anyone on the move"
+    },
+    {
+      "id": "695f7c18fe74eb993b61fc75",
+      "name": "Merlin’s Meadow",
+      "description": "Merlin’s Meadow Tewksbury is a secure dog walking field just a mile outside Tewksbury itself and only 3 miles from the M5 Junction 9. It is very conveniently located for both locals and anyone travell"
+    },
+    {
+      "id": "695f7c19fe74eb993b61fc7a",
+      "name": "Puppy’s Corner Secure Dog Field",
+      "description": "Ettington is the gold standard of secure dog walking fields and it’s evident when you arrive that this is a facility run by people who truly understand the requirements of a secure field. Grove Farm i"
+    },
+    {
+      "id": "695f8d05606a76753a99ddb6",
+      "name": "Dog’s Country Club",
+      "description": "Field Notes Dog Field 1 is secured with fences ranging from 5ft – 7ft tall as well as hedgerows and trees to provide privacy and low visibility. We also use a “double gated” system for extra security."
+    },
+    {
+      "id": "695f8d08606a76753a99ddcd",
+      "name": "The Wheelhouse Veterinary Centre, Dog Field",
+      "description": "Field Notes At the back of our surgery in Chalfont St Giles, we are fortunate enough to have a large paddock. When not in use by our Dog Training School and Agility classes, we can hire this space out"
+    },
+    {
+      "id": "695f8d08606a76753a99ddce",
+      "name": "Priestlands Dogs Secure Field",
+      "description": "Field Notes Our park-like picturesque 2.5 acre field is fenced with 1.4 metre livestock fencing, making the area a lovely dog-safe space for you (and your dog/s) to enjoy. If it is your first time vis"
+    },
+    {
+      "id": "695fa7f4d3c46bff55a805e3",
+      "name": "Welham’s Farm Secure Dog Walking Field",
+      "description": "If you’re interested in finding out what Norfolk can be like as a holiday destination with a reactive dog, check out this blog. FOR REALLY ‘DOG FRIENDLY’ HOLIDAYS SEE BRITISH DOG FIELDS OFFICIAL PARTN"
+    }
+  ],
+  "wrongMatches": [
+    {
+      "id": "695cfe651ee544eced64303e",
+      "name": "The Rambles Dog Walking Field",
+      "matchedName": "Grampound Secure Dog Walking Field",
+      "revertedTo": "The Rambles, a 3ac secure fenced meadow, just north of Bath in the beautiful St Catherines Valley"
+    },
+    {
+      "id": "695f8d05606a76753a99ddb4",
+      "name": "Dog’s Country Club Dog Fields (Field 4)",
+      "matchedName": "The Dog Walking Field Leiston",
+      "revertedTo": "Dogs Country Club 191 Slag Lane Lowton Warrington WA3 1BU"
+    },
+    {
+      "id": "695f8d05606a76753a99ddb5",
+      "name": "Dog’s Country Club Dog Fields (Field 2)",
+      "matchedName": "The Dog Walking Field Leiston",
+      "revertedTo": "191 Slag Lane, Lowton, Warrington, WA3 1BU"
+    },
+    {
+      "id": "695f8d11606a76753a99de0f",
+      "name": "Preston Dog Field",
+      "matchedName": "Chesters Dog Walking Field",
+      "revertedTo": "Darkinson lane, Preston, United Kingdom, Lea Town"
+    },
+    {
+      "id": "695f8d11606a76753a99de10",
+      "name": "Padlock’s Paddock Freedom Dog Field",
+      "matchedName": "Beulah View Secure Dog Field Leeds",
+      "revertedTo": "Potters Lane, Send, Woking, GU23 7JT"
+    },
+    {
+      "id": "695fa7f7d3c46bff55a805f8",
+      "name": "Bark ‘N’ Go Dog Field",
+      "matchedName": "Nosey Barker Dog Field Harlow",
+      "revertedTo": "Whitecraigs Road, Whitehill Ind. Estate, Glenrothes, KY6 2RX"
+    },
+    {
+      "id": "695fa7fcd3c46bff55a80613",
+      "name": "Chester’s Dog Walking Field",
+      "matchedName": "Bark Park Of Higham Dog Field Rochester",
+      "revertedTo": "6 Royalty Ave, New Longton, Preston, PR4 4JN"
+    },
+    {
+      "id": "695fa7fcd3c46bff55a80614",
+      "name": "Eva’s Green Dog Walking Field",
+      "matchedName": "Creaton Dog Walking Park",
+      "revertedTo": "Clover Hill Farm, Steart Lane, Somerton, TA11 7BD"
+    },
+    {
+      "id": "695fa7fcd3c46bff55a80615",
+      "name": "Out n Safe Dog Field",
+      "matchedName": "The Dog Walking Field Bungay",
+      "revertedTo": "Portcullis Estate, Glasgow, G66 8AQ"
+    }
+  ],
+  "copyrightBoilerplate": [
+    {
+      "id": "695f7c0ffe74eb993b61fc37",
+      "name": "My Dog Run Secure Dog Field",
+      "matchedName": "My Dog Run Secure Dog Field Eaton Bray",
+      "revertedTo": "Soulbury Road, Stewkley, LU7 0HW"
+    },
+    {
+      "id": "695f7c19fe74eb993b61fc78",
+      "name": "Farthing Cottage",
+      "matchedName": "Farthing Cottage, Trunch",
+      "revertedTo": "Chapel Road, Trunch NR28 0QG"
+    },
+    {
+      "id": "695f8d01606a76753a99dd98",
+      "name": "Kingates Grange’s Dog Walking Field",
+      "matchedName": "Kingates Grange’s Dog Walking Field, Ventnor",
+      "revertedTo": "Kingates Grange, Newport Road, Ventnor, PO38 2NS"
+    },
+    {
+      "id": "695f8d06606a76753a99ddba",
+      "name": "Martha’s Meadow, Dog Field",
+      "matchedName": "Marthas Meadow Hanley Swan",
+      "revertedTo": "Martha's Meadow, Upton upon Severn, WR8 0AR"
+    },
+    {
+      "id": "695f8d0d606a76753a99ddf7",
+      "name": "Platt’s Puppy Paddock",
+      "matchedName": "Platt’s Puppy Paddock, Llanfairfechan",
+      "revertedTo": "Platt’s Farm, Aber Road, Llanfairfechan, Conwy, LL33 0HL"
+    },
+    {
+      "id": "695f8d0e606a76753a99ddfd",
+      "name": "Let’s Play Dog Walking Field",
+      "matchedName": "Lets Walk Private Secure Dog Field Cleland",
+      "revertedTo": "Llanellen, Abergavenny, NP7 9HT"
+    },
+    {
+      "id": "695f8d0e606a76753a99ddff",
+      "name": "Freya’s Meadow, Dog Field",
+      "matchedName": "Freya’s Meadow, Dog Field, Harlow",
+      "revertedTo": "ESSEX DOG FIELD OF THE YEAR 2024\n\nLatton Street, Harlow, Essex, CM20 3SD"
+    },
+    {
+      "id": "695f8d0f606a76753a99de00",
+      "name": "The Dog Run, Dog Field",
+      "matchedName": "My Dog Run Secure Dog Field Kempston",
+      "revertedTo": "Northaw Road, West Potters Bar, EN6 4QX"
+    },
+    {
+      "id": "695f8d14606a76753a99de27",
+      "name": "Ayrshire’s K9 Play Park (Dog Field)",
+      "matchedName": "Ayrshire’s K9 Play Park (Dog Field), Prestwick",
+      "revertedTo": "Monkton, South Ayrshire, KA9 2SQ"
+    },
+    {
+      "id": "695f8d17606a76753a99de3e",
+      "name": "Wagswood Dog Park",
+      "matchedName": "Wagswood Dog Park, Swansea",
+      "revertedTo": "Baran Rd, Pontardawe, Swansea"
+    },
+    {
+      "id": "695f8d17606a76753a99de43",
+      "name": "Pooch’s Paddock Dog Field",
+      "matchedName": "Padstow Pooch Paddock Padstow",
+      "revertedTo": "King Edward Street, Belton, Isle of Axholme, DN9 1QN"
+    },
+    {
+      "id": "695fa7f2d3c46bff55a805d8",
+      "name": "West Oxford Dog Secure Fields (The Paddock)",
+      "matchedName": "West Oxford Dog Secure Fields The Meadow",
+      "revertedTo": "Spring Hill Road, Cassington Road, Yarnton, Kidlington, OX5 1QD"
+    },
+    {
+      "id": "695fa7f4d3c46bff55a805e5",
+      "name": "Paula’s Pawsome Dog Park",
+      "matchedName": "Paula’s Pawsome Dog Park, The Heywood",
+      "revertedTo": "Heywood Rd, Diss,IP22 5TA"
+    },
+    {
+      "id": "695fa7f5d3c46bff55a805eb",
+      "name": "Zero’s Play Zone",
+      "matchedName": "Zero’s Play Zone, Callington",
+      "revertedTo": "Higher Frogwell Field, Frogwell Rd, Callington"
+    },
+    {
+      "id": "695fa7f5d3c46bff55a805ec",
+      "name": "Rafferty’s Field",
+      "matchedName": "Rafferty’s Field, Callington",
+      "revertedTo": "Florence Road, Callington, PL17 8EA"
+    },
+    {
+      "id": "695fa7f5d3c46bff55a805ed",
+      "name": "Humphrey’s Happy Hounds Dog Field",
+      "matchedName": "Humphrey’s Happy Hounds Dog Field, Harold Wood",
+      "revertedTo": "94 Shepherds Hill, Harold Wood, RM3 0NJ"
+    },
+    {
+      "id": "695fa7f7d3c46bff55a805f5",
+      "name": "Glebe Farm ‘No Need For A Lead’",
+      "matchedName": "Glebe Farm No Need For A Lead",
+      "revertedTo": "Birchley Heath Road, Nuneaton, CV10 0QY"
+    },
+    {
+      "id": "695fa7f8d3c46bff55a805fb",
+      "name": "Poppy’s Play Park (field 1)",
+      "matchedName": "Poppys Play Park",
+      "revertedTo": "Barville Road, Tilmanstone, Deal, CT15 5BQ"
+    },
+    {
+      "id": "695fa7f8d3c46bff55a805fe",
+      "name": "Barker’s Unleashed",
+      "matchedName": "Barkers Unleashed Brixham",
+      "revertedTo": "Southdown Hill, Brixham, TQ5 0AJ"
+    }
+  ]
+}

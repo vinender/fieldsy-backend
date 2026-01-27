@@ -1,0 +1,139 @@
+{
+  "summary": {
+    "totalFieldsInDB": 1156,
+    "fieldsWithProperDescriptions": 1039,
+    "fieldsWithAddressDescriptions": 18,
+    "falsePositives": 2,
+    "genuineAddressDescriptions": 16,
+    "fieldsWithEmptyDescriptions": 99,
+    "generatedAt": "2026-01-27T14:31:29.492Z"
+  },
+  "falsePositives": [
+    {
+      "id": "6943defebdb90bfd18f57fb8",
+      "name": "AKM Dog fields",
+      "description": "AK farm fields, one of the largest dog fields",
+      "note": "This is actually a partial description, not an address"
+    },
+    {
+      "id": "695cfe651ee544eced64303e",
+      "name": "The Rambles Dog Walking Field",
+      "description": "The Rambles, a 3ac secure fenced meadow, just north of Bath in the beautiful St Catherines Valley",
+      "note": "This is actually a partial description, not an address"
+    }
+  ],
+  "genuineAddressDescriptions": [
+    {
+      "id": "695f7c0ffe74eb993b61fc37",
+      "name": "My Dog Run Secure Dog Field",
+      "description": "Soulbury Road, Stewkley, LU7 0HW",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f7c14fe74eb993b61fc5a",
+      "name": "Florey’s Field Secure Dog Walking Paddock",
+      "description": "Moreton Lane, Witney OX29 5TE",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f7c17fe74eb993b61fc69",
+      "name": "Knightswood Welly Walk – Kingfisher’s Rest",
+      "description": "Knightswood Equestrian Centre, Whitecross, Newquay, TR8 4LW",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f7c19fe74eb993b61fc78",
+      "name": "Farthing Cottage",
+      "description": "Chapel Road, Trunch NR28 0QG",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f8d05606a76753a99ddb4",
+      "name": "Dog’s Country Club Dog Fields (Field 4)",
+      "description": "Dogs Country Club 191 Slag Lane Lowton Warrington WA3 1BU",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f8d05606a76753a99ddb5",
+      "name": "Dog’s Country Club Dog Fields (Field 2)",
+      "description": "191 Slag Lane, Lowton, Warrington, WA3 1BU",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f8d0e606a76753a99ddfd",
+      "name": "Let’s Play Dog Walking Field",
+      "description": "Llanellen, Abergavenny, NP7 9HT",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f8d0f606a76753a99de00",
+      "name": "The Dog Run, Dog Field",
+      "description": "Northaw Road, West Potters Bar, EN6 4QX",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f8d11606a76753a99de0f",
+      "name": "Preston Dog Field",
+      "description": "Darkinson lane, Preston, United Kingdom, Lea Town",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f8d11606a76753a99de10",
+      "name": "Padlock’s Paddock Freedom Dog Field",
+      "description": "Potters Lane, Send, Woking, GU23 7JT",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695f8d17606a76753a99de43",
+      "name": "Pooch’s Paddock Dog Field",
+      "description": "King Edward Street, Belton, Isle of Axholme, DN9 1QN",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695fa7f2d3c46bff55a805d8",
+      "name": "West Oxford Dog Secure Fields (The Paddock)",
+      "description": "Spring Hill Road, Cassington Road, Yarnton, Kidlington, OX5 1QD",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695fa7f7d3c46bff55a805f8",
+      "name": "Bark ‘N’ Go Dog Field",
+      "description": "Whitecraigs Road, Whitehill Ind. Estate, Glenrothes, KY6 2RX",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695fa7fcd3c46bff55a80613",
+      "name": "Chester’s Dog Walking Field",
+      "description": "6 Royalty Ave, New Longton, Preston, PR4 4JN",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695fa7fcd3c46bff55a80614",
+      "name": "Eva’s Green Dog Walking Field",
+      "description": "Clover Hill Farm, Steart Lane, Somerton, TA11 7BD",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    },
+    {
+      "id": "695fa7fcd3c46bff55a80615",
+      "name": "Out n Safe Dog Field",
+      "description": "Portcullis Estate, Glasgow, G66 8AQ",
+      "isActive": true,
+      "note": "Not found on britishdogfields.com or no data available"
+    }
+  ]
+}

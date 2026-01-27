@@ -1,0 +1,159 @@
+{
+  "summary": {
+    "boilerplateFieldsProcessed": 21,
+    "updatedWithStructuredData": 18,
+    "noUsableDetails": 3,
+    "processedAt": "2026-01-27T14:24:19.062Z"
+  },
+  "updated": [
+    {
+      "id": "695f8d01606a76753a99dd98",
+      "name": "Kingates Grange’s Dog Walking Field",
+      "oldDesc": "Kingates Grange, Newport Road, Ventnor, PO38 2NS",
+      "newDesc": "A paddock type secure dog field, 1 to 2 acres in size. The field is enclosed with 4ft fencing. Parking: Parking outside field gate. Facilities include: secure online booking. Pricing: From £6 for 25min. Maximum dogs: 4.",
+      "url": "https://britishdogfields.com/item/kingates-granges-dog-walking-field/"
+    },
+    {
+      "id": "695f8d05606a76753a99ddb4",
+      "name": "Dog’s Country Club Dog Fields (Field 4)",
+      "oldDesc": "Dogs Country Club 191 Slag Lane Lowton Warrington WA3 1BU",
+      "newDesc": "A paddock type secure dog field, 2 to 4 acres in size. The field is enclosed with 6ft or 1.8m fencing. Facilities include: secure online booking. Pricing: From £10.50 for 55min. Maximum dogs: 9. Buffer between bookings: 5 min.",
+      "url": "https://britishdogfields.com/item/the-dog-walking-field-leiston/"
+    },
+    {
+      "id": "695f8d05606a76753a99ddb5",
+      "name": "Dog’s Country Club Dog Fields (Field 2)",
+      "oldDesc": "191 Slag Lane, Lowton, Warrington, WA3 1BU",
+      "newDesc": "A paddock type secure dog field, 2 to 4 acres in size. The field is enclosed with 6ft or 1.8m fencing. Facilities include: secure online booking. Pricing: From £10.50 for 55min. Maximum dogs: 9. Buffer between bookings: 5 min.",
+      "url": "https://britishdogfields.com/item/the-dog-walking-field-leiston/"
+    },
+    {
+      "id": "695f8d06606a76753a99ddba",
+      "name": "Martha’s Meadow, Dog Field",
+      "oldDesc": "Martha's Meadow, Upton upon Severn, WR8 0AR",
+      "newDesc": "A paddock type secure dog field, 2 to 4 acres in size. The field is enclosed with 5ft – 5ft11 fencing (Sheep wire fencing all the way around the field. 5ft high plus hedges on some sides). Parking: On site parking, outside the field entrance gate. Facilities include: fresh water. Pricing: From £5/ 30 minutes. Maximum dogs: Up to 4 but contact for more.",
+      "url": "https://britishdogfields.com/item/marthas-meadow-hanley-swan/"
+    },
+    {
+      "id": "695f8d0d606a76753a99ddf7",
+      "name": "Platt’s Puppy Paddock",
+      "oldDesc": "Platt’s Farm, Aber Road, Llanfairfechan, Conwy, LL33 0HL",
+      "newDesc": "A paddock type secure dog field, up to 1 acre in size. The field is enclosed with 5ft – 5ft11 fencing (Stock proof Fencing 1.1m high). Parking: Parking available 100m from field. Facilities include: fresh water, secure online booking. Pricing: From £5 for 30min. Maximum dogs: 4.",
+      "url": "https://britishdogfields.com/item/platts-puppy-paddock/"
+    },
+    {
+      "id": "695f8d0e606a76753a99ddfd",
+      "name": "Let’s Play Dog Walking Field",
+      "oldDesc": "Llanellen, Abergavenny, NP7 9HT",
+      "newDesc": "A paddock type secure dog field. The field is enclosed with 6ft or 1.8m fencing. Parking: Space available for multiple cars, approx. 3-5 cars.. Facilities include: fresh water, secure online booking. Pricing: From £5 for 30min. Maximum dogs: 9 – depending on booking.",
+      "url": "https://britishdogfields.com/item/lets-walk-private-secure-dog-field-cleland/"
+    },
+    {
+      "id": "695f8d0e606a76753a99ddff",
+      "name": "Freya’s Meadow, Dog Field",
+      "oldDesc": "ESSEX DOG FIELD OF THE YEAR 2024\n\nLatton Street, Harlow, Essex, CM20 3SD",
+      "newDesc": "A paddock type secure dog field, 1 to 2 acres in size. The field is enclosed with 5ft – 5ft11 fencing. Parking: On site parking, outside the field entrance gate. Facilities include: secure online booking. Pricing: From £10 for 50min. Maximum dogs: 6 – Depends on booking. Reactive dog friendly: Cattle in adjacent field*.",
+      "url": "https://britishdogfields.com/item/freyas-meadow/"
+    },
+    {
+      "id": "695f8d14606a76753a99de27",
+      "name": "Ayrshire’s K9 Play Park (Dog Field)",
+      "oldDesc": "Monkton, South Ayrshire, KA9 2SQ",
+      "newDesc": "A paddock type secure dog field, 1 to 2 acres in size. The field is enclosed with 5ft – 5ft11 fencing. Parking: On site parking, outside the field entrance gate. Pricing: From £5 for 1hr. Maximum dogs: 9 dogs max in total. Reactive dog friendly: Horses in adjoining field.",
+      "url": "https://britishdogfields.com/item/ayrshires-k9-play-park/"
+    },
+    {
+      "id": "695f8d17606a76753a99de3e",
+      "name": "Wagswood Dog Park",
+      "oldDesc": "Baran Rd, Pontardawe, Swansea",
+      "newDesc": "A paddock type secure dog field, 2 to 4 acres in size. The field is enclosed with 4ft fencing (stock fence all round). Parking: On site parking, outside the field entrance gate. Pricing: £20 membership and £10/hour.",
+      "url": "https://britishdogfields.com/item/wagswood-dog-park/"
+    },
+    {
+      "id": "695f8d17606a76753a99de43",
+      "name": "Pooch’s Paddock Dog Field",
+      "oldDesc": "King Edward Street, Belton, Isle of Axholme, DN9 1QN",
+      "newDesc": "A secure dog field. The field is enclosed with 6ft or 1.8m fencing (6ft high fence). Parking: Exclusive In-field Parking. Facilities include: secure online booking. Pricing: From 25 mins £5 + £1 per additional dog.",
+      "url": "https://britishdogfields.com/item/padstow-pooch-paddock-padstow/"
+    },
+    {
+      "id": "695fa7f4d3c46bff55a805e5",
+      "name": "Paula’s Pawsome Dog Park",
+      "oldDesc": "Heywood Rd, Diss,IP22 5TA",
+      "newDesc": "A woodland / paddock type secure dog field, 1 to 2 acres in size. The field is enclosed with 6ft or 1.8m fencing. Parking: Parking in the field gate and 2 hard standing spaces (for waiting) outside the field gate. Facilities include: buggy accessible. Pricing: From £6 for 30min. Maximum dogs: 8.",
+      "url": "https://britishdogfields.com/item/paulas-pawsome-dog-park/"
+    },
+    {
+      "id": "695fa7f5d3c46bff55a805eb",
+      "name": "Zero’s Play Zone",
+      "oldDesc": "Higher Frogwell Field, Frogwell Rd, Callington",
+      "newDesc": "A paddock type secure dog field, up to 1 acre in size. The field is enclosed with 6ft or 1.8m fencing (Weldmesh green fencing). Parking: 1 space in field. Pricing: from £6.",
+      "url": "https://britishdogfields.com/item/zeros-play-zone/"
+    },
+    {
+      "id": "695fa7f5d3c46bff55a805ec",
+      "name": "Rafferty’s Field",
+      "oldDesc": "Florence Road, Callington, PL17 8EA",
+      "newDesc": "A meadow / paddock type secure dog field, 2 to 4 acres in size. The field is enclosed with Over 6ft fencing. Pricing: From £5.",
+      "url": "https://britishdogfields.com/item/raffertys-field/"
+    },
+    {
+      "id": "695fa7f5d3c46bff55a805ed",
+      "name": "Humphrey’s Happy Hounds Dog Field",
+      "oldDesc": "94 Shepherds Hill, Harold Wood, RM3 0NJ",
+      "newDesc": "A woodland / paddock type secure dog field, 2 to 4 acres in size. The field is enclosed with 6ft or 1.8m fencing. Parking: On site parking, outside the field entrance gate. Facilities include: secure online booking. Pricing: from £12 / 50 minutes. Buffer between bookings: 10 min.",
+      "url": "https://britishdogfields.com/item/humphreys-happy-hounds/"
+    },
+    {
+      "id": "695fa7f7d3c46bff55a805f5",
+      "name": "Glebe Farm ‘No Need For A Lead’",
+      "oldDesc": "Birchley Heath Road, Nuneaton, CV10 0QY",
+      "newDesc": "A paddock type secure dog field, up to 1 acre in size. The field is enclosed with 6ft or 1.8m fencing. Parking: Adjacent to field entrance. Pricing: From £6 / 30 minutes.",
+      "url": "https://britishdogfields.com/item/glebe-farm-no-need-for-a-lead/"
+    },
+    {
+      "id": "695fa7f7d3c46bff55a805f8",
+      "name": "Bark ‘N’ Go Dog Field",
+      "oldDesc": "Whitecraigs Road, Whitehill Ind. Estate, Glenrothes, KY6 2RX",
+      "newDesc": "A paddock type secure dog field, up to 1 acre in size. The field is enclosed with 6ft or 1.8m fencing. Facilities include: secure online booking. Pricing: From £12.50 for 50min. Maximum dogs: 6.",
+      "url": "https://britishdogfields.com/item/nosey-barker-dog-field-harlow/"
+    },
+    {
+      "id": "695fa7f8d3c46bff55a805fb",
+      "name": "Poppy’s Play Park (field 1)",
+      "oldDesc": "Barville Road, Tilmanstone, Deal, CT15 5BQ",
+      "newDesc": "A paddock type secure dog field, 2 to 4 acres in size. The field is enclosed with 6ft or 1.8m fencing. Parking: Winter and summer parking on site. Facilities include: secure online booking. Pricing: From £10/ hour. Buffer between bookings: More than 10 min. Reactive dog friendly: 2 fields on one site (substantial separation).",
+      "url": "https://britishdogfields.com/item/poppys-play-park/"
+    },
+    {
+      "id": "695fa7f8d3c46bff55a805fe",
+      "name": "Barker’s Unleashed",
+      "oldDesc": "Southdown Hill, Brixham, TQ5 0AJ",
+      "newDesc": "A paddock type secure dog field, 1 to 2 acres in size. The field is enclosed with Over 6ft fencing (Some areas with a heras fence boundary.). Parking: Private outside field. Facilities include: secure online booking. Pricing: From £7 / 30 minute session.",
+      "url": "https://britishdogfields.com/item/barkers-unleashed-brixham/"
+    }
+  ],
+  "noDetails": [
+    {
+      "id": "695f7c0ffe74eb993b61fc37",
+      "name": "My Dog Run Secure Dog Field",
+      "currentDescription": "Soulbury Road, Stewkley, LU7 0HW",
+      "reason": "generic_description",
+      "details": {
+        "WHAT3WORDS": "///memo.singles.adverbs"
+      }
+    },
+    {
+      "id": "695f7c19fe74eb993b61fc78",
+      "name": "Farthing Cottage",
+      "currentDescription": "Chapel Road, Trunch NR28 0QG",
+      "reason": "no_field_details"
+    },
+    {
+      "id": "695fa7f2d3c46bff55a805d8",
+      "name": "West Oxford Dog Secure Fields (The Paddock)",
+      "currentDescription": "Spring Hill Road, Cassington Road, Yarnton, Kidlington, OX5 1QD",
+      "reason": "no_field_details"
+    }
+  ]
+}
