@@ -803,26 +803,37 @@ export class PaymentController {
                   currentPeriodEnd = new Date(nextBillingDate);
                 }
 
-                // Create subscription for this specific slot
-                const slotSubscription = await tx.subscription.create({
-                  data: {
+                // Create or reuse subscription for this specific slot (upsert to avoid unique constraint failures on retry)
+                const subscriptionStripeId = `${paymentIntent.id}_slot_${normalizedTimeSlots.indexOf(slot)}`;
+                const slotSubscription = await tx.subscription.upsert({
+                  where: {
+                    stripeSubscriptionId: subscriptionStripeId
+                  },
+                  create: {
                     userId,
                     fieldId,
-                    stripeSubscriptionId: `${paymentIntent.id}_slot_${normalizedTimeSlots.indexOf(slot)}`, // Unique per slot
+                    stripeSubscriptionId: subscriptionStripeId,
                     stripeCustomerId: user.stripeCustomerId || '',
                     status: 'active',
                     interval: normalizedRepeatBooking,
                     intervalCount: 1,
                     currentPeriodStart: bookingDate,
                     currentPeriodEnd: currentPeriodEnd,
-                    timeSlot: slot, // Single slot for this subscription
-                    timeSlots: [slot], // Array with only this slot
+                    timeSlot: slot,
+                    timeSlots: [slot],
                     dayOfWeek: normalizedRepeatBooking === 'weekly' ? dayOfWeek : null,
                     dayOfMonth: normalizedRepeatBooking === 'monthly' ? dayOfMonth : null,
                     startTime: slotStart,
                     endTime: actualSlotEnd,
                     numberOfDogs: parseInt(numberOfDogs),
-                    totalPrice: pricePerSlot, // Price for this slot only
+                    totalPrice: pricePerSlot,
+                    nextBillingDate: nextBillingDate,
+                    lastBookingDate: bookingDate
+                  },
+                  update: {
+                    status: 'active',
+                    currentPeriodStart: bookingDate,
+                    currentPeriodEnd: currentPeriodEnd,
                     nextBillingDate: nextBillingDate,
                     lastBookingDate: bookingDate
                   }
@@ -1055,10 +1066,11 @@ export class PaymentController {
       console.error('Error creating payment intent:', error);
 
       // Try to release any slot locks on error (only if slotLock model exists)
+      // Use the outer `fieldId` (already resolved to MongoDB ObjectID) instead of re-reading raw req.body
       if (prisma.slotLock) {
         try {
           const userId = (req as any).user?.id;
-          const { fieldId, date } = req.body;
+          const { date } = req.body;
           if (userId && fieldId && date) {
             const bookingDate = new Date(date);
             bookingDate.setHours(0, 0, 0, 0);
