@@ -478,6 +478,11 @@ router.get('/bookings/:id', authenticateAdmin, async (req, res) => {
 // Get user details with bookings
 router.get('/users/:id', authenticateAdmin, async (req, res) => {
   try {
+    const { bookingPage = '1', bookingLimit = '10' } = req.query;
+    const bPage = parseInt(bookingPage as string);
+    const bLimit = parseInt(bookingLimit as string);
+    const bSkip = (bPage - 1) * bLimit;
+
     const user = await prisma.user.findUnique({
       where: { id: req.params.id },
       select: {
@@ -500,6 +505,8 @@ router.get('/users/:id', authenticateAdmin, async (req, res) => {
         },
         bookings: {
           orderBy: { createdAt: 'desc' },
+          skip: bSkip,
+          take: bLimit,
           select: {
             id: true,
             date: true,
@@ -513,7 +520,8 @@ router.get('/users/:id', authenticateAdmin, async (req, res) => {
             field: {
               select: {
                 name: true,
-                location: true
+                location: true,
+                address: true
               }
             }
           }
@@ -525,9 +533,17 @@ router.get('/users/:id', authenticateAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const totalBookings = user._count?.bookings || 0;
+
     res.json({
       success: true,
-      user
+      user,
+      bookingPagination: {
+        page: bPage,
+        limit: bLimit,
+        total: totalBookings,
+        totalPages: Math.ceil(totalBookings / bLimit)
+      }
     });
 
   } catch (error) {
@@ -536,13 +552,39 @@ router.get('/users/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Get all users for admin
+// Get all users for admin (supports search by name, email, or userId)
 router.get('/users', authenticateAdmin, async (req, res) => {
   try {
-    const { page = '1', limit = '10', role } = req.query;
+    const { page = '1', limit = '10', role, search } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
-    const where = role ? { role: role as any } : {};
+    const where: any = {};
+    if (role) {
+      where.role = role as any;
+    }
+
+    // Add search filter: search by name, email, or human-readable userId
+    if (search && typeof search === 'string' && search.trim()) {
+      const searchStr = search.trim();
+      // Check if search is numeric (could be a userId like "1234" or "#1234")
+      const numericSearch = searchStr.replace(/^#/, '');
+      const isNumeric = /^\d+$/.test(numericSearch);
+
+      if (isNumeric) {
+        // Search by userId (numeric) OR name containing the search term
+        where.OR = [
+          { userId: numericSearch },
+          { name: { contains: searchStr, mode: 'insensitive' } },
+          { email: { contains: searchStr, mode: 'insensitive' } }
+        ];
+      } else {
+        where.OR = [
+          { name: { contains: searchStr, mode: 'insensitive' } },
+          { email: { contains: searchStr, mode: 'insensitive' } },
+          { phone: { contains: searchStr, mode: 'insensitive' } }
+        ];
+      }
+    }
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({

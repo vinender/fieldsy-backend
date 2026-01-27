@@ -220,14 +220,30 @@ router.get('/field-owners', authenticateAdmin, async (req, res) => {
     const skip = (Number(page) - 1) * Number(limit);
 
     // Build search filter
-    const searchFilter = search
-      ? {
-        OR: [
-          { name: { contains: String(search), mode: 'insensitive' as const } },
-          { email: { contains: String(search), mode: 'insensitive' as const } }
-        ]
+    let searchFilter: any = {};
+    if (search && typeof search === 'string' && search.trim()) {
+      const searchStr = search.trim();
+      const numericSearch = searchStr.replace(/^#/, '');
+      const isNumeric = /^\d+$/.test(numericSearch);
+
+      if (isNumeric) {
+        searchFilter = {
+          OR: [
+            { userId: numericSearch },
+            { name: { contains: searchStr, mode: 'insensitive' as const } },
+            { email: { contains: searchStr, mode: 'insensitive' as const } }
+          ]
+        };
+      } else {
+        searchFilter = {
+          OR: [
+            { name: { contains: searchStr, mode: 'insensitive' as const } },
+            { email: { contains: searchStr, mode: 'insensitive' as const } },
+            { phone: { contains: searchStr, mode: 'insensitive' as const } }
+          ]
+        };
       }
-      : {};
+    }
 
     // Get field owners with commission rates
     const fieldOwners = await prisma.user.findMany({

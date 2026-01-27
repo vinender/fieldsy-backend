@@ -173,26 +173,64 @@ class EarningsController {
       // Enhance with booking details
       recentPayouts = await Promise.all(
         payouts.map(async (payout) => {
-          const bookings = await prisma.booking.findMany({
-            where: { id: { in: payout.bookingIds } },
-            include: {
-              field: { select: { name: true } },
-              user: { select: { name: true, email: true } }
-            }
-          });
-          
+          // Primary lookup by bookingIds
+          let bookings = payout.bookingIds.length > 0
+            ? await prisma.booking.findMany({
+                where: { id: { in: payout.bookingIds } },
+                include: {
+                  field: { select: { name: true } },
+                  user: { select: { name: true, email: true } }
+                }
+              })
+            : [];
+
+          // Fallback: reverse lookup via booking.payoutId
+          if (bookings.length === 0) {
+            bookings = await prisma.booking.findMany({
+              where: { payoutId: payout.id },
+              include: {
+                field: { select: { name: true } },
+                user: { select: { name: true, email: true } }
+              }
+            });
+          }
+
+          // Fallback 2: match by field owner + amount + date range
+          if (bookings.length === 0 && fieldIds.length > 0) {
+            const dayBefore = new Date(payout.createdAt);
+            dayBefore.setDate(dayBefore.getDate() - 7);
+            const dayAfter = new Date(payout.createdAt);
+            dayAfter.setDate(dayAfter.getDate() + 1);
+            bookings = await prisma.booking.findMany({
+              where: {
+                fieldId: { in: fieldIds },
+                payoutStatus: 'COMPLETED',
+                paymentStatus: 'PAID',
+                fieldOwnerAmount: payout.amount,
+                updatedAt: { gte: dayBefore, lte: dayAfter }
+              },
+              include: {
+                field: { select: { name: true } },
+                user: { select: { name: true, email: true } }
+              },
+              take: 10
+            });
+          }
+
           return {
             id: payout.id,
             amount: payout.amount,
             status: payout.status,
             createdAt: payout.createdAt,
             arrivalDate: payout.arrivalDate,
+            bookingCount: bookings.length,
             bookings: bookings.map(b => ({
               id: b.id,
+              bookingId: b.bookingId,
               fieldName: b.field.name,
               customerName: b.user.name || b.user.email,
               date: b.date,
-              amount: b.fieldOwnerAmount || (b.totalPrice * 0.8) // Field owner gets ~80% (platform takes ~20% commission)
+              amount: b.fieldOwnerAmount || (b.totalPrice * 0.8)
             }))
           };
         })
@@ -368,20 +406,70 @@ class EarningsController {
       prisma.payout.count({ where: whereClause })
     ]);
     
+    // Get field owner's field IDs for fallback booking lookups
+    const userFields = await prisma.field.findMany({
+      where: { ownerId: userId },
+      select: { id: true }
+    });
+    const fieldIds = userFields.map(f => f.id);
+
     // Enhance payouts with booking details
     const enhancedPayouts = await Promise.all(
       payouts.map(async (payout) => {
-        const bookings = await prisma.booking.findMany({
-          where: { id: { in: payout.bookingIds } },
-          include: {
-            field: { select: { name: true } },
-            user: { select: { name: true, email: true } }
-          }
-        });
+        // Primary lookup: find bookings by bookingIds stored on the payout
+        let bookings = payout.bookingIds.length > 0
+          ? await prisma.booking.findMany({
+              where: { id: { in: payout.bookingIds } },
+              include: {
+                field: { select: { name: true } },
+                user: { select: { name: true, email: true } }
+              }
+            })
+          : [];
 
-        // Get the first booking's details for display (most payouts have 1 booking)
+        // Fallback 1: reverse lookup via booking.payoutId
+        if (bookings.length === 0) {
+          bookings = await prisma.booking.findMany({
+            where: { payoutId: payout.id },
+            include: {
+              field: { select: { name: true } },
+              user: { select: { name: true, email: true } }
+            }
+          });
+        }
+
+        // Fallback 2: for synced Stripe payouts with no linked bookings,
+        // find completed bookings for this field owner that match the payout amount
+        if (bookings.length === 0 && fieldIds.length > 0) {
+          const payoutAmount = payout.amount;
+          const payoutDate = payout.createdAt;
+          // Look for bookings with matching field owner amount within a day of the payout
+          const dayBefore = new Date(payoutDate);
+          dayBefore.setDate(dayBefore.getDate() - 7);
+          const dayAfter = new Date(payoutDate);
+          dayAfter.setDate(dayAfter.getDate() + 1);
+
+          bookings = await prisma.booking.findMany({
+            where: {
+              fieldId: { in: fieldIds },
+              payoutStatus: 'COMPLETED',
+              paymentStatus: 'PAID',
+              fieldOwnerAmount: payoutAmount,
+              updatedAt: { gte: dayBefore, lte: dayAfter }
+            },
+            include: {
+              field: { select: { name: true } },
+              user: { select: { name: true, email: true } }
+            },
+            take: 10
+          });
+        }
+
+        // Get booking details for display
         const firstBooking = bookings[0];
-        const fieldName = firstBooking?.field?.name || null;
+        // Collect all unique field names
+        const uniqueFieldNames = [...new Set(bookings.map(b => b.field?.name).filter(Boolean))];
+        const fieldName = uniqueFieldNames.length > 0 ? uniqueFieldNames.join(', ') : null;
         const customerName = bookings.length === 1
           ? (firstBooking?.user?.name || firstBooking?.user?.email || null)
           : bookings.length > 1
