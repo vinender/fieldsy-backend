@@ -446,11 +446,22 @@ router.get('/bookings/:id', authenticateAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
+    // Calculate Stripe processing fee (1.5% + £0.20)
+    const totalPrice = booking.totalPrice || 0;
+    const stripeFee = totalPrice > 0 ? Math.round(((totalPrice * 0.015) + 0.20) * 100) / 100 : 0;
+    const amountAfterStripeFee = Math.round((totalPrice - stripeFee) * 100) / 100;
+
+    // Get commission rate from field owner or default
+    const commissionRate = booking.field?.owner?.commissionRate || 20;
+
     // Map the commission fields for frontend display
     const enrichedBooking = {
       ...booking,
       adminCommission: booking.platformCommission || 0,
       fieldOwnerCommission: booking.fieldOwnerAmount || 0,
+      stripeFee,
+      amountAfterStripeFee,
+      commissionRate,
     };
 
     res.json({

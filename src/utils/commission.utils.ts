@@ -70,16 +70,18 @@ export async function calculatePayoutAmounts(
   const { effectiveRate, isCustomRate, defaultRate } = await getEffectiveCommissionRate(fieldOwnerId);
 
   // Calculate Stripe fee (1.5% + £0.20)
-  // We need to deduct this from the owner's share so the platform gets its full %
   const stripeFee = (totalAmount * 0.015) + 0.20;
 
-  // Platform takes the commission percentage from the GROSS amount
-  const platformFeeAmount = (totalAmount * effectiveRate) / 100;
+  // Net amount after Stripe fee
+  const amountAfterStripeFee = totalAmount - stripeFee;
+
+  // Platform takes the commission percentage from the NET amount (after Stripe fee)
+  const platformFeeAmount = (amountAfterStripeFee * effectiveRate) / 100;
   const platformCommission = platformFeeAmount; // Same value, different name for DB compatibility
 
-  // Field owner gets the remaining amount after platform commission AND Stripe fee
-  // Owner Amount = Gross - PlatformCommission - StripeFee
-  let fieldOwnerAmount = totalAmount - platformFeeAmount - stripeFee;
+  // Field owner gets the remaining net amount after platform commission
+  // Owner Amount = Net (after Stripe) - PlatformCommission
+  let fieldOwnerAmount = amountAfterStripeFee - platformFeeAmount;
 
   // Ensure we don't return negative amounts
   if (fieldOwnerAmount < 0) {

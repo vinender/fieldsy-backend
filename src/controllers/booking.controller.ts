@@ -11,6 +11,7 @@ import { payoutService } from '../services/payout.service';
 import refundService from '../services/refund.service';
 import { emailService } from '../services/email.service';
 import { transformAmenities } from '../utils/amenityHelper';
+import { resolveField } from '../utils/field.utils';
 
 class BookingController {
   // Create a new booking
@@ -1747,10 +1748,11 @@ class BookingController {
     // If not provided, use field's default bookingDuration
     const requestedDuration = duration as string | undefined;
 
-    // Get field details
-    const field = await prisma.field.findUnique({
-      where: { id: fieldId }
-    });
+    // Get field details - support both ObjectID and human-readable fieldId
+    const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
+    const field = isObjectId
+      ? await prisma.field.findUnique({ where: { id: fieldId } })
+      : await prisma.field.findFirst({ where: { fieldId: fieldId } });
 
     if (!field) {
       throw new AppError('Field not found', 404);
@@ -1768,9 +1770,10 @@ class BookingController {
     endOfDayDate.setHours(23, 59, 59, 999);
 
     // Get all bookings for this field on the selected date (excluding cancelled)
+    // Always use the MongoDB ObjectID for querying bookings
     const bookings = await prisma.booking.findMany({
       where: {
-        fieldId,
+        fieldId: field.id,
         date: {
           gte: startOfDayDate,
           lte: endOfDayDate
@@ -1791,7 +1794,7 @@ class BookingController {
     // Get all active subscriptions for this field to mark recurring time slots
     const activeSubscriptions = await prisma.subscription.findMany({
       where: {
-        fieldId,
+        fieldId: field.id,
         status: 'active',
         cancelAtPeriodEnd: false
       },
@@ -2082,9 +2085,15 @@ class BookingController {
       throw new AppError('Field ID, date, start time, and end time are required', 400);
     }
 
+    // Resolve field to get the actual ObjectID
+    const field = await resolveField(fieldId as string);
+    if (!field) {
+      throw new AppError('Field not found', 404);
+    }
+
     // Use checkFullAvailability to include recurring slot checks
     const availabilityCheck = await BookingModel.checkFullAvailability(
-      fieldId as string,
+      field.id,
       new Date(date as string),
       startTime as string,
       endTime as string
@@ -2107,6 +2116,12 @@ class BookingController {
       throw new AppError('Field ID, date, start time, end time, and interval are required', 400);
     }
 
+    // Resolve field to get the actual ObjectID
+    const field = await resolveField(fieldId as string);
+    if (!field) {
+      throw new AppError('Field not found', 404);
+    }
+
     // Validate interval
     const validIntervals = ['everyday', 'weekly', 'monthly'];
     const normalizedInterval = (interval as string).toLowerCase();
@@ -2116,7 +2131,7 @@ class BookingController {
 
     // Check for conflicts
     const conflictCheck = await BookingModel.checkRecurringSubscriptionConflicts(
-      fieldId as string,
+      field.id,
       new Date(date as string),
       startTime as string,
       endTime as string,
@@ -2645,10 +2660,8 @@ class BookingController {
       });
     }
 
-    // Get field details
-    const field = await prisma.field.findUnique({
-      where: { id: fieldId }
-    });
+    // Get field details - support both ObjectID and human-readable fieldId
+    const field = await resolveField(fieldId);
 
     if (!field) {
       return res.status(404).json({
@@ -2667,7 +2680,7 @@ class BookingController {
     // Get all bookings for this field on the selected date (excluding cancelled)
     const existingBookings = await prisma.booking.findMany({
       where: {
-        fieldId,
+        fieldId: field.id,
         date: {
           gte: startOfDayDate,
           lte: endOfDayDate
@@ -2687,7 +2700,7 @@ class BookingController {
     // Get all active subscriptions for recurring booking checks
     const activeSubscriptions = await prisma.subscription.findMany({
       where: {
-        fieldId,
+        fieldId: field.id,
         status: 'active',
         cancelAtPeriodEnd: false
       },

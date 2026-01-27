@@ -10,13 +10,14 @@ import { subscriptionService } from '../services/subscription.service';
 import { emailService } from '../services/email.service';
 import BookingModel from '../models/booking.model';
 import { FRONTEND_URL } from '../config/constants';
+import { resolveField } from '../utils/field.utils';
 
 export class PaymentController {
   // Create a payment intent for booking a field
   async createPaymentIntent(req: Request, res: Response) {
     try {
       const {
-        fieldId,
+        fieldId: rawFieldId,
         numberOfDogs,
         date,
         timeSlots, // Array of selected time slots (e.g., ["9:00AM - 10:00AM", "10:00AM - 11:00AM"])
@@ -25,6 +26,7 @@ export class PaymentController {
         paymentMethodId, // Optional: use saved payment method
         duration // Optional: booking duration ('30min' or '60min')
       } = req.body;
+      let fieldId = rawFieldId;
 
       // Normalize timeSlots - ensure it's always an array
       const normalizedTimeSlots: string[] = Array.isArray(timeSlots) ? timeSlots : (timeSlots ? [timeSlots] : []);
@@ -75,6 +77,14 @@ export class PaymentController {
         // isBlocked field doesn't exist in production yet, skip check
         console.warn('Warning: isBlocked field not found in User model.');
       }
+
+      // Resolve field early - support both ObjectID and human-readable fieldId (e.g. "F1153")
+      const field = await resolveField(fieldId);
+      if (!field) {
+        return res.status(404).json({ error: 'Field not found' });
+      }
+      // Reassign fieldId to the resolved MongoDB ObjectID for all downstream database queries
+      fieldId = field.id;
 
       // ============================================================
       // SLOT AVAILABILITY CHECK - Prevent race conditions
@@ -385,15 +395,6 @@ export class PaymentController {
 
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
-      }
-
-      // Validate field exists
-      const field = await prisma.field.findUnique({
-        where: { id: fieldId }
-      });
-
-      if (!field) {
-        return res.status(404).json({ error: 'Field not found' });
       }
 
       // Calculate amount in cents (Stripe uses smallest currency unit)

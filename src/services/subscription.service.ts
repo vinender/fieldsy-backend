@@ -6,6 +6,7 @@ import { createNotification } from '../controllers/notification.controller';
 import { addDays, addMonths, format, parse } from 'date-fns';
 import { calculatePayoutAmounts } from '../utils/commission.utils';
 import { emailService } from './email.service';
+import { resolveField } from '../utils/field.utils';
 
 export class SubscriptionService {
   /**
@@ -36,10 +37,10 @@ export class SubscriptionService {
     paymentMethodId: string;
     customerEmail: string;
   }) {
-    // Get user and field
+    // Get user and field (support both ObjectID and human-readable fieldId)
     const [user, field] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId } }),
-      prisma.field.findUnique({ where: { id: fieldId } })
+      resolveField(fieldId)
     ]);
 
     if (!user || !field) {
@@ -159,7 +160,7 @@ export class SubscriptionService {
     const dbSubscription = await prisma.subscription.create({
       data: {
         userId,
-        fieldId,
+        fieldId: field.id,
         stripeSubscriptionId: subscription.id,
         stripeCustomerId: customerId,
         status: subscription.status,
