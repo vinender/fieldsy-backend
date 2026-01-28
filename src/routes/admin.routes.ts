@@ -1880,8 +1880,8 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
       const stripeFee = amount > 0 ? Math.round(((amount * 0.015) + 0.20) * 100) / 100 : 0;
       const amountAfterStripeFee = Math.round((amount - stripeFee) * 100) / 100;
       const platformCommissionRate = mainTransaction.commissionRate || 20;
-      const platformFee = Math.round((amountAfterStripeFee * platformCommissionRate) / 100 * 100) / 100;
-      const fieldOwnerEarnings = Math.round((amountAfterStripeFee - platformFee) * 100) / 100;
+      const platformFee = Math.floor((amountAfterStripeFee * platformCommissionRate) / 100 * 100) / 100;
+      const fieldOwnerEarnings = Math.floor((amountAfterStripeFee - platformFee) * 100) / 100;
 
       return {
         id: mainTransaction.id,
@@ -2073,8 +2073,8 @@ router.get('/transactions/:id', authenticateAdmin, async (req, res) => {
       // Commission rate = platform/admin fee percentage (what Fieldsy takes)
       // Field owner receives the remainder after Stripe fees and platform commission
       const platformCommissionRate = transaction.commissionRate || 20; // Default 20% platform fee
-      const platformFee = Math.round((amountAfterStripe * platformCommissionRate) / 100 * 100) / 100;
-      const fieldOwnerEarnings = Math.round((amountAfterStripe - platformFee) * 100) / 100;
+      const platformFee = Math.floor((amountAfterStripe * platformCommissionRate) / 100 * 100) / 100;
+      const fieldOwnerEarnings = Math.floor((amountAfterStripe - platformFee) * 100) / 100;
 
       return res.json({
         success: true,

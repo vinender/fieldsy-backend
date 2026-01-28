@@ -2102,7 +2102,7 @@ class FieldController {
           }
         } else {
           // Use dynamic/current rate applied to GROSS booking amount (if not stored)
-          platformFee = Math.round((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+          platformFee = Math.floor((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
           usedCommissionRate = effectiveCommissionRate;
         }
 
@@ -2112,7 +2112,7 @@ class FieldController {
         if (isLocked && booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
           fieldOwnerEarnings = booking.fieldOwnerAmount;
         } else {
-          fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee - stripeFee) * 100) / 100;
+          fieldOwnerEarnings = Math.floor((booking.totalPrice - platformFee - stripeFee) * 100) / 100;
         }
 
         return {
@@ -2324,7 +2324,7 @@ class FieldController {
           }
         } else {
           // Use dynamic/current rate applied to GROSS booking amount (if not stored)
-          platformFee = Math.round((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+          platformFee = Math.floor((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
           usedCommissionRate = effectiveCommissionRate;
         }
 
@@ -2334,7 +2334,7 @@ class FieldController {
         if (isLocked && booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
           fieldOwnerEarnings = booking.fieldOwnerAmount;
         } else {
-          fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee) * 100) / 100;
+          fieldOwnerEarnings = Math.floor((booking.totalPrice - platformFee) * 100) / 100;
         }
 
         return {
@@ -2526,7 +2526,7 @@ class FieldController {
           }
         } else {
           // Use dynamic/current rate applied to GROSS booking amount (if not stored)
-          platformFee = Math.round((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+          platformFee = Math.floor((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
           usedCommissionRate = effectiveCommissionRate;
         }
 
@@ -2536,7 +2536,7 @@ class FieldController {
         if (booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
           fieldOwnerEarnings = booking.fieldOwnerAmount;
         } else {
-          fieldOwnerEarnings = Math.round((booking.totalPrice - platformFee) * 100) / 100;
+          fieldOwnerEarnings = Math.floor((booking.totalPrice - platformFee) * 100) / 100;
         }
 
         return {
