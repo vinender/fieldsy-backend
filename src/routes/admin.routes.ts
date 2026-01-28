@@ -1896,7 +1896,7 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
 
       return {
         id: mainTransaction.id,
-        bookingId: booking.id,
+        bookingId: booking.bookingId || booking.id,
         type: 'PAYMENT', // Always show as PAYMENT in table, details show refund/payout status
         amount: amount,
         stripeFee,
@@ -2119,6 +2119,7 @@ router.get('/transactions/:id', authenticateAdmin, async (req, res) => {
           // Enhanced booking details
           booking: booking ? {
             id: booking.id,
+            bookingId: booking.bookingId || booking.id,
             date: booking.date,
             timeSlot: booking.timeSlot,
             startTime: booking.startTime,

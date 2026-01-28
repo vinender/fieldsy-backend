@@ -1446,6 +1446,7 @@ class FieldModel {
       where: whereClause,
       select: {
         id: true,
+        fieldId: true,
         name: true,
         city: true,
         state: true,
@@ -1468,6 +1469,7 @@ class FieldModel {
 
     return fields.map(field => ({
       id: field.id,
+      fieldId: field.fieldId,
       name: field.name || 'Unnamed Field',
       address: field.address || '',
       location: `${field.city || ''}${field.city && field.state ? ', ' : ''}${field.state || ''} ${field.zipCode || ''}`.trim(),
