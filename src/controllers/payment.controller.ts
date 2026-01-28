@@ -864,6 +864,7 @@ export class PaymentController {
                 totalPrice: pricePerSlot,
                 platformCommission: platformCommissionPerSlot,
                 fieldOwnerAmount: fieldOwnerAmountPerSlot,
+                bookingId: await BookingModel.generateBookingId(),
                 status: bookingStatus,
                 paymentStatus: paymentStatus,
                 paymentIntentId: paymentIntent.id,
@@ -1347,6 +1348,7 @@ export class PaymentController {
                     totalPrice: paymentIntent.amount / 100, // Convert from cents
                     platformCommission,
                     fieldOwnerAmount,
+                    bookingId: await BookingModel.generateBookingId(),
                     status: 'CONFIRMED',
                     paymentStatus: 'PAID',
                     paymentIntentId: paymentIntent.id,

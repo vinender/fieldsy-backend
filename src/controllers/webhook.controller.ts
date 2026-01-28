@@ -7,6 +7,7 @@ import { createNotification } from './notification.controller';
 import { emailService } from '../services/email.service';
 import { calculatePayoutAmounts } from '../utils/commission.utils';
 import { transactionLifecycleService, LIFECYCLE_STAGES } from '../services/transaction-lifecycle.service';
+import BookingModel from '../models/booking.model';
 
 /**
  * ============================================================================
@@ -451,6 +452,7 @@ export class WebhookController {
               totalPrice: paymentIntent.amount / 100,
               platformCommission: parseFloat(metadata.platformCommission || '0'),
               fieldOwnerAmount: parseFloat(metadata.fieldOwnerAmount || '0'),
+              bookingId: await BookingModel.generateBookingId(),
               status: 'CONFIRMED',
               paymentStatus: 'PAID',
               paymentIntentId: paymentIntent.id,

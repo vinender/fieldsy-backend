@@ -483,51 +483,62 @@ router.get('/users/:id', authenticateAdmin, async (req, res) => {
     const bLimit = parseInt(bookingLimit as string);
     const bSkip = (bPage - 1) * bLimit;
 
-    const user = await prisma.user.findUnique({
-      where: { id: req.params.id },
-      select: {
-        id: true,
-        userId: true,
-        email: true,
-        name: true,
-        role: true,
-        phone: true,
-        image: true,
-        googleImage: true,
-        emailVerified: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            bookings: true,
-            ownedFields: true
-          }
-        },
-        bookings: {
-          orderBy: { createdAt: 'desc' },
-          skip: bSkip,
-          take: bLimit,
-          select: {
-            id: true,
-            date: true,
-            startTime: true,
-            endTime: true,
-            numberOfDogs: true,
-            totalPrice: true,
-            status: true,
-            paymentStatus: true,
-            createdAt: true,
-            field: {
-              select: {
-                name: true,
-                location: true,
-                address: true
-              }
+    const paramId = req.params.id;
+    const isObjectId = paramId.length === 24 && /^[0-9a-fA-F]+$/.test(paramId);
+
+    const selectFields = {
+      id: true,
+      userId: true,
+      email: true,
+      name: true,
+      role: true,
+      phone: true,
+      image: true,
+      googleImage: true,
+      emailVerified: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          bookings: true,
+          ownedFields: true
+        }
+      },
+      bookings: {
+        orderBy: { createdAt: 'desc' as const },
+        skip: bSkip,
+        take: bLimit,
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          numberOfDogs: true,
+          totalPrice: true,
+          status: true,
+          paymentStatus: true,
+          createdAt: true,
+          field: {
+            select: {
+              name: true,
+              location: true,
+              address: true
             }
           }
         }
       }
-    });
+    };
+
+    // Support both MongoDB ObjectId and human-readable userId
+    const user = isObjectId
+      ? await prisma.user.findUnique({
+          where: { id: paramId },
+          select: selectFields
+        })
+      : await prisma.user.findUnique({
+          where: { userId: paramId },
+          select: selectFields
+        });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
