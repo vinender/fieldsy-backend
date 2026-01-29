@@ -150,14 +150,15 @@ class ReviewController {
       // If bookingId provided, validate it
       let completedBooking;
       if (bookingId) {
+        // Support both internal ObjectId and human-readable bookingId
+        const isBookingObjectId = bookingId.length === 24 && /^[0-9a-fA-F]+$/.test(bookingId);
+        const bookingWhere = isBookingObjectId
+          ? { id: bookingId, fieldId, userId, status: 'COMPLETED' }
+          : { bookingId: bookingId, fieldId, userId, status: 'COMPLETED' };
+
         // Check if this specific booking exists, belongs to user, and is completed
         completedBooking = await prisma.booking.findFirst({
-          where: {
-            id: bookingId,
-            fieldId,
-            userId,
-            status: 'COMPLETED',
-          },
+          where: bookingWhere,
         });
 
         if (!completedBooking) {

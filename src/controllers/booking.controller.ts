@@ -279,84 +279,85 @@ class BookingController {
     const cancellationWindowHours = systemSettings?.cancellationWindowHours || 24;
 
     const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-    const where = isObjectId ? { id } : { bookingId: id };
 
-    // Fetch booking with only necessary fields for the modal
-    const booking = await prisma.booking.findUnique({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        fieldId: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-        timeSlot: true,
-        numberOfDogs: true,
-        totalPrice: true,
-        status: true,
-        paymentStatus: true,
-        repeatBooking: true,
-        rescheduleCount: true,
-        subscriptionId: true,
-        bookingId: true,
-        createdAt: true,
-        updatedAt: true,
-        fieldReview: {
-          select: {
-            id: true,
-            rating: true,
-            createdAt: true,
-          },
+    // Define select fields for the query
+    const selectFields = {
+      id: true,
+      userId: true,
+      fieldId: true,
+      date: true,
+      startTime: true,
+      endTime: true,
+      timeSlot: true,
+      numberOfDogs: true,
+      totalPrice: true,
+      status: true,
+      paymentStatus: true,
+      repeatBooking: true,
+      rescheduleCount: true,
+      subscriptionId: true,
+      bookingId: true,
+      createdAt: true,
+      updatedAt: true,
+      fieldReview: {
+        select: {
+          id: true,
+          rating: true,
+          createdAt: true,
         },
-        field: {
-          select: {
-            id: true,
-            name: true,
-            address: true,
-            city: true,
-            state: true,
-            zipCode: true,
-            price: true,
-            bookingDuration: true,
-            size: true,
-            customFieldSize: true,
-            terrainType: true,
-            fenceType: true,
-            fenceSize: true,
-            surfaceType: true,
-            images: true,
-            averageRating: true,
-            totalReviews: true,
-            amenities: true,
-            owner: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                emailVerified: true,
-                createdAt: true
-              }
+      },
+      field: {
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          price: true,
+          bookingDuration: true,
+          size: true,
+          customFieldSize: true,
+          terrainType: true,
+          fenceType: true,
+          fenceSize: true,
+          surfaceType: true,
+          images: true,
+          averageRating: true,
+          totalReviews: true,
+          amenities: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              emailVerified: true,
+              createdAt: true
             }
           }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        subscription: {
-          select: {
-            id: true,
-            status: true,
-            interval: true,
-            cancelAtPeriodEnd: true,
-          }
+        }
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      subscription: {
+        select: {
+          id: true,
+          status: true,
+          interval: true,
+          cancelAtPeriodEnd: true,
         }
       }
-    });
+    };
+
+    // Use findUnique for ObjectId, findFirst for human-readable bookingId
+    const booking = isObjectId
+      ? await prisma.booking.findUnique({ where: { id }, select: selectFields })
+      : await prisma.booking.findFirst({ where: { bookingId: id }, select: selectFields });
 
     if (!booking) {
       throw new AppError('Booking not found', 404);
