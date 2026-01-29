@@ -359,6 +359,7 @@ model Review {
 
 model FieldReview {
   id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  reviewId     String?   // Human-readable unique ID starting from 1001
   fieldId      String    @db.ObjectId
   userId       String    @db.ObjectId
   bookingId    String?   @db.ObjectId // Link to specific booking - allows multiple reviews per user per field

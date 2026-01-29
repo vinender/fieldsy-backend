@@ -13,6 +13,36 @@ interface AuthRequest extends Request {
   };
 }
 
+// Generate human-readable review ID using counter
+async function generateReviewId(): Promise<string> {
+  const counter = await prisma.counter.upsert({
+    where: { name: 'review' },
+    update: { value: { increment: 1 } },
+    create: { name: 'review', value: 1001 }, // Start from 1001 for reviews
+  });
+  return counter.value.toString();
+}
+
+// Helper to check if ID is MongoDB ObjectId format
+function isObjectId(id: string): boolean {
+  return id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+}
+
+// Helper to find review by either ObjectId or human-readable reviewId
+async function findReviewById(id: string, include?: any) {
+  if (isObjectId(id)) {
+    return prisma.fieldReview.findUnique({
+      where: { id },
+      include,
+    });
+  }
+  // Search by human-readable reviewId
+  return prisma.fieldReview.findFirst({
+    where: { reviewId: id },
+    include,
+  });
+}
+
 class ReviewController {
   // Get all reviews for a field with pagination
   async getFieldReviews(req: Request, res: Response) {
@@ -262,11 +292,15 @@ class ReviewController {
         select: { name: true, image: true },
       });
 
+      // Generate human-readable review ID
+      const reviewId = await generateReviewId();
+
       // Create the review
       const review = await prisma.fieldReview.create({
         data: {
           fieldId,
           userId,
+          reviewId, // Human-readable ID
           bookingId: completedBooking.id, // Link review to specific booking
           userName: user?.name,
           userImage: user?.image,
@@ -321,7 +355,7 @@ class ReviewController {
             title: "You've got a new review!",
             message: `See what a recent visitor had to say about their experience at ${field.name}.`,
             data: {
-              reviewId: review.id,
+              reviewId: review.reviewId, // Human-readable ID
               fieldId,
               fieldName: field.name,
               rating,
@@ -346,7 +380,7 @@ class ReviewController {
           title: 'Review Posted Successfully',
           message: `Your ${rating} star review for ${field?.name} has been posted successfully.`,
           data: {
-            reviewId: review.id,
+            reviewId: review.reviewId, // Human-readable ID
             fieldId,
             fieldName: field?.name,
             rating,
@@ -373,7 +407,7 @@ class ReviewController {
   // Update a review
   async updateReview(req: AuthRequest, res: Response) {
     try {
-      const { reviewId } = req.params;
+      const { reviewId: reviewIdParam } = req.params;
       const userId = req.user?.id;
       const { rating, title, comment, images } = req.body;
 
@@ -384,24 +418,27 @@ class ReviewController {
         });
       }
 
-      // Check if review exists and belongs to user
-      const review = await prisma.fieldReview.findFirst({
-        where: {
-          id: reviewId,
-          userId,
-        },
-      });
+      // Find review by ObjectId or human-readable reviewId
+      const review = await findReviewById(reviewIdParam);
 
       if (!review) {
         return res.status(404).json({
           success: false,
-          message: 'Review not found or you do not have permission to edit it',
+          message: 'Review not found',
         });
       }
 
-      // Update the review
+      // Check if user owns the review
+      if (review.userId !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to edit this review',
+        });
+      }
+
+      // Update the review using the actual ObjectId
       const updatedReview = await prisma.fieldReview.update({
-        where: { id: reviewId },
+        where: { id: review.id },
         data: {
           rating,
           title,
@@ -454,7 +491,7 @@ class ReviewController {
   // Delete a review
   async deleteReview(req: AuthRequest, res: Response) {
     try {
-      const { reviewId } = req.params;
+      const { reviewId: reviewIdParam } = req.params;
       const userId = req.user?.id;
       const userRole = req.user?.role;
 
@@ -465,10 +502,8 @@ class ReviewController {
         });
       }
 
-      // Check if review exists
-      const review = await prisma.fieldReview.findUnique({
-        where: { id: reviewId },
-      });
+      // Find review by ObjectId or human-readable reviewId
+      const review = await findReviewById(reviewIdParam);
 
       if (!review) {
         return res.status(404).json({
@@ -485,9 +520,9 @@ class ReviewController {
         });
       }
 
-      // Delete the review
+      // Delete the review using the actual ObjectId
       await prisma.fieldReview.delete({
-        where: { id: reviewId },
+        where: { id: review.id },
       });
 
       // Update field's average rating and total reviews
@@ -525,11 +560,21 @@ class ReviewController {
   // Mark review as helpful
   async markHelpful(req: AuthRequest, res: Response) {
     try {
-      const { reviewId } = req.params;
+      const { reviewId: reviewIdParam } = req.params;
 
-      // Increment helpful count
+      // Find review by ObjectId or human-readable reviewId
+      const existingReview = await findReviewById(reviewIdParam);
+
+      if (!existingReview) {
+        return res.status(404).json({
+          success: false,
+          message: 'Review not found',
+        });
+      }
+
+      // Increment helpful count using the actual ObjectId
       const review = await prisma.fieldReview.update({
-        where: { id: reviewId },
+        where: { id: existingReview.id },
         data: {
           helpfulCount: {
             increment: 1,
@@ -553,7 +598,7 @@ class ReviewController {
   // Field owner response to review
   async respondToReview(req: AuthRequest, res: Response) {
     try {
-      const { reviewId } = req.params;
+      const { reviewId: reviewIdParam } = req.params;
       const { response } = req.body;
       const userId = req.user?.id;
 
@@ -564,14 +609,11 @@ class ReviewController {
         });
       }
 
-      // Get the review with field info
-      const review = await prisma.fieldReview.findUnique({
-        where: { id: reviewId },
-        include: {
-          field: {
-            select: {
-              ownerId: true,
-            },
+      // Find review by ObjectId or human-readable reviewId, including field info
+      const review = await findReviewById(reviewIdParam, {
+        field: {
+          select: {
+            ownerId: true,
           },
         },
       });
@@ -591,9 +633,9 @@ class ReviewController {
         });
       }
 
-      // Update review with response
+      // Update review with response using the actual ObjectId
       const updatedReview = await prisma.fieldReview.update({
-        where: { id: reviewId },
+        where: { id: review.id },
         data: {
           response,
           respondedAt: new Date(),
