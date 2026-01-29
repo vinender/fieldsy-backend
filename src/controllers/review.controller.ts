@@ -200,9 +200,10 @@ class ReviewController {
         }
 
         // Check if this booking already has a review
+        // Use completedBooking.id (internal ObjectId) since FieldReview.bookingId stores ObjectId, not human-readable bookingId
         const existingReviewForBooking = await prisma.fieldReview.findFirst({
           where: {
-            bookingId,
+            bookingId: completedBooking.id,
           },
         });
 
