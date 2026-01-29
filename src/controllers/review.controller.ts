@@ -65,18 +65,18 @@ class ReviewController {
         prisma.fieldReview.count({ where }),
       ]);
 
-      // Get rating distribution
+      // Get rating distribution (use whereClause for consistent filtering)
       const ratingDistribution = await prisma.fieldReview.groupBy({
         by: ['rating'],
-        where: { fieldId },
+        where: whereClause,
         _count: {
           rating: true,
         },
       });
 
-      // Calculate average rating
+      // Calculate average rating (use whereClause for consistent filtering)
       const avgRating = await prisma.fieldReview.aggregate({
-        where: { fieldId },
+        where: whereClause,
         _avg: {
           rating: true,
         },

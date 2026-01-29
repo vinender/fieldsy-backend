@@ -2551,7 +2551,7 @@ class BookingController {
       userEmail: booking.user?.email || '',
       userPhone: booking.user?.phone || '',
       time: `${booking.startTime} - ${booking.endTime}`,
-      orderId: `#${booking.id.slice(-6).toUpperCase()}`, // Use last 6 chars for uniqueness (matches admin panel format)
+      orderId: booking.bookingId ? `#${booking.bookingId}` : `#${booking.id.slice(-6).toUpperCase()}`, // Use human-readable bookingId, fallback to last 6 chars for legacy
       status: booking.status.toLowerCase(),
       frequency: booking.repeatBooking && booking.repeatBooking.toLowerCase() !== 'none' ? booking.repeatBooking : null,
       dogs: booking.numberOfDogs || 1,
