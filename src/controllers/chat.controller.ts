@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { sendMessageToKafka } from '../config/kafka';
+import UserModel from '../models/user.model';
 
 const prisma = new PrismaClient();
 
