@@ -346,14 +346,54 @@ async function createUpcomingRecurringBookings() {
 }
 
 /**
+ * Check if a date is valid for a field's operating days
+ */
+function isDateValidForField(date: Date, operatingDays: string[] | undefined): boolean {
+  if (!operatingDays || operatingDays.length === 0) {
+    return true; // If no operating days specified, assume all days are valid
+  }
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayOfWeek = dayNames[date.getDay()];
+  const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const weekends = ['Saturday', 'Sunday'];
+
+  for (const opDay of operatingDays) {
+    if (opDay === 'everyday') {
+      return true;
+    } else if (opDay === 'weekdays' && weekdays.includes(dayOfWeek)) {
+      return true;
+    } else if (opDay === 'weekends' && weekends.includes(dayOfWeek)) {
+      return true;
+    } else if (opDay === dayOfWeek) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Calculate the next booking date based on subscription interval
+ * For 'everyday' subscriptions, skips days when the field doesn't operate
  */
 function calculateNextBookingDate(subscription: any): Date {
   const lastBookingDate = subscription.lastBookingDate || new Date(subscription.createdAt);
+  const operatingDays = subscription.field?.operatingDays;
 
   if (subscription.interval === 'everyday') {
-    // Add 1 day to last booking date
-    return addDays(lastBookingDate, 1);
+    // Add 1 day to last booking date, but skip days when field doesn't operate
+    let nextDate = addDays(lastBookingDate, 1);
+
+    // For everyday subscriptions, find the next valid operating day
+    // Maximum 7 iterations to prevent infinite loop (covers a full week)
+    let iterations = 0;
+    while (!isDateValidForField(nextDate, operatingDays) && iterations < 7) {
+      nextDate = addDays(nextDate, 1);
+      iterations++;
+    }
+
+    return nextDate;
   } else if (subscription.interval === 'weekly') {
     // Add 7 days to last booking date
     return addDays(lastBookingDate, 7);
@@ -367,13 +407,24 @@ function calculateNextBookingDate(subscription: any): Date {
 
 /**
  * Calculate the next valid booking date starting from today
+ * For 'everyday' subscriptions, skips days when the field doesn't operate
  */
 function calculateNextValidBookingDate(subscription: any, today: Date): Date {
   let nextDate = new Date(today);
+  const operatingDays = subscription.field?.operatingDays;
 
   if (subscription.interval === 'everyday') {
-    // Next valid date is tomorrow
-    return addDays(nextDate, 1);
+    // Next valid date is tomorrow, but skip days when field doesn't operate
+    nextDate = addDays(nextDate, 1);
+
+    // Find the next valid operating day (max 7 iterations)
+    let iterations = 0;
+    while (!isDateValidForField(nextDate, operatingDays) && iterations < 7) {
+      nextDate = addDays(nextDate, 1);
+      iterations++;
+    }
+
+    return nextDate;
   } else if (subscription.interval === 'weekly') {
     // Find next occurrence of the day of week
     const targetDayOfWeek = new Date(subscription.lastBookingDate || subscription.createdAt).getDay();

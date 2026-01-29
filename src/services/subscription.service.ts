@@ -8,6 +8,51 @@ import { calculatePayoutAmounts } from '../utils/commission.utils';
 import { emailService } from './email.service';
 import { resolveField } from '../utils/field.utils';
 
+/**
+ * Check if a date is valid for a field's operating days
+ */
+function isDateValidForField(date: Date, operatingDays: string[] | undefined): boolean {
+  if (!operatingDays || operatingDays.length === 0) {
+    return true; // If no operating days specified, assume all days are valid
+  }
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayOfWeek = dayNames[date.getDay()];
+  const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const weekends = ['Saturday', 'Sunday'];
+
+  for (const opDay of operatingDays) {
+    if (opDay === 'everyday') {
+      return true;
+    } else if (opDay === 'weekdays' && weekdays.includes(dayOfWeek)) {
+      return true;
+    } else if (opDay === 'weekends' && weekends.includes(dayOfWeek)) {
+      return true;
+    } else if (opDay === dayOfWeek) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Calculate the next valid booking date for everyday subscriptions
+ * Skips days when the field doesn't operate
+ */
+function getNextValidBookingDate(baseDate: Date, operatingDays: string[] | undefined): Date {
+  let nextDate = addDays(baseDate, 1);
+
+  // Find the next valid operating day (max 7 iterations to prevent infinite loop)
+  let iterations = 0;
+  while (!isDateValidForField(nextDate, operatingDays) && iterations < 7) {
+    nextDate = addDays(nextDate, 1);
+    iterations++;
+  }
+
+  return nextDate;
+}
+
 export class SubscriptionService {
   /**
    * Create a Stripe subscription for recurring bookings
@@ -674,9 +719,14 @@ export class SubscriptionService {
 
     // Calculate next booking date
     let nextBookingDate = new Date();
+    const operatingDays = subscription.field?.operatingDays;
+
     if (subscription.interval === 'everyday') {
-      // Next day
-      nextBookingDate = addDays(subscription.lastBookingDate || new Date(), 1);
+      // Next day, but skip days when field doesn't operate
+      nextBookingDate = getNextValidBookingDate(
+        subscription.lastBookingDate || new Date(),
+        operatingDays
+      );
     } else if (subscription.interval === 'weekly') {
       // Next week on the same day
       nextBookingDate = addDays(subscription.lastBookingDate || new Date(), 7);

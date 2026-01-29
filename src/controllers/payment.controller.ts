@@ -12,6 +12,52 @@ import BookingModel from '../models/booking.model';
 import { FRONTEND_URL } from '../config/constants';
 import { resolveField } from '../utils/field.utils';
 
+/**
+ * Check if a date is valid for a field's operating days
+ */
+function isDateValidForField(date: Date, operatingDays: string[] | undefined): boolean {
+  if (!operatingDays || operatingDays.length === 0) {
+    return true; // If no operating days specified, assume all days are valid
+  }
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayOfWeek = dayNames[date.getDay()];
+  const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const weekends = ['Saturday', 'Sunday'];
+
+  for (const opDay of operatingDays) {
+    if (opDay === 'everyday') {
+      return true;
+    } else if (opDay === 'weekdays' && weekdays.includes(dayOfWeek)) {
+      return true;
+    } else if (opDay === 'weekends' && weekends.includes(dayOfWeek)) {
+      return true;
+    } else if (opDay === dayOfWeek) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Get the next valid booking date for everyday subscriptions
+ * Skips days when the field doesn't operate
+ */
+function getNextValidBookingDate(baseDate: Date, operatingDays: string[] | undefined): Date {
+  let nextDate = new Date(baseDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+
+  // Find the next valid operating day (max 7 iterations to prevent infinite loop)
+  let iterations = 0;
+  while (!isDateValidForField(nextDate, operatingDays) && iterations < 7) {
+    nextDate.setDate(nextDate.getDate() + 1);
+    iterations++;
+  }
+
+  return nextDate;
+}
+
 export class PaymentController {
   // Create a payment intent for booking a field
   async createPaymentIntent(req: Request, res: Response) {
@@ -785,8 +831,8 @@ export class PaymentController {
                 let currentPeriodEnd: Date;
 
                 if (normalizedRepeatBooking === 'everyday') {
-                  nextBillingDate = new Date(bookingDate);
-                  nextBillingDate.setDate(bookingDate.getDate() + 1);
+                  // Get next valid booking date, skipping days when field doesn't operate
+                  nextBillingDate = getNextValidBookingDate(bookingDate, field.operatingDays);
                   currentPeriodEnd = new Date(nextBillingDate);
                 } else if (normalizedRepeatBooking === 'weekly') {
                   nextBillingDate = new Date(bookingDate);
