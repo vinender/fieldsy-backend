@@ -535,8 +535,12 @@ export class AutomaticPayoutService {
    */
   async processRefundWithFeeAdjustment(bookingId: string, refundReason: string) {
     try {
-      const booking = await prisma.booking.findUnique({
-        where: { id: bookingId },
+      // Support both ObjectId and human-readable bookingId
+      const isObjectId = bookingId.length === 24 && /^[0-9a-fA-F]+$/.test(bookingId);
+      const where = isObjectId ? { id: bookingId } : { bookingId: bookingId };
+
+      const booking = await prisma.booking.findFirst({
+        where,
         include: {
           field: {
             include: {

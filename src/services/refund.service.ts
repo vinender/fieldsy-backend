@@ -20,9 +20,14 @@ export class RefundService {
     try {
       // Get cancellation window from settings
       const cancellationWindowHours = await this.getCancellationWindowHours();
+
+      // Support both ObjectId and human-readable bookingId
+      const isObjectId = bookingId.length === 24 && /^[0-9a-fA-F]+$/.test(bookingId);
+      const where = isObjectId ? { id: bookingId } : { bookingId: bookingId };
+
       // Get booking with payment details
-      const booking = await prisma.booking.findUnique({
-        where: { id: bookingId },
+      const booking = await prisma.booking.findFirst({
+        where,
         include: {
           payment: true,
           user: true,

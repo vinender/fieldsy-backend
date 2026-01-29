@@ -227,8 +227,23 @@ class BookingModel {
 
   // Update booking status
   async updateStatus(id: string, status: BookingStatus): Promise<Booking> {
+    // Support both ObjectId and human-readable bookingId
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    let bookingInternalId = id;
+
+    if (!isObjectId) {
+      const booking = await prisma.booking.findFirst({
+        where: { bookingId: id },
+        select: { id: true },
+      });
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+      bookingInternalId = booking.id;
+    }
+
     return prisma.booking.update({
-      where: { id },
+      where: { id: bookingInternalId },
       data: { status },
       include: {
         field: true,
@@ -239,20 +254,57 @@ class BookingModel {
 
   // Update booking
   async update(id: string, data: any): Promise<Booking> {
-    return prisma.booking.update({
-      where: { id },
-      data,
-      include: {
-        field: true,
-        user: true,
-      },
-    });
+    // Support both ObjectId and human-readable bookingId
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+
+    if (isObjectId) {
+      return prisma.booking.update({
+        where: { id },
+        data,
+        include: {
+          field: true,
+          user: true,
+        },
+      });
+    } else {
+      // Find by bookingId first, then update by id
+      const booking = await prisma.booking.findFirst({
+        where: { bookingId: id },
+        select: { id: true },
+      });
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+      return prisma.booking.update({
+        where: { id: booking.id },
+        data,
+        include: {
+          field: true,
+          user: true,
+        },
+      });
+    }
   }
 
   // Cancel booking
   async cancel(id: string, reason?: string): Promise<Booking> {
+    // Support both ObjectId and human-readable bookingId
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    let bookingInternalId = id;
+
+    if (!isObjectId) {
+      const booking = await prisma.booking.findFirst({
+        where: { bookingId: id },
+        select: { id: true },
+      });
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+      bookingInternalId = booking.id;
+    }
+
     return prisma.booking.update({
-      where: { id },
+      where: { id: bookingInternalId },
       data: {
         status: 'CANCELLED',
         cancellationReason: reason,
@@ -289,8 +341,23 @@ class BookingModel {
 
   // Delete booking
   async delete(id: string): Promise<void> {
+    // Support both ObjectId and human-readable bookingId
+    const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
+    let bookingInternalId = id;
+
+    if (!isObjectId) {
+      const booking = await prisma.booking.findFirst({
+        where: { bookingId: id },
+        select: { id: true },
+      });
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+      bookingInternalId = booking.id;
+    }
+
     await prisma.booking.delete({
-      where: { id },
+      where: { id: bookingInternalId },
     });
   }
 
@@ -311,9 +378,17 @@ class BookingModel {
     };
 
     if (excludeBookingId) {
-      where.id = {
-        not: excludeBookingId,
-      };
+      // Support both ObjectId and human-readable bookingId
+      const isObjectId = excludeBookingId.length === 24 && /^[0-9a-fA-F]+$/.test(excludeBookingId);
+      if (isObjectId) {
+        where.id = {
+          not: excludeBookingId,
+        };
+      } else {
+        where.bookingId = {
+          not: excludeBookingId,
+        };
+      }
     }
 
     const conflictingBookings = await prisma.booking.findMany({
