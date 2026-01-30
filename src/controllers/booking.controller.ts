@@ -1056,7 +1056,8 @@ class BookingController {
           await emailService.sendBookingStatusChangeEmail({
             email: dogOwner.email,
             userName: dogOwner.name || 'Valued Customer',
-            bookingId: booking.id,
+            bookingId: (booking as any).bookingId || booking.id,
+            fieldId: field.fieldId || '',
             fieldName: field.name,
             date: new Date(booking.date),
             startTime: booking.startTime,
@@ -1092,7 +1093,8 @@ class BookingController {
           await emailService.sendBookingStatusChangeEmail({
             email: dogOwner.email,
             userName: dogOwner.name || 'Valued Customer',
-            bookingId: booking.id,
+            bookingId: (booking as any).bookingId || booking.id,
+            fieldId: field.fieldId || '',
             fieldName: field.name,
             date: new Date(booking.date),
             startTime: booking.startTime,
@@ -1436,7 +1438,8 @@ class BookingController {
               emailService.sendBookingStatusChangeEmail({
                 email: fieldOwner.email,
                 userName: fieldOwner.name || 'Field Owner',
-                bookingId: booking.id,
+                bookingId: (booking as any).bookingId || booking.id,
+                fieldId: field.fieldId || '',
                 fieldName: field.name,
                 date: new Date(booking.date),
                 startTime: booking.startTime,
@@ -1451,7 +1454,8 @@ class BookingController {
               emailService.sendBookingStatusChangeEmail({
                 email: dogOwner.email,
                 userName: dogOwner.name || 'Valued Customer',
-                bookingId: booking.id,
+                bookingId: (booking as any).bookingId || booking.id,
+                fieldId: field.fieldId || '',
                 fieldName: field.name,
                 date: new Date(booking.date),
                 startTime: booking.startTime,
@@ -1499,7 +1503,8 @@ class BookingController {
             emailService.sendBookingStatusChangeEmail({
               email: dogOwner.email,
               userName: dogOwner.name || 'Valued Customer',
-              bookingId: booking.id,
+              bookingId: (booking as any).bookingId || booking.id,
+              fieldId: field.fieldId || '',
               fieldName: field.name,
               date: new Date(booking.date),
               startTime: booking.startTime,

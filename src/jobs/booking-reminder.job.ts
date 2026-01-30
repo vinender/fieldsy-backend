@@ -63,6 +63,7 @@ async function sendBookingReminders() {
         field: {
           select: {
             id: true,
+            fieldId: true,
             name: true,
             address: true,
             location: true
@@ -164,6 +165,8 @@ async function sendBookingReminders() {
           await emailService.sendBookingReminderEmail({
             email: booking.user.email,
             userName: booking.user.name || 'Valued Customer',
+            bookingId: booking.bookingId || booking.id,
+            fieldId: booking.field.fieldId || '',
             fieldName: booking.field.name,
             bookingDate: booking.date,
             timeSlot: booking.timeSlot,

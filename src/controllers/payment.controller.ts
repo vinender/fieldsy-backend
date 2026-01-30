@@ -1063,7 +1063,8 @@ export class PaymentController {
             await emailService.sendBookingConfirmationToDogOwner({
               email: user.email,
               userName: user.name || 'Valued Customer',
-              bookingId: booking.id,
+              bookingId: booking.bookingId || booking.id,
+              fieldId: field.fieldId || '',
               fieldName: field.name,
               fieldAddress: field.address || '',
               date: new Date(date),
@@ -1079,7 +1080,8 @@ export class PaymentController {
             await emailService.sendNewBookingNotificationToFieldOwner({
               email: fieldOwner.email,
               ownerName: fieldOwner.name || 'Field Owner',
-              bookingId: booking.id,
+              bookingId: booking.bookingId || booking.id,
+              fieldId: field.fieldId || '',
               fieldName: field.name,
               date: new Date(date),
               startTime: startTimeStr,

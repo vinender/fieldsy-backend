@@ -633,6 +633,7 @@ const getPasswordResetTemplate = (otp: string, name?: string) => {
 const getBookingConfirmationTemplate = (bookingData: {
   userName: string;
   bookingId: string;
+  fieldId?: string;
   fieldName: string;
   fieldAddress: string;
   date: Date;
@@ -739,8 +740,11 @@ const getBookingConfirmationTemplate = (bookingData: {
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
               <div class="info-item">
-                <span class="info-label">Booking ID:</span> #${bookingData.bookingId.slice(-8).toUpperCase()}
+                <span class="info-label">Booking ID:</span> ${bookingData.bookingId}
               </div>
+              ${bookingData.fieldId ? `<div class="info-item">
+                <span class="info-label">Field ID:</span> ${bookingData.fieldId}
+              </div>` : ''}
               <div class="info-item">
                 <span class="info-label">Field:</span> ${bookingData.fieldName}
               </div>
@@ -786,6 +790,7 @@ const getBookingConfirmationTemplate = (bookingData: {
 const getNewBookingNotificationTemplate = (bookingData: {
   ownerName: string;
   bookingId: string;
+  fieldId?: string;
   fieldName: string;
   date: Date;
   startTime: string;
@@ -900,8 +905,11 @@ const getNewBookingNotificationTemplate = (bookingData: {
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
               <div class="info-item">
-                <span class="info-label">Booking ID:</span> #${bookingData.bookingId.slice(-8).toUpperCase()}
+                <span class="info-label">Booking ID:</span> ${bookingData.bookingId}
               </div>
+              ${bookingData.fieldId ? `<div class="info-item">
+                <span class="info-label">Field ID:</span> ${bookingData.fieldId}
+              </div>` : ''}
               <div class="info-item">
                 <span class="info-label">Field:</span> ${bookingData.fieldName}
               </div>
@@ -1278,6 +1286,7 @@ const getFieldApprovalTemplate = (data: {
 const getBookingStatusChangeTemplate = (emailData: {
   userName: string;
   bookingId: string;
+  fieldId?: string;
   fieldName: string;
   date: Date;
   startTime: string;
@@ -1400,8 +1409,11 @@ const getBookingStatusChangeTemplate = (emailData: {
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
               <div class="info-item">
-                <span class="info-label">Booking ID:</span> #${emailData.bookingId.slice(-8).toUpperCase()}
+                <span class="info-label">Booking ID:</span> ${emailData.bookingId}
               </div>
+              ${emailData.fieldId ? `<div class="info-item">
+                <span class="info-label">Field ID:</span> ${emailData.fieldId}
+              </div>` : ''}
               <div class="info-item">
                 <span class="info-label">Field:</span> ${emailData.fieldName}
               </div>
@@ -2082,6 +2094,7 @@ class EmailService {
     email: string;
     userName: string;
     bookingId: string;
+    fieldId?: string;
     fieldName: string;
     fieldAddress: string;
     date: Date;
@@ -2107,6 +2120,7 @@ class EmailService {
     email: string;
     ownerName: string;
     bookingId: string;
+    fieldId?: string;
     fieldName: string;
     date: Date;
     startTime: string;
@@ -2133,6 +2147,7 @@ class EmailService {
     email: string;
     userName: string;
     bookingId: string;
+    fieldId?: string;
     fieldName: string;
     date: Date;
     startTime: string;
@@ -2322,6 +2337,8 @@ class EmailService {
   async sendBookingReminderEmail(data: {
     email: string;
     userName: string;
+    bookingId?: string;
+    fieldId?: string;
     fieldName: string;
     bookingDate: Date;
     timeSlot: string;
@@ -2410,6 +2427,8 @@ class EmailService {
 // Email template for booking reminder
 const getBookingReminderTemplate = (data: {
   userName: string;
+  bookingId?: string;
+  fieldId?: string;
   fieldName: string;
   bookingDate: Date;
   timeSlot: string;
@@ -2548,6 +2567,14 @@ const getBookingReminderTemplate = (data: {
             </div>
 
             <div class="booking-details">
+              ${data.bookingId ? `<div class="detail-row">
+                <span class="detail-label">🔖 Booking ID:</span>
+                <span class="detail-value">${data.bookingId}</span>
+              </div>` : ''}
+              ${data.fieldId ? `<div class="detail-row">
+                <span class="detail-label">🏟️ Field ID:</span>
+                <span class="detail-value">${data.fieldId}</span>
+              </div>` : ''}
               <div class="detail-row">
                 <span class="detail-label">📍 Location:</span>
                 <span class="detail-value">${data.fieldName}</span>

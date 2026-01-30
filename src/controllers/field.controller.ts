@@ -923,12 +923,11 @@ class FieldController {
 
     const newApprovedStatus = !field.isApproved;
 
-    // Update the field
+    // Update the field - only change isApproved (isActive is field-owner controlled)
     const updatedField = await prisma.field.update({
       where: { id },
       data: {
         isApproved: newApprovedStatus,
-        isActive: newApprovedStatus ? field.isActive : false // Deactivate if unapproved
       }
     });
 
@@ -2863,13 +2862,12 @@ class FieldController {
       throw new AppError('Field not found', 404);
     }
 
-    // Update field rejection status
+    // Update field rejection status - only change isApproved (isActive is field-owner controlled)
     const rejectedField = await prisma.field.update({
       where: { id: fieldId },
       data: {
         isApproved: false,
         rejectionReason: rejectionReason || 'Field did not meet our approval criteria',
-        isActive: false // Deactivate rejected fields
       }
     });
 
