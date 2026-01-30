@@ -5,6 +5,20 @@ import { FRONTEND_URL } from '../config/constants';
 
 config();
 
+// Format a booking ID for display in emails: #1234 for human-readable IDs, #ABCD1234 for legacy ObjectIDs
+function formatBookingDisplayId(id: string): string {
+  if (!id) return '#N/A';
+  // Short numeric IDs (human-readable sequential booking IDs)
+  if (/^\d+$/.test(id)) {
+    return `#${id}`;
+  }
+  // MongoDB ObjectIDs (24 hex chars) or other long IDs — show last 8 chars uppercased
+  if (id.length > 8) {
+    return `#${id.slice(-8).toUpperCase()}`;
+  }
+  return `#${id.toUpperCase()}`;
+}
+
 // Email configuration
 const EMAIL_HOST = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com';
 const EMAIL_PORT = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587');
@@ -740,7 +754,7 @@ const getBookingConfirmationTemplate = (bookingData: {
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
               <div class="info-item">
-                <span class="info-label">Booking ID:</span> ${bookingData.bookingId}
+                <span class="info-label">Booking ID:</span> ${formatBookingDisplayId(bookingData.bookingId)}
               </div>
               ${bookingData.fieldId ? `<div class="info-item">
                 <span class="info-label">Field ID:</span> ${bookingData.fieldId}
@@ -905,7 +919,7 @@ const getNewBookingNotificationTemplate = (bookingData: {
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
               <div class="info-item">
-                <span class="info-label">Booking ID:</span> ${bookingData.bookingId}
+                <span class="info-label">Booking ID:</span> ${formatBookingDisplayId(bookingData.bookingId)}
               </div>
               ${bookingData.fieldId ? `<div class="info-item">
                 <span class="info-label">Field ID:</span> ${bookingData.fieldId}
@@ -1409,7 +1423,7 @@ const getBookingStatusChangeTemplate = (emailData: {
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
               <div class="info-item">
-                <span class="info-label">Booking ID:</span> ${emailData.bookingId}
+                <span class="info-label">Booking ID:</span> ${formatBookingDisplayId(emailData.bookingId)}
               </div>
               ${emailData.fieldId ? `<div class="info-item">
                 <span class="info-label">Field ID:</span> ${emailData.fieldId}
@@ -2569,7 +2583,7 @@ const getBookingReminderTemplate = (data: {
             <div class="booking-details">
               ${data.bookingId ? `<div class="detail-row">
                 <span class="detail-label">🔖 Booking ID:</span>
-                <span class="detail-value">${data.bookingId}</span>
+                <span class="detail-value">${formatBookingDisplayId(data.bookingId)}</span>
               </div>` : ''}
               ${data.fieldId ? `<div class="detail-row">
                 <span class="detail-label">🏟️ Field ID:</span>
