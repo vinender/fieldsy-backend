@@ -1730,6 +1730,14 @@ router.patch('/users/:userId/block', authenticateAdmin, async (req, res) => {
       }
     });
 
+    // If user is a FIELD_OWNER, also block all their fields
+    if (user.role === 'FIELD_OWNER') {
+      await prisma.field.updateMany({
+        where: { ownerId: userId },
+        data: { isBlocked: true }
+      });
+    }
+
     const { password: _, ...userData } = blockedUser;
 
     res.json({
@@ -1767,6 +1775,14 @@ router.patch('/users/:userId/unblock', authenticateAdmin, async (req, res) => {
         blockReason: null
       }
     });
+
+    // If user is a FIELD_OWNER, also unblock all their fields
+    if (user.role === 'FIELD_OWNER') {
+      await prisma.field.updateMany({
+        where: { ownerId: userId },
+        data: { isBlocked: false }
+      });
+    }
 
     const { password: _, ...userData } = unblockedUser;
 
