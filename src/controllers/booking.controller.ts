@@ -7,8 +7,9 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 import prisma from '../config/database';
 import { createNotification } from './notification.controller';
-import { payoutService } from '../services/payout.service';
-import refundService from '../services/refund.service';
+import { getPayoutService, getRefundService, getSubscriptionService, getPayoutEngine } from '../config/payout-services';
+const payoutService = getPayoutService();
+const refundService = getRefundService();
 import { emailService } from '../services/email.service';
 import { transformAmenities } from '../utils/amenityHelper';
 import { resolveField } from '../utils/field.utils';
@@ -1110,7 +1111,8 @@ class BookingController {
       if ((booking as any).subscriptionId) {
         try {
           console.log(`📅 Booking ${id} is part of subscription ${(booking as any).subscriptionId}, creating next booking...`);
-          const { subscriptionService } = await import('../services/subscription.service');
+          const { getSubscriptionService } = await import('../config/payout-services');
+          const subscriptionService = getSubscriptionService();
 
           // Get subscription details
           const subscription = await prisma.subscription.findUnique({
@@ -1379,8 +1381,8 @@ class BookingController {
     if (isRefundEligible && isDogOwner) {
       try {
         if (booking.subscriptionId) {
-          const { subscriptionService } = await import('../services/subscription.service');
-          refundResult = await subscriptionService.refundSubscriptionBookingOccurrence(id, reason || 'requested_by_customer');
+          const { getSubscriptionService: getSub } = await import('../config/payout-services');
+          refundResult = await getSub().refundSubscriptionBookingOccurrence(id, reason || 'requested_by_customer');
         } else {
           refundResult = await refundService.processRefund(id, reason);
         }

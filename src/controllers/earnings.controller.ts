@@ -3,8 +3,9 @@ import { Request, Response, NextFunction } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 import prisma from '../config/database';
-import { automaticPayoutService } from '../services/auto-payout.service';
-import { payoutService } from '../services/payout.service';
+import { getAutoPayoutService, getPayoutService } from '../config/payout-services';
+const automaticPayoutService = getAutoPayoutService();
+const payoutService = getPayoutService();
 
 class EarningsController {
   /**

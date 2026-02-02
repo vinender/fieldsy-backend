@@ -1,3 +1,6 @@
+// DEPRECATED: Replaced by @fieldsy/stripe-auto-payout engine.
+// Payout jobs are now handled via payoutEngine.startScheduler() in server.ts.
+// This file is kept for reference only. Safe to delete once integration is verified.
 //@ts-nocheck
 import cron from 'node-cron';
 import refundService from '../services/refund.service';

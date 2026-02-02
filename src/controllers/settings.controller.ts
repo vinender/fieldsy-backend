@@ -1,8 +1,10 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 
 // (Removed DEFAULT_TERMS)
 
@@ -329,19 +331,33 @@ export const getPublicSettings = async (req: Request, res: Response) => {
       };
     }
 
-    // Check access for requesting IP
-    // Try to get IP from x-forwarded-for header (standard for proxies/load balancers)
-    // or fallback to connection remoteAddress
-    const forwarded = req.headers['x-forwarded-for'];
-    const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
-
+    // Check access: token-based (device-level) first, then IP fallback
     let hasAccess = false;
-    if (ip) {
-      const allowedIp = await prisma.allowedIp.findUnique({
-        where: { ip }
-      });
-      if (allowedIp) {
-        hasAccess = true;
+
+    // 1. Check for access token (persists across IP changes)
+    const accessToken = req.headers['x-access-token'] as string;
+    if (accessToken) {
+      try {
+        const decoded = jwt.verify(accessToken, JWT_SECRET) as any;
+        if (decoded.type === 'site_access') {
+          hasAccess = true;
+        }
+      } catch {
+        // Invalid/expired token — fall through to IP check
+      }
+    }
+
+    // 2. Fallback: IP whitelist check
+    if (!hasAccess) {
+      const forwarded = req.headers['x-forwarded-for'];
+      const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
+      if (ip) {
+        const allowedIp = await prisma.allowedIp.findUnique({
+          where: { ip }
+        });
+        if (allowedIp) {
+          hasAccess = true;
+        }
       }
     }
 
@@ -404,7 +420,7 @@ export const verifySiteAccess = async (req: Request, res: Response) => {
       });
     }
 
-    // Add to whitelist
+    // Add IP to whitelist (fallback)
     await prisma.allowedIp.upsert({
       where: { ip },
       update: { updatedAt: new Date() },
@@ -414,9 +430,17 @@ export const verifySiteAccess = async (req: Request, res: Response) => {
       }
     });
 
+    // Generate a device-level access token (survives IP changes)
+    const accessToken = jwt.sign(
+      { type: 'site_access' },
+      JWT_SECRET,
+      { expiresIn: '90d' }
+    );
+
     res.json({
       success: true,
-      message: 'Access granted'
+      message: 'Access granted',
+      accessToken
     });
 
   } catch (error) {

@@ -30,6 +30,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@fieldsy/stripe-auto-payout": "file:../packages/stripe-auto-payout",
     "@aws-sdk/client-s3": "^3.891.0",
     "@aws-sdk/s3-presigned-post": "^3.896.0",
     "@prisma/client": "^6.13.0",

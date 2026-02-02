@@ -2585,12 +2585,8 @@ const getBookingReminderTemplate = (data: {
                 <span class="detail-label">🔖 Booking ID:</span>
                 <span class="detail-value">${formatBookingDisplayId(data.bookingId)}</span>
               </div>` : ''}
-              ${data.fieldId ? `<div class="detail-row">
-                <span class="detail-label">🏟️ Field ID:</span>
-                <span class="detail-value">${data.fieldId}</span>
-              </div>` : ''}
               <div class="detail-row">
-                <span class="detail-label">📍 Location:</span>
+                <span class="detail-label">🏟️ Field Name:</span>
                 <span class="detail-value">${data.fieldName}</span>
               </div>
               <div class="detail-row">

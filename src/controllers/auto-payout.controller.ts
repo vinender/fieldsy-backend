@@ -1,6 +1,7 @@
 //@ts-nocheck
 import { Request, Response, NextFunction } from 'express';
-import { automaticPayoutService } from '../services/auto-payout.service';
+import { getAutoPayoutService } from '../config/payout-services';
+const automaticPayoutService = getAutoPayoutService();
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 import prisma from '../config/database';

@@ -1,3 +1,6 @@
+// DEPRECATED: Replaced by @fieldsy/stripe-auto-payout engine.
+// Held payout release is now handled via payoutEngine.startScheduler() in server.ts.
+// This file is kept for reference only. Safe to delete once integration is verified.
 //@ts-nocheck
 import cron from 'node-cron';
 import { heldPayoutService } from '../services/held-payout.service';

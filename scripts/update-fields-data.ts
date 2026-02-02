@@ -35,6 +35,9 @@ interface FieldUpdateData {
   phone?: string;
   email: string;
   description?: string;
+  // GPS coordinates
+  lat?: number;
+  lng?: number;
   // Schema fields
   fenceSize?: string;
   size?: string;
@@ -44,6 +47,8 @@ interface FieldUpdateData {
   amenities?: string[];
   // fieldFeatures JSON for extra data
   fieldFeatures?: Record<string, any>;
+  // Tag for categorization
+  tag?: string;
 }
 
 // Helper: parse price string to numeric values
@@ -102,7 +107,7 @@ function parseAddress(addressStr: string): {
   if (parts.length >= 3) {
     // Check if second-to-last part looks like a county
     const possibleCounty = parts[parts.length - 2];
-    const countyKeywords = ['Essex', 'Somerset', 'Kent', 'Surrey', 'Lancashire', 'Devon', 'Norfolk', 'Suffolk', 'Yorkshire', 'Dumfries'];
+    const countyKeywords = ['Essex', 'Somerset', 'Kent', 'Surrey', 'Lancashire', 'Devon', 'Norfolk', 'Suffolk', 'Yorkshire', 'Dumfries', 'Glasgow', 'Canterbury'];
     if (countyKeywords.some(k => possibleCounty.includes(k))) {
       county = possibleCounty;
     }
@@ -132,13 +137,17 @@ const fieldsToUpdate: FieldUpdateData[] = [
   // 1. Hugo's Fun Field (Bridge)
   {
     name: "Hugo's Fun Field (Bridge)",
-    address: "Hugo's, Bridge, CT4 6EQ",
+    address: "Hugo's, Bridge, Canterbury, CT4 6EQ",
     phone: '07453 328586',
     email: 'contact@hugosfundogfield.com',
+    description: 'Large secure dog field near Canterbury, Kent. Private hire sessions with 6ft fencing around the perimeter. Spacious open paddock (~3.5 acres) ideal for dogs needing off-lead exercise in a safe environment.',
+    lat: 51.205231532993,
+    lng: 1.0964081561153,
     fenceSize: '6ft',
     size: 'medium',
     ...parsePrice('From £7/ session'),
     amenities: ['Secure Car Park'],
+    tag: 'British Dog Fields',
     fieldFeatures: {
       reactiveDogFriendly: 'No nearby distractions',
       secureInFieldParking: true,
@@ -148,157 +157,228 @@ const fieldsToUpdate: FieldUpdateData[] = [
       buggyAccessible: true,
       maxNumberDogsNote: 'TBC',
       fieldType: 'Paddock',
+      what3words: '///soaps.fidget.untruth',
+      website: 'hugosfundogfield.com',
     },
   },
 
   // 2. Spring Rise Canine Care Secure Dog Field
   {
     name: 'Spring Rise Canine Care Secure Dog Field',
-    address: 'CT18 8BZ',
+    address: 'Maple Cottage, Westfield Lane, Etchinghill, Folkestone, Kent, CT18 8BZ',
     phone: '07510 547287',
     email: 'springrise.bookings@gmail.com',
+    description: 'A 1-acre secure dog walking field in Etchinghill, Folkestone, Kent. Fully fenced with 6ft fencing. Features agility equipment and is available for private hire sessions and training classes.',
+    lat: 51.11004211456,
+    lng: 1.0887892017527,
     fenceSize: '6ft',
     size: 'small',
-    ...parsePrice('From £10'),
+    ...parsePrice('From £10 / hour'),
+    tag: 'British Dog Fields',
     fieldFeatures: {
       reactiveDogFriendly: 'TBC',
       secureOnlineBooking: true,
+      parking: 'On-site (5 small cars)',
+      agility: true,
+      privateHire: true,
     },
   },
 
   // 3. Smithvale Kennels
   {
     name: 'Smithvale Kennels',
-    address: 'Glenavy Lisburn, BT29 4NY',
+    address: '110 Lisburn Road, Glenavy, Crumlin, BT29 4NY',
     phone: '07710682242',
     email: 'kennyjohn54@icloud.com',
+    description: 'Located in Glenavy, Northern Ireland. Offers 3 secure grass paddocks and an all-weather facility. Note: dogs in separate paddocks may have visibility of one another. Ideal for exercise and socialisation in a controlled environment.',
     fenceSize: '6ft',
     size: 'small',
     ...parsePrice('From £6'),
+    tag: 'British Dog Fields',
     fieldFeatures: {
       parking: 'On-site',
       buggyAccessible: true,
+      numberOfPaddocks: 3,
+      allWeatherFacility: true,
+      dogVisibilityNote: 'Dogs have visibility of one another between paddocks',
     },
   },
 
-  // 4. Kirkguzeon Freedom Field
+  // 4. Kirkgunzeon Freedom Field
   {
     name: 'Kirkguzeon Freedom Field',
     address: 'Kirkgunzeon Canines, Little, Breconside, Kirkgunzeon, Dumfries DG2 8JW',
     phone: '07834 217 734',
     email: 'kirkgunzeoncanines@gmail.com',
-    description: 'Kirkguzeon Freedom Field is 9 miles south west of Dumfries in Scotland. This is a secure, 2 acre grass paddock with chain link fencing all round and the benefit of a dog shower facility!',
+    description: 'Kirkgunzeon Freedom Field is 9 miles south west of Dumfries in Scotland. This is a secure, 2 acre grass paddock with 6ft chain link fencing all round and the benefit of a dog shower facility! Features agility equipment, on-site café ("The Pup Hut"), and a raw meats and treats shop. Open 7 days, 8am-8pm.',
     fenceSize: '6ft',
     size: 'medium',
     ...parsePrice('From £5 / 30 minutes'),
-    amenities: ['Fresh Water'],
+    amenities: ['Fresh Water', 'Dog Shower'],
+    tag: 'British Dog Fields',
     fieldFeatures: {
-      parking: 'TBC',
+      parking: '3 designated spaces',
       secureOnlineBooking: true,
       buggyAccessible: true,
+      agility: true,
+      dogShower: true,
+      cafe: 'The Pup Hut',
+      shop: 'Raw Meats and Treats',
+      operatingHours: '7 days, 8am-8pm',
+      website: 'kirkgunzeoncanines.co.uk',
     },
   },
 
-  // 5. Foxes Farm Dog Fields
+  // 5. Foxes Farm Dog Fields (Colne Engaine)
   {
     name: 'Foxes Farm Dog Fields',
     address: 'Mill Lane, Colne Engaine, Halstead, Essex, CO6 2HX',
     phone: '01206 481 984',
     email: 'bookings@foxesfarmfields.co.uk',
-    description: 'Colne Engine dog field is one of four dog fields run by Foxes Farm fields and is a 6 acre enclosed paddock, ten miles from central Colchester.',
+    description: 'Foxes Farm Fields is an exclusive, fully enclosed and secure dog walking facility available for private hire. The Colne Engaine location is a 6-acre enclosed paddock set in the countryside between Colchester and Halstead, enjoying views of the Colne Valley. Run by Guy and Emily French.',
+    lat: 51.934984497928,
+    lng: 0.70900461743027,
     fenceSize: '4ft',
     size: 'extra-large',
-    ...parsePrice('From £12 / 55 minutes'),
-    amenities: ['Fresh Water'],
+    maxDogs: 8,
+    ...parsePrice('From £13 / 55 minutes'),
+    amenities: ['Fresh Water', 'Field Shelter', 'Picnic Bench'],
+    tag: 'British Dog Fields',
     fieldFeatures: {
       reactiveDogFriendly: 'TBC',
-      parkingArrangements: 'Parking outside field gate',
+      parkingArrangements: 'Parking outside field gate (~2 cars)',
       parking: 'On site parking, outside the field entrance gate',
       secureOnlineBooking: true,
       regularUserDiscounts: true,
       buggyAccessible: true,
-      maxNumberDogsNote: 'TBC',
+      maxNumberDogsNote: 'Up to 3 dogs included, max 8 with extra fee',
       fieldType: 'Paddock',
+      bufferBetweenCustomers: '5 minutes',
+      sessionDuration: '55 minutes',
+      weekendPrice: '£15/session',
+      what3words: '///dressings.steroids.galleries',
+      website: 'foxesfarmfields.co.uk',
     },
   },
 
   // 6. Bold Bark Secure Dog Runs
   {
     name: 'Bold Bark Secure Dog Runs',
-    address: 'Redshell Lane, Belthorn, Blackburn, BB1 2PH',
+    address: 'Redshell Lane, Belthorn, Blackburn, Lancashire, BB1 2PH',
     phone: '07902312172',
     email: 'boldbark@yahoo.com',
-    description: '2 Fields on this site. The Big Field',
+    description: '2 secure fields set within 200 acres of family farmland near Belthorn, Blackburn. "The Big Field" features agility equipment and panoramic views (see Blackpool Tower on clear days). "The In and Out Field" has a purpose-built polytunnel with agility equipment and an outdoor scent work area. Also offers doggy day care and bespoke grooming.',
+    lat: 53.716328,
+    lng: -2.411153,
     fenceSize: '6ft',
     ...parsePrice('From £10/ hour'),
+    tag: 'British Dog Fields',
     fieldFeatures: {
       parkingArrangements: 'Shared parking',
       secureOnlineBooking: true,
       bufferBetweenCustomers: 'None',
       fieldType: 'Paddock, Moorland',
+      numberOfFields: 2,
+      fieldNames: 'The Big Field, The In and Out Field',
+      agility: true,
+      polytunnel: true,
+      operatingHours: '7 days, 07:30-18:00',
+      website: 'boldbark.co.uk',
     },
   },
 
   // 7. K9 Rec Secure Dog Field
   {
     name: 'K9 Rec Secure Dog Field',
-    address: 'Creech Heathfield, Taunton, Somerset, TA3 5ER',
+    address: 'K9 Rec, Creech Heathfield Road, Creech St Michael, Taunton, Somerset, TA3 5ER',
     email: 'K9rec19@gmail.com',
+    description: 'A private, secure dog exercise facility in Creech Heathfield, Taunton. Just under 3 acres, secured by a 6ft deer fence with rabbit wire. Features natural terrain with lumps and bumps, agility obstacles, climbing structures, fenced sandpit, seasonal pool, dog shower, and weather shelter. Great for reactive, nervous, young, or older dogs.',
+    lat: 51.04373,
+    lng: -3.03095,
     fenceSize: '6ft',
     size: 'medium',
     maxDogs: 8,
     ...parsePrice('From £6.50 / 30 minutes'),
-    amenities: ['Secure Car Park'],
+    amenities: ['Secure Car Park', 'Dog Shower', 'Weather Shelter'],
+    tag: 'British Dog Fields',
     fieldFeatures: {
       secureInFieldParking: true,
-      parking: 'Space for 4 external to field',
+      parking: 'Space for 4 external to field + in-field parking with coded gate',
       secureOnlineBooking: true,
       bufferBetweenCustomers: 'None',
       fieldType: 'Paddock',
+      reactiveDogFriendly: 'Yes - great for reactive, nervous, young, older dogs',
+      agility: true,
+      sandpit: true,
+      seasonalPool: true,
+      dogShower: true,
+      operatingHours: '7 days, 6:00 AM - 10:00 PM',
+      what3words: '///spends.mural.brushing',
+      website: 'k9rec.co.uk',
+      price1hr: 10.50,
     },
   },
 
   // 8. Houndsville Secure Dog Field
   {
     name: 'Houndsville Secure Dog Field',
-    address: 'Monument Road, Wellington, TA21 9PW',
+    address: 'Houndsville, Monument Road, Wellington, Somerset, TA21 9PW',
     phone: '07946 554210',
     email: 'houndsville@itsallaboutdogs.org.uk',
+    description: 'Large, well-maintained, and highly secure exclusive-use dog walking space (3.5-4.5 acres) on the edge of the Blackdown Hills in Wellington, Somerset. Features a large fenced pond for dog swimming (safe blue treatment), warm dog shower, picnic shelter, and timed lighting. Entry via automated electronic keypad system. Operated by It\'s All About Dogs.',
+    lat: 50.964458117491,
+    lng: -3.218216112598,
     fenceSize: '4ft',
-    size: 'medium',
+    size: 'large',
     maxDogs: 8,
     ...parsePrice('From £9 / 30 minutes'),
-    amenities: ['Fresh Water'],
+    amenities: ['Fresh Water', 'Dog Shower', 'Picnic Shelter', 'Lighting', 'Fenced Pond'],
+    tag: 'British Dog Fields',
     fieldFeatures: {
-      fencingNotes: 'Mixed fencing',
+      fencingNotes: 'Mixed fencing, rabbit-proof, secured deep below ground',
       secureInFieldParking: true,
-      parking: 'In-field',
+      parking: 'In-field secure parking, wheelchair accessible',
       secureOnlineBooking: true,
       bufferBetweenCustomers: 'None',
       regularUserDiscounts: true,
       fieldType: 'Pond or Stream, Paddock, Activities',
+      reactiveDogFriendly: 'Yes - popular with owners of reactive or nervous dogs',
+      warmDogShower: true,
+      fencedPond: true,
+      electronicKeypad: true,
+      additionalDogPrice: '£2 per extra dog',
+      seasonalHours: 'Oct-Mar: 7AM-7PM, Apr-Sep: 6:30AM-9PM',
+      what3words: '///rise.flick.widgets',
+      website: 'itsallaboutdogs.uk',
     },
   },
 
   // 9. Runfree Bargeddie
   {
     name: 'Runfree Bargeddie',
-    address: 'Cuilhill Rd Baillieston, Bargeddie, G69 6UF',
+    address: 'Gartcosh Road, Bargeddie, Glasgow, G69 6UF',
     phone: '07717 162879',
     email: 'hello@runfreedogfields.co.uk',
-    description: 'Run Free has 3 fields in Bargeddie for hire: Freedom Field, Jumbo Field, Mezzo Field',
+    description: 'Run Free Dog Fields Bargeddie, established 2017, offers 3 secure enclosed fields: Freedom Field (1-2 acres), Jumbo Field (2-4 acres), and Mezzo Field (2-4 acres). All fields have 6ft fencing dug into the ground. Exclusive use per booking. Located between Bargeddie and Gartcosh, opposite Drumpellier Country Park, with easy access to M8 and M73.',
+    lat: 55.8643425,
+    lng: -4.0802607,
     fenceSize: '6ft',
     size: 'small',
     maxDogs: 8,
     ...parsePrice('From £7 for 30min'),
+    tag: 'British Dog Fields',
     fieldFeatures: {
-      reactiveDogFriendly: 'TBC',
-      parkingArrangements: 'Exclusive In-field Parking',
-      parking: 'Parking inside field',
+      reactiveDogFriendly: 'TBC - private exclusive use supports reactive dogs',
+      parkingArrangements: 'Exclusive In-field Parking (Freedom & Mezzo), Shared car park with 100m walk (Jumbo)',
+      parking: 'In-field parking (Freedom & Mezzo fields)',
       secureOnlineBooking: true,
       bufferBetweenCustomers: 'None',
-      maxNumberDogsNote: 'Depends on booking but 8 dogs max in total',
+      maxNumberDogsNote: 'Up to 4 dogs: £7, up to 6: £8.50, up to 8: £10 per 30min',
       fieldType: 'Paddock',
+      numberOfFields: 3,
+      fieldNames: 'Freedom Field, Jumbo Field, Mezzo Field',
+      operatingHours: '7 days, 07:00-21:30',
+      website: 'runfreedogfields.co.uk',
     },
   },
 ];
@@ -356,11 +436,20 @@ async function findOrCreateOwner(email: string, phone?: string): Promise<string>
 async function updateField(fieldData: FieldUpdateData) {
   console.log(`\n--- Processing: ${fieldData.name} ---`);
 
-  // 1. Find the field by name
-  const existingField = await prisma.field.findFirst({
+  // 1. Find the field by name (exact match, then fallback to contains)
+  let existingField = await prisma.field.findFirst({
     where: { name: fieldData.name },
     include: { owner: true },
   });
+
+  if (!existingField) {
+    // Fallback: search by contains (strip parenthetical suffixes)
+    const baseName = fieldData.name.replace(/\s*\(.*?\)\s*$/, '').trim();
+    existingField = await prisma.field.findFirst({
+      where: { name: { contains: baseName, mode: 'insensitive' } },
+      include: { owner: true },
+    });
+  }
 
   if (!existingField) {
     console.log(`  FIELD NOT FOUND: "${fieldData.name}" — skipping`);
@@ -390,8 +479,12 @@ async function updateField(fieldData: FieldUpdateData) {
     }
   }
 
-  // 3. Parse address
+  // 3. Parse address and inject GPS if available
   const parsedAddr = parseAddress(fieldData.address);
+  if (fieldData.lat !== undefined && fieldData.lng !== undefined) {
+    parsedAddr.location.lat = fieldData.lat;
+    parsedAddr.location.lng = fieldData.lng;
+  }
 
   // 4. Merge fieldFeatures with existing
   const existingFeatures = (existingField.fieldFeatures as any) || {};
@@ -407,7 +500,7 @@ async function updateField(fieldData: FieldUpdateData) {
 
   // 6. Build update data
   const updateData: any = {
-    ownerId,
+    owner: { connect: { id: ownerId } },
     address: parsedAddr.address,
     city: parsedAddr.city,
     state: parsedAddr.state,
@@ -424,6 +517,10 @@ async function updateField(fieldData: FieldUpdateData) {
   if (fieldData.price30min !== undefined && fieldData.price30min !== null) updateData.price30min = fieldData.price30min;
   if (fieldData.price1hr !== undefined && fieldData.price1hr !== null) updateData.price1hr = fieldData.price1hr;
   if (fieldData.maxDogs) updateData.maxDogs = fieldData.maxDogs;
+  // Store tag in fieldFeatures (no dedicated schema field)
+  if (fieldData.tag) {
+    updateData.fieldFeatures = { ...updateData.fieldFeatures, tag: fieldData.tag };
+  }
 
   // Update denormalized owner data
   const ownerUser = await prisma.user.findUnique({ where: { id: ownerId } });

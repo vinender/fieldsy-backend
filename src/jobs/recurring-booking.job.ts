@@ -2,7 +2,8 @@
 import cron from 'node-cron';
 import prisma from '../config/database';
 import { createNotification } from '../controllers/notification.controller';
-import { subscriptionService } from '../services/subscription.service';
+import { getSubscriptionService } from '../config/payout-services';
+const subscriptionService = getSubscriptionService();
 import { addDays, addMonths, format, isBefore, isAfter } from 'date-fns';
 
 /**
@@ -12,35 +13,8 @@ import { addDays, addMonths, format, isBefore, isAfter } from 'date-fns';
  * Also runs daily at 8 AM to retry failed subscription payments
  */
 export const initRecurringBookingJobs = () => {
-  // Run daily at 8:00 AM to retry failed subscription payments
-  cron.schedule('0 8 * * *', async () => {
-    console.log('💳 Running subscription payment retry job...');
-
-    try {
-      await subscriptionService.retryFailedPayments();
-      console.log('✅ Subscription payment retry job completed');
-    } catch (error) {
-      console.error('❌ Subscription payment retry job error:', error);
-
-      // Notify admins of job failure
-      const adminUsers = await prisma.user.findMany({
-        where: { role: 'ADMIN' }
-      });
-
-      for (const admin of adminUsers) {
-        await createNotification({
-          userId: admin.id,
-          type: 'PAYMENT_RETRY_JOB_ERROR',
-          title: 'Payment Retry Job Failed',
-          message: `The automatic payment retry job encountered an error: ${(error as any).message}`,
-          data: {
-            error: (error as any).message,
-            timestamp: new Date()
-          }
-        });
-      }
-    }
-  });
+  // NOTE: Subscription payment retries are now handled by the payout engine scheduler.
+  // See payoutEngine.startScheduler(cron) in server.ts
 
   // Run daily at 2:00 AM to create upcoming recurring bookings
   cron.schedule('0 2 * * *', async () => {
@@ -95,8 +69,8 @@ export const initRecurringBookingJobs = () => {
 
   console.log('✅ Recurring booking jobs initialized');
   console.log('   - Daily job: 2:00 AM (create upcoming bookings)');
-  console.log('   - Daily job: 8:00 AM (retry failed subscription payments)');
   console.log('   - Hourly job: Every hour (check past bookings)');
+  console.log('   - (Subscription payment retries handled by payout engine)');
 };
 
 /**

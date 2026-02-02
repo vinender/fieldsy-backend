@@ -1,7 +1,8 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { payoutService } from '../services/payout.service';
+import { getPayoutService } from '../config/payout-services';
+const payoutService = getPayoutService();
 
 const prisma = new PrismaClient();
 

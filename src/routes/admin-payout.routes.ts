@@ -2,8 +2,8 @@
 import { Router } from 'express';
 import { protect } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
-import refundService from '../services/refund.service';
-import { processAutomaticTransfers } from '../jobs/payout.job';
+import { getRefundService, getPayoutEngine } from '../config/payout-services';
+const refundService = getRefundService();
 
 const router = Router();
 
@@ -19,8 +19,9 @@ router.post('/process-payouts', async (req, res) => {
     // Process completed bookings past cancellation period
     await refundService.processCompletedBookingPayouts();
     
-    // Process automatic transfers
-    await processAutomaticTransfers();
+    // Process automatic transfers via engine (if enabled)
+    const engine = getPayoutEngine();
+    if (engine) await engine.processPayoutsNow();
     
     res.json({
       success: true,
@@ -96,6 +97,119 @@ router.get('/payout-stats', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to get payout statistics'
+    });
+  }
+});
+
+// Top up Stripe test balance (test mode only)
+// POST /api/admin/payouts/topup-balance
+// Body: { amount: number } — amount in GBP (e.g., 500 for £500)
+router.post('/topup-balance', async (req, res) => {
+  try {
+    const Stripe = (await import('stripe')).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: '2025-07-30.basil' as any,
+    });
+
+    const { amount = 50000 } = req.body; // Default £500
+    const amountInPence = Math.round(Number(amount) * 100);
+
+    if (amountInPence < 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Amount must be at least £1.00',
+      });
+    }
+
+    // Check current balance before
+    const balanceBefore = await stripe.balance.retrieve();
+    const availableBefore = balanceBefore.available.find(b => b.currency === 'gbp')?.amount || 0;
+
+    // Create test charge with tok_bypassPending for immediate availability
+    const paymentMethod = await stripe.paymentMethods.create({
+      type: 'card',
+      card: { token: 'tok_bypassPending' },
+    });
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountInPence,
+      currency: 'gbp',
+      payment_method: paymentMethod.id,
+      confirm: true,
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: 'never',
+      },
+      metadata: {
+        purpose: 'admin_balance_topup',
+        triggeredBy: (req as any).user?.id || 'admin',
+        createdAt: new Date().toISOString(),
+      },
+      description: `Admin balance top-up: £${(amountInPence / 100).toFixed(2)}`,
+    });
+
+    // Wait briefly for balance to update
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    const balanceAfter = await stripe.balance.retrieve();
+    const availableAfter = balanceAfter.available.find(b => b.currency === 'gbp')?.amount || 0;
+    const pendingAfter = balanceAfter.pending.find(b => b.currency === 'gbp')?.amount || 0;
+
+    res.json({
+      success: true,
+      message: `Top-up of £${(amountInPence / 100).toFixed(2)} completed`,
+      data: {
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+        amount: amountInPence / 100,
+        currency: 'GBP',
+        balance: {
+          available: availableAfter / 100,
+          pending: pendingAfter / 100,
+          previousAvailable: availableBefore / 100,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('Balance top-up error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to top up balance',
+    });
+  }
+});
+
+// Check current Stripe platform balance
+// GET /api/admin/payouts/balance
+router.get('/balance', async (req, res) => {
+  try {
+    const Stripe = (await import('stripe')).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: '2025-07-30.basil' as any,
+    });
+
+    const balance = await stripe.balance.retrieve();
+
+    const gbpAvailable = balance.available.find(b => b.currency === 'gbp');
+    const gbpPending = balance.pending.find(b => b.currency === 'gbp');
+
+    res.json({
+      success: true,
+      data: {
+        available: (gbpAvailable?.amount || 0) / 100,
+        pending: (gbpPending?.amount || 0) / 100,
+        currency: 'GBP',
+        raw: {
+          available: balance.available,
+          pending: balance.pending,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('Balance check error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to check balance',
     });
   }
 });

@@ -1,3 +1,6 @@
+// DEPRECATED: Replaced by @fieldsy/stripe-auto-payout engine.
+// Webhooks are now handled via payoutEngine.createWebhookRouter() in server.ts.
+// This file is kept for reference only. Safe to delete once integration is verified.
 //@ts-nocheck
 import { Request, Response } from 'express';
 import { stripe } from '../config/stripe.config';
@@ -5,6 +8,7 @@ import prisma from '../config/database';
 import Stripe from 'stripe';
 import { createNotification } from './notification.controller';
 import { emailService } from '../services/email.service';
+import { NotificationService } from '../services/notification.service';
 import { calculatePayoutAmounts } from '../utils/commission.utils';
 import { transactionLifecycleService, LIFECYCLE_STAGES } from '../services/transaction-lifecycle.service';
 import BookingModel from '../models/booking.model';
@@ -955,53 +959,28 @@ export class WebhookController {
         include: { user: true }
       });
 
-      if (stripeAccount?.user) {
-        try {
-          await createNotification({
-            userId: stripeAccount.userId,
-            type: 'payout_failed',
-            title: 'Payout Failed',
-            message: `Your payout of £${(payout.amount / 100).toFixed(2)} could not be processed. ${payout.failure_message || 'Please check your bank details.'}`,
-            data: {
-              payoutId: payoutRecord?.id || payout.id,
-              stripePayoutId: payout.id,
-              failureCode: payout.failure_code,
-              failureMessage: payout.failure_message
-            }
-          });
-        } catch (notifError) {
-          console.error('[PayoutWebhook] Failed to send notification:', notifError);
-        }
-
-        // Update related bookings from metadata
-        const bookingIds = this.extractBookingIds(payout.metadata);
-        if (bookingIds.length > 0) {
-          try {
-            await prisma.booking.updateMany({
-              where: { id: { in: bookingIds } },
-              data: { payoutStatus: 'FAILED' }
-            });
-            console.log(`[PayoutWebhook] Updated ${bookingIds.length} bookings to FAILED`);
-          } catch (bookingError) {
-            console.error('[PayoutWebhook] Failed to update bookings:', bookingError);
+      // Notify admin only — field owner sees payout as still pending
+      try {
+        const ownerName = stripeAccount?.user?.name || stripeAccount?.user?.email || connectedAccountId;
+        await NotificationService.notifyAdmins(
+          'Payout Failed — Action Required',
+          `Payout of £${(payout.amount / 100).toFixed(2)} to ${ownerName} failed. Reason: ${payout.failure_message || payout.failure_code || 'Unknown'}. Please check Stripe balance and retry.`,
+          {
+            payoutId: payoutRecord?.id || payout.id,
+            stripePayoutId: payout.id,
+            connectedAccountId,
+            fieldOwnerId: stripeAccount?.userId,
+            failureCode: payout.failure_code,
+            failureMessage: payout.failure_message
           }
-        }
+        );
+      } catch (notifError) {
+        console.error('[PayoutWebhook] Failed to notify admins:', notifError);
+      }
 
-        // Send email notification for failed payout
-        if (stripeAccount.user.email) {
-          try {
-            await emailService.sendPayoutFailedEmail({
-              email: stripeAccount.user.email,
-              userName: stripeAccount.user.name || 'Field Owner',
-              amount: (payout.amount / 100).toFixed(2),
-              currency: payout.currency.toUpperCase(),
-              failureReason: payout.failure_message || undefined
-            });
-          } catch (emailError) {
-            console.error('[PayoutWebhook] Failed to send payout failed email:', emailError);
-          }
-        }
-      } else {
+      // Do NOT update booking payoutStatus to FAILED — keep it as PENDING
+      // so field owner continues to see their payout as pending until admin resolves it
+      if (!stripeAccount?.user) {
         console.log(`[PayoutWebhook] No user found for connected account: ${connectedAccountId}`);
       }
     }

@@ -74,12 +74,14 @@ import { apiDocumentation } from './utils/api-documentation';
 import { generateApiDocsHTML } from './utils/api-docs-template';
 
 // Import scheduled jobs
-import { initPayoutJobs } from './jobs/payout.job';
-import { startHeldPayoutReleaseJobs } from './jobs/held-payout-release.job';
 import { initRecurringBookingJobs } from './jobs/recurring-booking.job';
 import { initBookingReminderJobs } from './jobs/booking-reminder.job';
 import { initBookingStatusJob } from './jobs/booking-status.job';
 import { startSlotLockCleanup, stopSlotLockCleanup } from './utils/slot-lock.utils';
+
+// Payout service provider — conditionally uses engine or built-in services
+import { isPayoutEngineEnabled, getPayoutEngine } from './config/payout-services';
+import cron from 'node-cron';
 
 
 class Server {
@@ -158,7 +160,6 @@ class Server {
     // =========================================================================
 
     const paymentController = new (require('./controllers/payment.controller').PaymentController)();
-    const { webhookController } = require('./controllers/webhook.controller');
 
     // Legacy webhook endpoints (backward compatible - handles all events)
     this.app.post(
@@ -173,98 +174,27 @@ class Server {
     );
 
     // =========================================================================
-    // DEDICATED WEBHOOK ENDPOINTS (Recommended for production)
+    // DEDICATED WEBHOOK ENDPOINTS
     // =========================================================================
-
-    /**
-     * 1. PAYMENTS WEBHOOK - Platform Payment Events
-     * URL: /api/webhooks/payments
-     * Listen to: "Events on your account"
-     * Secret: STRIPE_WEBHOOK_SECRET
-     *
-     * Events to enable:
-     * - payment_intent.created
-     * - payment_intent.succeeded
-     * - payment_intent.payment_failed
-     * - payment_intent.canceled
-     * - payment_intent.processing
-     * - charge.succeeded
-     * - charge.failed
-     * - charge.updated
-     * - charge.captured
-     */
-    this.app.post(
-      '/api/webhooks/payments',
-      express.raw({ type: 'application/json' }),
-      webhookController.handlePaymentWebhook.bind(webhookController)
-    );
-
-    /**
-     * 2. CONNECT ACCOUNTS WEBHOOK - Field Owner Account Onboarding
-     * URL: /api/webhooks/connect
-     * Listen to: "Events on Connected accounts"
-     * Secret: STRIPE_CONNECT_WEBHOOK_SECRET
-     *
-     * Events to enable:
-     * - account.updated
-     * - account.application.authorized
-     * - account.application.deauthorized
-     * - account.external_account.created
-     * - account.external_account.updated
-     * - account.external_account.deleted
-     * - capability.updated
-     * - person.created
-     * - person.updated
-     * - person.deleted
-     */
-    this.app.post(
-      '/api/webhooks/connect',
-      express.raw({ type: 'application/json' }),
-      webhookController.handleConnectWebhook.bind(webhookController)
-    );
-
-    /**
-     * 3. PAYOUTS WEBHOOK - Field Owner Payout Events
-     * URL: /api/webhooks/payouts
-     * Listen to: "Events on Connected accounts"
-     * Secret: STRIPE_PAYOUT_WEBHOOK_SECRET
-     *
-     * Events to enable:
-     * - payout.created
-     * - payout.updated
-     * - payout.paid
-     * - payout.failed
-     * - payout.canceled
-     * - payout.reconciliation_completed
-     * - transfer.created
-     * - transfer.updated
-     * - transfer.reversed
-     * - balance.available
-     */
-    this.app.post(
-      '/api/webhooks/payouts',
-      express.raw({ type: 'application/json' }),
-      webhookController.handlePayoutWebhook.bind(webhookController)
-    );
-
-    /**
-     * 4. REFUNDS WEBHOOK - Customer Refund Events
-     * URL: /api/webhooks/refunds
-     * Listen to: "Events on your account"
-     * Secret: STRIPE_REFUND_WEBHOOK_SECRET
-     *
-     * Events to enable:
-     * - charge.refunded
-     * - charge.refund.updated
-     * - refund.created
-     * - refund.updated
-     * - refund.failed
-     */
-    this.app.post(
-      '/api/webhooks/refunds',
-      express.raw({ type: 'application/json' }),
-      webhookController.handleRefundWebhook.bind(webhookController)
-    );
+    if (isPayoutEngineEnabled) {
+      // Engine mode: single router handles /payments, /connect, /payouts, /refunds
+      const engine = getPayoutEngine();
+      if (engine) {
+        require('./config/payout-engine-events'); // Register event listeners
+        this.app.use('/api/webhooks', engine.createWebhookRouter(express));
+      }
+    } else {
+      // Built-in mode: original webhook controller
+      const { webhookController } = require('./controllers/webhook.controller');
+      this.app.post('/api/webhooks/payments', express.raw({ type: 'application/json' }),
+        webhookController.handlePaymentWebhook.bind(webhookController));
+      this.app.post('/api/webhooks/connect', express.raw({ type: 'application/json' }),
+        webhookController.handleConnectWebhook.bind(webhookController));
+      this.app.post('/api/webhooks/payouts', express.raw({ type: 'application/json' }),
+        webhookController.handlePayoutWebhook.bind(webhookController));
+      this.app.post('/api/webhooks/refunds', express.raw({ type: 'application/json' }),
+        webhookController.handleRefundWebhook.bind(webhookController));
+    }
 
     // Body parsing middleware
     this.app.use(express.json({ limit: '10mb' }));
@@ -606,8 +536,17 @@ class Server {
 
 
     // Initialize scheduled jobs
-    initPayoutJobs();
-    startHeldPayoutReleaseJobs();
+    if (isPayoutEngineEnabled) {
+      // Engine mode: payout jobs, held-payout release, and subscription retries handled by engine
+      const engine = getPayoutEngine();
+      if (engine) engine.startScheduler(cron);
+    } else {
+      // Built-in mode: original payout/held-payout jobs
+      const { initPayoutJobs } = require('./jobs/payout.job');
+      const { startHeldPayoutReleaseJobs } = require('./jobs/held-payout-release.job');
+      initPayoutJobs();
+      startHeldPayoutReleaseJobs();
+    }
     initRecurringBookingJobs();
     initBookingReminderJobs();
     initBookingStatusJob();

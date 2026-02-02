@@ -1859,12 +1859,9 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
     }
 
     if (search) {
-      bookingWhere.OR = [
-        { user: { name: { contains: search as string, mode: 'insensitive' } } },
-        { user: { email: { contains: search as string, mode: 'insensitive' } } },
-        { field: { name: { contains: search as string, mode: 'insensitive' } } },
-        { id: { contains: search as string, mode: 'insensitive' } }
-      ];
+      const searchTerm = (search as string).trim().replace(/^#/, '');
+      // Search by human-readable bookingId (e.g. 2241)
+      bookingWhere.bookingId = searchTerm;
     }
 
     // Get bookings with all related data
