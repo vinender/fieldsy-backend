@@ -1,5 +1,7 @@
 # Multi-stage build for Fieldsy Backend
 # =====================================
+# NOTE: Build context must be the project root (parent of backend/).
+# Run as: docker build -f backend/Dockerfile .
 
 # Stage 1: Builder - compiles TypeScript and generates Prisma client
 FROM node:20-alpine AS builder
@@ -7,23 +9,26 @@ FROM node:20-alpine AS builder
 # Install build dependencies for native modules (sharp, bcrypt, etc.)
 RUN apk add --no-cache python3 make g++ libc6-compat
 
-# Set working directory
-WORKDIR /app
+# Copy the local package so npm can resolve file:../packages/stripe-auto-payout
+COPY packages/stripe-auto-payout /app/packages/stripe-auto-payout
+
+# Set working directory to match the relative path in package.json
+WORKDIR /app/backend
 
 # Copy package files first (for better layer caching)
-COPY package.json package-lock.json* ./
+COPY backend/package.json backend/package-lock.json* ./
 
 # Install ALL dependencies (including dev for building)
 RUN npm ci || npm install
 
 # Copy Prisma schema first (for Prisma client generation)
-COPY prisma ./prisma
+COPY backend/prisma ./prisma
 
 # Generate Prisma client
 RUN npx prisma generate
 
 # Copy source code
-COPY . .
+COPY backend/ .
 
 # Build TypeScript to JavaScript
 RUN npm run build
@@ -35,22 +40,25 @@ FROM node:20-alpine
 # Install runtime dependencies for native modules
 RUN apk add --no-cache libc6-compat
 
-# Set working directory
-WORKDIR /app
+# Copy the local package so npm can resolve file:../packages/stripe-auto-payout
+COPY packages/stripe-auto-payout /app/packages/stripe-auto-payout
+
+# Set working directory to match the relative path in package.json
+WORKDIR /app/backend
 
 # Copy package files
-COPY package.json package-lock.json* ./
+COPY backend/package.json backend/package-lock.json* ./
 
 # Install only production dependencies
 RUN npm ci --omit=dev || npm install --production
 
 # Copy Prisma schema and generated client from builder
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/backend/prisma ./prisma
+COPY --from=builder /app/backend/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/backend/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built JavaScript files from builder
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/backend/dist ./dist
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
