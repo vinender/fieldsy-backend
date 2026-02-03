@@ -32,7 +32,13 @@ function getEngine() {
 export function getAutoPayoutService() {
   if (!_autoPayoutService) {
     if (isPayoutEngineEnabled) {
-      _autoPayoutService = getEngine().autoPayoutService;
+      const engineService = getEngine().autoPayoutService;
+      const builtInService = require('../services/auto-payout.service').automaticPayoutService;
+      // Engine doesn't expose getPayoutSummary — bridge from built-in service
+      if (!engineService.getPayoutSummary) {
+        engineService.getPayoutSummary = builtInService.getPayoutSummary.bind(builtInService);
+      }
+      _autoPayoutService = engineService;
     } else {
       _autoPayoutService = require('../services/auto-payout.service').automaticPayoutService;
     }

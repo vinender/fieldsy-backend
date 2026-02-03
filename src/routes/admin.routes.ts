@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticateAdmin } from '../middleware/admin.middleware';
 import fieldController from '../controllers/field.controller';
 import { emailService } from '../services/email.service';
+import { otpService } from '../services/otp.service';
 import { BCRYPT_ROUNDS } from '../config/constants';
 
 const router = Router();
@@ -1700,6 +1701,135 @@ router.delete('/profile/delete-image', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Admin: Request email change OTP for own profile
+router.post('/profile/request-email-change', authenticateAdmin, async (req, res) => {
+  try {
+    const adminId = (req as any).userId;
+    const { newEmail } = req.body;
+
+    if (!newEmail) {
+      return res.status(400).json({ error: 'New email is required' });
+    }
+
+    const trimmedEmail = newEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+
+    const admin = await prisma.user.findUnique({ where: { id: adminId } });
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    if (trimmedEmail === admin.email.toLowerCase()) {
+      return res.status(400).json({ error: 'New email must be different from your current email' });
+    }
+
+    // Check if email is already in use
+    const existingUser = await prisma.user.findUnique({
+      where: { email_role: { email: trimmedEmail, role: admin.role } }
+    });
+    if (existingUser) {
+      return res.status(409).json({ error: 'This email is already in use' });
+    }
+
+    await otpService.sendOtp(trimmedEmail, 'EMAIL_CHANGE', admin.name || undefined);
+
+    res.json({ success: true, message: 'Verification code sent to the new email' });
+  } catch (error) {
+    console.error('Admin profile request email change error:', error);
+    res.status(500).json({ error: 'Failed to send verification code' });
+  }
+});
+
+// Admin: Verify email change OTP for own profile
+router.post('/profile/verify-email-change', authenticateAdmin, async (req, res) => {
+  try {
+    const adminId = (req as any).userId;
+    const { newEmail, otp } = req.body;
+
+    if (!newEmail || !otp) {
+      return res.status(400).json({ error: 'New email and OTP are required' });
+    }
+
+    const trimmedEmail = newEmail.trim().toLowerCase();
+
+    const admin = await prisma.user.findUnique({ where: { id: adminId } });
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    // Re-check uniqueness
+    const existingUser = await prisma.user.findUnique({
+      where: { email_role: { email: trimmedEmail, role: admin.role } }
+    });
+    if (existingUser) {
+      return res.status(409).json({ error: 'This email is already in use' });
+    }
+
+    const isValid = await otpService.verifyOtp(trimmedEmail, otp, 'EMAIL_CHANGE');
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+
+    const updatedAdmin = await prisma.user.update({
+      where: { id: adminId },
+      data: { email: trimmedEmail }
+    });
+
+    const { password: _, ...adminData } = updatedAdmin;
+
+    res.json({
+      success: true,
+      message: 'Email updated successfully',
+      admin: adminData
+    });
+  } catch (error) {
+    console.error('Admin profile verify email change error:', error);
+    res.status(500).json({ error: 'Failed to update email' });
+  }
+});
+
+// Admin: Change own password
+router.patch('/profile/change-password', authenticateAdmin, async (req, res) => {
+  try {
+    const adminId = (req as any).userId;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+
+    const admin = await prisma.user.findUnique({ where: { id: adminId } });
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    // Verify current password
+    const validPassword = await bcrypt.compare(currentPassword, admin.password || '');
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+    await prisma.user.update({
+      where: { id: adminId },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Admin profile change password error:', error);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
 // Block user (admin only)
 router.patch('/users/:userId/block', authenticateAdmin, async (req, res) => {
   try {
@@ -1795,6 +1925,136 @@ router.patch('/users/:userId/unblock', authenticateAdmin, async (req, res) => {
   } catch (error) {
     console.error('Unblock user error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin: Request email change OTP for a user
+router.post('/users/:userId/request-email-change', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newEmail } = req.body;
+
+    if (!newEmail) {
+      return res.status(400).json({ error: 'New email is required' });
+    }
+
+    const trimmedEmail = newEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (trimmedEmail === user.email.toLowerCase()) {
+      return res.status(400).json({ error: 'New email must be different from the current email' });
+    }
+
+    // Check if the new email is already in use by another user with the same role
+    const existingUser = await prisma.user.findUnique({
+      where: { email_role: { email: trimmedEmail, role: user.role } }
+    });
+    if (existingUser) {
+      return res.status(409).json({ error: 'This email is already in use' });
+    }
+
+    // Send OTP to the new email
+    await otpService.sendOtp(trimmedEmail, 'EMAIL_CHANGE', user.name || undefined);
+
+    res.json({ success: true, message: 'Verification code sent to the new email' });
+  } catch (error) {
+    console.error('Admin request email change error:', error);
+    res.status(500).json({ error: 'Failed to send verification code' });
+  }
+});
+
+// Admin: Verify email change OTP and update user email
+router.post('/users/:userId/verify-email-change', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newEmail, otp } = req.body;
+
+    if (!newEmail || !otp) {
+      return res.status(400).json({ error: 'New email and OTP are required' });
+    }
+
+    const trimmedEmail = newEmail.trim().toLowerCase();
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Re-check email uniqueness (race condition protection)
+    const existingUser = await prisma.user.findUnique({
+      where: { email_role: { email: trimmedEmail, role: user.role } }
+    });
+    if (existingUser) {
+      return res.status(409).json({ error: 'This email is already in use' });
+    }
+
+    // Verify OTP
+    const isValid = await otpService.verifyOtp(trimmedEmail, otp, 'EMAIL_CHANGE');
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+
+    // Update user email
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { email: trimmedEmail }
+    });
+
+    const { password: _, ...userData } = updatedUser;
+
+    res.json({
+      success: true,
+      message: 'Email updated successfully',
+      user: userData
+    });
+  } catch (error) {
+    console.error('Admin verify email change error:', error);
+    res.status(500).json({ error: 'Failed to update email' });
+  }
+});
+
+// Admin: Change user password
+router.patch('/users/:userId/change-password', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Admin change password error:', error);
+    res.status(500).json({ error: 'Failed to update password' });
   }
 });
 
