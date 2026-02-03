@@ -143,6 +143,88 @@ const getOtpEmailTemplate = (otp: string, name?: string) => {
   `;
 };
 
+const getEmailChangeOtpTemplate = (otp: string, newEmail: string, name?: string) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Change Verification</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #4CAF50;
+          }
+          .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+          }
+          .content {
+            padding: 30px 20px;
+            text-align: center;
+          }
+          .otp-code {
+            display: inline-block;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 8px;
+            color: #4CAF50;
+            background-color: #f0f8f0;
+            padding: 15px 30px;
+            border-radius: 8px;
+            margin: 20px 0;
+          }
+          .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666666;
+            font-size: 14px;
+            border-top: 1px solid #eeeeee;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">🐾 Fieldsy</div>
+          </div>
+          <div class="content">
+            <h1>Email Change Verification</h1>
+            <p>Hi ${name || 'there'},</p>
+            <p>We received a request to change your Fieldsy account email to <strong>${newEmail}</strong>. Please use the following verification code to confirm this change:</p>
+            <div class="otp-code">${otp}</div>
+            <p><strong>This code will expire in 10 minutes.</strong></p>
+            <p>If you didn't request this change, please ignore this email.</p>
+          </div>
+          <div class="footer">
+            <p>© 2025 Fieldsy. All rights reserved.</p>
+            <p>Find or Host secure fields for your furry friends 🐕</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+};
+
 const getFieldClaimStatusTemplate = (statusData: {
   fullName: string;
   fieldName: string;
@@ -2004,7 +2086,7 @@ class EmailService {
     }
   }
 
-  async sendOtpEmail(email: string, otp: string, type: 'SIGNUP' | 'RESET_PASSWORD' | 'EMAIL_VERIFICATION', name?: string): Promise<boolean> {
+  async sendOtpEmail(email: string, otp: string, type: 'SIGNUP' | 'RESET_PASSWORD' | 'EMAIL_VERIFICATION' | 'SOCIAL_LOGIN' | 'EMAIL_CHANGE', name?: string): Promise<boolean> {
     let subject: string;
     let html: string;
 
@@ -2012,6 +2094,10 @@ class EmailService {
       case 'RESET_PASSWORD':
         subject = 'Password Reset - Fieldsy';
         html = getPasswordResetTemplate(otp, name);
+        break;
+      case 'EMAIL_CHANGE':
+        subject = 'Email Change Verification - Fieldsy';
+        html = getEmailChangeOtpTemplate(otp, email, name);
         break;
       case 'SIGNUP':
       case 'EMAIL_VERIFICATION':

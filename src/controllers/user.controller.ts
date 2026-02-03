@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 import bcrypt from 'bcryptjs';
 import { BCRYPT_ROUNDS } from '../config/constants';
+import { otpService } from '../services/otp.service';
 
 class UserController {
   // Get all users (admin only)
@@ -160,6 +161,74 @@ class UserController {
     res.json({
       success: true,
       data: stats,
+    });
+  });
+
+  // Request email change - sends OTP to new email
+  requestEmailChange = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const userId = (req as any).user.id;
+    const userEmail = (req as any).user.email;
+    const userRole = (req as any).user.role;
+    const userName = (req as any).user.name;
+    const { newEmail } = req.body;
+
+    if (!newEmail) {
+      throw new AppError('New email address is required', 400);
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      throw new AppError('Invalid email format', 400);
+    }
+
+    if (newEmail.toLowerCase() === userEmail.toLowerCase()) {
+      throw new AppError('New email must be different from your current email', 400);
+    }
+
+    // Check if email already taken for the same role
+    const existingUser = await UserModel.findByEmailAndRole(newEmail.toLowerCase(), userRole);
+    if (existingUser) {
+      throw new AppError('This email is already registered', 409);
+    }
+
+    // Send OTP to the new email
+    await otpService.sendOtp(newEmail.toLowerCase(), 'EMAIL_CHANGE', userName);
+
+    res.json({
+      success: true,
+      message: 'Verification code sent to your new email address',
+    });
+  });
+
+  // Verify email change OTP and update email
+  verifyEmailChange = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const userId = (req as any).user.id;
+    const userRole = (req as any).user.role;
+    const { newEmail, otp } = req.body;
+
+    if (!newEmail || !otp) {
+      throw new AppError('New email and verification code are required', 400);
+    }
+
+    // Re-check uniqueness (race condition protection)
+    const existingUser = await UserModel.findByEmailAndRole(newEmail.toLowerCase(), userRole);
+    if (existingUser) {
+      throw new AppError('This email is already registered', 409);
+    }
+
+    // Verify OTP
+    const isValid = await otpService.verifyOtp(newEmail.toLowerCase(), otp, 'EMAIL_CHANGE');
+    if (!isValid) {
+      throw new AppError('Invalid or expired verification code', 400);
+    }
+
+    // Update the user's email
+    const updatedUser = await UserModel.update(userId, { email: newEmail.toLowerCase() });
+
+    res.json({
+      success: true,
+      message: 'Email updated successfully',
+      data: UserModel.stripInternalId(updatedUser),
     });
   });
 }

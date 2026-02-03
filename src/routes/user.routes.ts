@@ -11,6 +11,8 @@ router.use(protect);
 // User routes
 router.get('/stats', userController.getUserStats);
 router.patch('/change-password', userController.changePassword);
+router.post('/request-email-change', userController.requestEmailChange);
+router.post('/verify-email-change', userController.verifyEmailChange);
 
 // Admin only routes
 router.get('/', restrictTo('ADMIN'), userController.getAllUsers);
