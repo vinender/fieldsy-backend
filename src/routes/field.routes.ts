@@ -26,6 +26,9 @@ router.get('/my-fields', protect, restrictTo('FIELD_OWNER', 'ADMIN'), fieldContr
 // Optimized minimal field data endpoint (for SSG/ISR builds)
 router.get('/:id/minimal', fieldController.getFieldMinimal);
 
+// Google Reviews endpoint - fetches live reviews from Google Places API
+router.get('/:id/google-reviews', fieldController.getGoogleReviews);
+
 // Public route with ID parameter (must come after specific routes)
 router.get('/:id', optionalAuth, fieldController.getField);
 

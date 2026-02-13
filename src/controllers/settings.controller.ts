@@ -19,9 +19,9 @@ export const getSystemSettings = async (req: Request, res: Response) => {
       settings = await prisma.systemSettings.create({
         data: {
           defaultCommissionRate: 20,
-          cancellationWindowHours: 24,
+          cancellationWindowHours: 12,
           maxBookingsPerUser: 10,
-          minimumFieldOperatingHours: 4,
+          minimumFieldOperatingHours: 0,
           payoutReleaseSchedule: 'after_cancellation_window',
           siteName: 'Fieldsy',
           siteUrl: 'https://fieldsy.com',
@@ -110,10 +110,10 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
       settings = await prisma.systemSettings.create({
         data: {
           defaultCommissionRate: defaultCommissionRate || 20,
-          cancellationWindowHours: cancellationWindowHours || 24,
+          cancellationWindowHours: cancellationWindowHours || 12,
           maxAdvanceBookingDays: maxAdvanceBookingDays || 30,
           maxBookingsPerUser: maxBookingsPerUser || 10,
-          minimumFieldOperatingHours: minimumFieldOperatingHours || 4,
+          minimumFieldOperatingHours: minimumFieldOperatingHours || 0,
           payoutReleaseSchedule: payoutReleaseSchedule || 'after_cancellation_window',
           siteName: siteName || 'Fieldsy',
           siteUrl: siteUrl || 'https://fieldsy.com',

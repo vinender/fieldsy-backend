@@ -169,27 +169,12 @@ class FieldController {
       throw new AppError('Only field owners can create fields', 403);
     }
 
-    // Validate minimum operating hours if times are provided
+    // Validate times are provided and different (no minimum hours requirement)
     if (req.body.openingTime && req.body.closingTime) {
-      const settings = await prisma.systemSettings.findFirst();
-      const minimumHours = settings?.minimumFieldOperatingHours || 4;
-
-      const timeToMinutes = (timeStr: string): number => {
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        return hours * 60 + (minutes || 0);
-      };
-
-      const openingMinutes = timeToMinutes(req.body.openingTime);
-      const closingMinutes = timeToMinutes(req.body.closingTime);
-      const diffHours = (closingMinutes - openingMinutes) / 60;
-
-      if (diffHours < 0) {
-        throw new AppError('Closing time must be after opening time', 400);
+      if (req.body.openingTime === req.body.closingTime) {
+        throw new AppError('Opening and closing times must be different', 400);
       }
-
-      if (diffHours < minimumHours) {
-        throw new AppError(`Field must be open for at least ${minimumHours} hours`, 400);
-      }
+      // Note: We allow overnight operation (e.g., 10pm to 6am), so no "closing after opening" check
     }
 
     // Convert amenity IDs to names if amenities are provided
@@ -685,33 +670,15 @@ class FieldController {
       req.body.amenities = await convertAmenityIdsToNames(req.body.amenities);
     }
 
-    // Validate minimum operating hours if times are being updated
+    // Validate times if being updated (no minimum hours requirement, allow flexible hours)
     if (req.body.openingTime || req.body.closingTime) {
-      const settings = await prisma.systemSettings.findFirst();
-      const minimumHours = settings?.minimumFieldOperatingHours || 4;
-
-      // Get the current field data to merge with updates
       const openingTime = req.body.openingTime || field.openingTime;
       const closingTime = req.body.closingTime || field.closingTime;
 
-      if (openingTime && closingTime) {
-        const timeToMinutes = (timeStr: string): number => {
-          const [hours, minutes] = timeStr.split(':').map(Number);
-          return hours * 60 + (minutes || 0);
-        };
-
-        const openingMinutes = timeToMinutes(openingTime);
-        const closingMinutes = timeToMinutes(closingTime);
-        const diffHours = (closingMinutes - openingMinutes) / 60;
-
-        if (diffHours < 0) {
-          throw new AppError('Closing time must be after opening time', 400);
-        }
-
-        if (diffHours < minimumHours) {
-          throw new AppError(`Field must be open for at least ${minimumHours} hours`, 400);
-        }
+      if (openingTime && closingTime && openingTime === closingTime) {
+        throw new AppError('Opening and closing times must be different', 400);
       }
+      // Note: We allow overnight operation (e.g., 10pm to 6am), so no "closing after opening" check
     }
 
     const updatedField = await FieldModel.update(id, req.body);
@@ -1519,27 +1486,9 @@ class FieldController {
 
         // If the first step is field-details, include that data
         if (step === 'field-details') {
-          // Validate minimum operating hours
-          if (data.startTime && data.endTime) {
-            const settings = await prisma.systemSettings.findFirst();
-            const minimumHours = settings?.minimumFieldOperatingHours || 4;
-
-            const timeToMinutes = (timeStr: string): number => {
-              const [hours, minutes] = timeStr.split(':').map(Number);
-              return hours * 60 + (minutes || 0);
-            };
-
-            const openingMinutes = timeToMinutes(data.startTime);
-            const closingMinutes = timeToMinutes(data.endTime);
-            const diffHours = (closingMinutes - openingMinutes) / 60;
-
-            if (diffHours < 0) {
-              throw new AppError('Closing time must be after opening time', 400);
-            }
-
-            if (diffHours < minimumHours) {
-              throw new AppError(`Field must be open for at least ${minimumHours} hours`, 400);
-            }
+          // Validate times are different (no minimum hours requirement)
+          if (data.startTime && data.endTime && data.startTime === data.endTime) {
+            throw new AppError('Opening and closing times must be different', 400);
           }
 
           // Convert amenity IDs to names
@@ -1605,27 +1554,9 @@ class FieldController {
     // Update based on which step is being saved
     switch (step) {
       case 'field-details':
-        // Validate minimum operating hours
-        if (data.startTime && data.endTime) {
-          const settings = await prisma.systemSettings.findFirst();
-          const minimumHours = settings?.minimumFieldOperatingHours || 4;
-
-          const timeToMinutes = (timeStr: string): number => {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            return hours * 60 + (minutes || 0);
-          };
-
-          const openingMinutes = timeToMinutes(data.startTime);
-          const closingMinutes = timeToMinutes(data.endTime);
-          const diffHours = (closingMinutes - openingMinutes) / 60;
-
-          if (diffHours < 0) {
-            throw new AppError('Closing time must be after opening time', 400);
-          }
-
-          if (diffHours < minimumHours) {
-            throw new AppError(`Field must be open for at least ${minimumHours} hours`, 400);
-          }
+        // Validate times are different (no minimum hours requirement)
+        if (data.startTime && data.endTime && data.startTime === data.endTime) {
+          throw new AppError('Opening and closing times must be different', 400);
         }
 
         // Convert amenity IDs to names
@@ -3371,6 +3302,75 @@ class FieldController {
         previousCode: previousCode || null
       }
     });
+  });
+
+  /**
+   * Get Google Reviews for a field
+   * Fetches scraped Google reviews from the database
+   */
+  getGoogleReviews = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    // Get the field
+    const field = await prisma.field.findFirst({
+      where: {
+        OR: [
+          { id: id.length === 24 && /^[0-9a-fA-F]+$/.test(id) ? id : undefined },
+          { fieldId: id }
+        ].filter(Boolean)
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    });
+
+    if (!field) {
+      throw new AppError('Field not found', 404);
+    }
+
+    try {
+      // Fetch Google reviews from database
+      const reviews = await prisma.googleReview.findMany({
+        where: { fieldId: field.id },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      // Calculate average rating
+      const totalReviews = reviews.length;
+      const averageRating = totalReviews > 0
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
+        : 0;
+
+      // Format reviews for frontend
+      const formattedReviews = reviews.map(review => ({
+        authorName: review.authorName,
+        authorPhoto: review.authorPhoto,
+        rating: review.rating,
+        text: review.text,
+        relativeTime: review.reviewTime
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          reviews: formattedReviews,
+          averageRating: Math.round(averageRating * 10) / 10,
+          totalReviews
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching Google reviews:', error);
+      res.status(200).json({
+        success: true,
+        data: {
+          reviews: [],
+          averageRating: 0,
+          totalReviews: 0,
+          message: 'Error fetching Google reviews'
+        }
+      });
+    }
   });
 }
 

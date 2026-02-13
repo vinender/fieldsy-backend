@@ -413,10 +413,9 @@ class BookingController {
       hasCompletedBookingInSubscription = completedCount > 0;
     }
 
-    // Calculate eligibility flags
+    // Calculate eligibility flags (unlimited reschedules allowed, 12 hour window)
     const isReschedulable = isUpcoming &&
       hoursUntilBooking >= cancellationWindowHours &&
-      rescheduleCount < 3 &&
       !hasCompletedBookingInSubscription;
 
     const isCancellable = isUpcoming && hoursUntilBooking >= cancellationWindowHours;
@@ -1558,13 +1557,10 @@ class BookingController {
       throw new AppError('Only pending or confirmed bookings can be rescheduled', 400);
     }
 
-    // Check reschedule limit (max 3 times)
+    // Track reschedule count (no limit - unlimited reschedules allowed)
     const rescheduleCount = (booking as any).rescheduleCount || 0;
-    if (rescheduleCount >= 3) {
-      throw new AppError('You have reached the maximum number of reschedules (3) for this booking. Please cancel and create a new booking if needed.', 400);
-    }
 
-    // Check if booking is within cancellation window
+    // Check if booking is within reschedule window
     const bookingDateTime = new Date(booking.date);
     const [hours, minutes] = booking.startTime.split(':');
     bookingDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
@@ -1572,12 +1568,12 @@ class BookingController {
     const now = new Date();
     const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    // Get cancellation window from settings (default 24 hours)
+    // Reschedule window is 12 hours (can be overridden by system settings)
     const settings = await prisma.systemSettings.findFirst();
-    const cancellationWindowHours = settings?.cancellationWindowHours || 24;
+    const rescheduleWindowHours = settings?.cancellationWindowHours || 12;
 
-    if (hoursUntilBooking < cancellationWindowHours) {
-      throw new AppError(`Rescheduling is only allowed at least ${cancellationWindowHours} hours before the booking time.`, 400);
+    if (hoursUntilBooking < rescheduleWindowHours) {
+      throw new AppError(`Rescheduling is only allowed at least ${rescheduleWindowHours} hours before the booking time.`, 400);
     }
 
     // If changing time/date, check availability and recalculate price

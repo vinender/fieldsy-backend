@@ -30,9 +30,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@fieldsy/stripe-auto-payout": "file:../packages/stripe-auto-payout",
     "@aws-sdk/client-s3": "^3.891.0",
     "@aws-sdk/s3-presigned-post": "^3.896.0",
+    "@fieldsy/stripe-auto-payout": "file:../packages/stripe-auto-payout",
     "@prisma/client": "^6.13.0",
     "@types/marked": "^5.0.2",
     "@types/mongoose": "^5.11.96",
@@ -89,7 +89,7 @@
     "@types/node": "^24.1.0",
     "axios": "^1.11.0",
     "nodemon": "^3.1.10",
-    "puppeteer": "^24.34.0",
+    "puppeteer": "^24.37.3",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.2"
   }

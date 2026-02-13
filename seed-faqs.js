@@ -18,7 +18,7 @@ const faqs = [
   },
   {
     question: "Can I cancel or reschedule my booking?",
-    answer: "Yes, you can cancel your booking up to the cancellation window (default 24 hours) before your scheduled time for a full refund. Rescheduling is allowed up to 3 times per booking, within the same cancellation window. For recurring bookings, rescheduling is not available once any booking in the subscription has been completed, and the recurring interval cannot be changed.",
+    answer: "Yes, you can cancel or reschedule your booking up to 12 hours before your scheduled time. Cancellations made within 12 hours may be subject to our cancellation policy. Rescheduling is unlimited - you can reschedule as many times as you like up to 12 hours before. For recurring bookings, rescheduling is not available once any booking in the subscription has been completed.",
     category: "booking",
     order: 3,
     isActive: true
@@ -32,7 +32,7 @@ const faqs = [
   },
   {
     question: "What is your refund policy?",
-    answer: "Full refunds are available for cancellations made at least 24 hours before your booking. Cancellations within 24 hours may receive a partial refund or credit for future bookings, depending on circumstances.",
+    answer: "Full refunds are available for cancellations made at least 12 hours before your booking. Cancellations within 12 hours may receive a partial refund or credit for future bookings, depending on circumstances.",
     category: "payment",
     order: 5,
     isActive: true

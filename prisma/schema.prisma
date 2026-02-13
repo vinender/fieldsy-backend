@@ -152,6 +152,7 @@ model Field {
   instantBooking     Boolean   @default(false)
   cancellationPolicy String?
   entryCode          String? // Entry code for the field (not unique)
+  googleMapsUrl      String? // Google Maps URL for fetching live reviews
 
   // Additional field details
   fieldFeatures Json? // Store complex field features as JSON
@@ -197,6 +198,7 @@ model Field {
   conversations Conversation[]
   claims        FieldClaim[]
   subscriptions Subscription[]
+  googleReviews GoogleReview[]
 
   @@index([city, state])
   @@index([ownerId])
@@ -915,4 +917,24 @@ model DeviceToken {
   @@index([userId])
   @@index([platform])
   @@map("device_tokens")
+}
+
+// Google Reviews scraped from Google Maps
+model GoogleReview {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  fieldId      String   @db.ObjectId
+  authorName   String
+  authorPhoto  String?
+  rating       Int // 1-5
+  text         String
+  reviewTime   String // Relative time like "2 weeks ago"
+  reviewDate   DateTime? // Parsed date if available
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  field Field @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([fieldId])
+  @@map("google_reviews")
 }
