@@ -60,6 +60,9 @@ router.patch('/:id/toggle-blocked', restrictTo('ADMIN'), fieldController.toggleF
 // Toggle field approved status (admin only)
 router.patch('/:id/toggle-approved', restrictTo('ADMIN'), fieldController.toggleFieldApproved);
 
+// Update entry code (field owner only)
+router.patch('/:fieldId/entry-code', restrictTo('FIELD_OWNER'), fieldController.updateEntryCode);
+
 // Admin approval routes
 router.get('/admin/pending-approval', restrictTo('ADMIN'), fieldController.getPendingFields);
 router.patch('/:fieldId/approve', restrictTo('ADMIN'), fieldController.approveField);

@@ -1072,7 +1072,8 @@ export class PaymentController {
               startTime: startTimeStr,
               endTime: endTimeStr,
               totalPrice: amount,
-              fieldOwnerName: fieldOwner?.name || 'Field Owner'
+              fieldOwnerName: fieldOwner?.name || 'Field Owner',
+              entryCode: field.entryCode || undefined
             });
           }
 
@@ -1090,7 +1091,8 @@ export class PaymentController {
               totalPrice: amount,
               fieldOwnerAmount,
               platformCommission,
-              dogOwnerName: user.name || user.email || 'Customer'
+              dogOwnerName: user.name || user.email || 'Customer',
+              entryCode: field.entryCode || undefined
             });
           }
         } catch (emailError) {

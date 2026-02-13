@@ -737,6 +737,7 @@ const getBookingConfirmationTemplate = (bookingData: {
   endTime: string;
   totalPrice: number;
   fieldOwnerName: string;
+  entryCode?: string;
 }) => {
   const formattedDate = new Date(bookingData.date).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -861,6 +862,16 @@ const getBookingConfirmationTemplate = (bookingData: {
               </div>
             </div>
 
+            ${bookingData.entryCode ? `
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+              <p style="color: white; margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">🔐 Field Entry Code</p>
+              <div style="background: white; border-radius: 8px; padding: 15px; display: inline-block;">
+                <span style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #333; font-family: 'Courier New', monospace;">${bookingData.entryCode}</span>
+              </div>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 13px;">Present this code to the field owner upon arrival</p>
+            </div>
+            ` : ''}
+
             <p><strong>What's Next?</strong></p>
             <ul>
               <li>You'll receive a reminder 24 hours before your booking</li>
@@ -895,6 +906,7 @@ const getNewBookingNotificationTemplate = (bookingData: {
   fieldOwnerAmount: number;
   platformCommission: number;
   dogOwnerName: string;
+  entryCode?: string;
 }) => {
   const formattedDate = new Date(bookingData.date).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -1032,6 +1044,16 @@ const getNewBookingNotificationTemplate = (bookingData: {
                 <span class="info-label">Your Payout:</span> <span class="price">£${bookingData.fieldOwnerAmount.toFixed(2)}</span>
               </div>
             </div>
+
+            ${bookingData.entryCode ? `
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+              <p style="color: white; margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">🔐 Your Field Entry Code</p>
+              <div style="background: white; border-radius: 8px; padding: 15px; display: inline-block;">
+                <span style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #333; font-family: 'Courier New', monospace;">${bookingData.entryCode}</span>
+              </div>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 13px;">Ask the customer for this code upon arrival to verify their booking</p>
+            </div>
+            ` : ''}
 
             <p><strong>What's Next?</strong></p>
             <ul>
@@ -2202,6 +2224,7 @@ class EmailService {
     endTime: string;
     totalPrice: number;
     fieldOwnerName: string;
+    entryCode?: string;
   }): Promise<boolean> {
     const subject = 'Booking Confirmed - Fieldsy';
     const html = getBookingConfirmationTemplate(bookingData);
@@ -2229,6 +2252,7 @@ class EmailService {
     fieldOwnerAmount: number;
     platformCommission: number;
     dogOwnerName: string;
+    entryCode?: string;
   }): Promise<boolean> {
     const subject = 'New Booking Received - Fieldsy';
     const html = getNewBookingNotificationTemplate(bookingData);
@@ -2519,6 +2543,27 @@ class EmailService {
       return result;
     } catch (error) {
       console.error(`❌ Failed to send subscription cancellation email to ${data.email}:`, error);
+      return false;
+    }
+  }
+
+  async sendEntryCodeUpdateNotification(data: {
+    email: string;
+    userName: string;
+    fieldName: string;
+    fieldAddress: string;
+    newEntryCode: string;
+    upcomingBookingDates: Date[];
+  }): Promise<boolean> {
+    const subject = `Important: Entry Code Updated for ${data.fieldName} - Fieldsy`;
+    const html = getEntryCodeUpdateTemplate(data);
+
+    try {
+      const result = await this.sendMail(data.email, subject, html);
+      console.log(`✅ Entry code update notification sent to ${data.email}`);
+      return result;
+    } catch (error) {
+      console.error(`❌ Failed to send entry code update notification to ${data.email}:`, error);
       return false;
     }
   }
@@ -3269,6 +3314,188 @@ const getPayoutFailedTemplate = (data: {
           <div class="footer">
             <p>Need help? Contact us at support@fieldsy.co.uk</p>
             <p>&copy; ${new Date().getFullYear()} Fieldsy. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+const getEntryCodeUpdateTemplate = (data: {
+  userName: string;
+  fieldName: string;
+  fieldAddress: string;
+  newEntryCode: string;
+  upcomingBookingDates: Date[];
+}) => {
+  const formattedDates = data.upcomingBookingDates
+    .map(date => new Date(date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }))
+    .slice(0, 5); // Show max 5 dates
+
+  const hasMoreDates = data.upcomingBookingDates.length > 5;
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Entry Code Updated</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #4CAF50;
+          }
+          .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+          }
+          .content {
+            padding: 30px 20px;
+          }
+          .alert-badge {
+            display: inline-block;
+            background-color: #FF9800;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 15px 0;
+            font-size: 14px;
+          }
+          .code-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+          }
+          .code-label {
+            color: white;
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .code-display {
+            background: white;
+            border-radius: 8px;
+            padding: 20px 30px;
+            display: inline-block;
+          }
+          .code-value {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 6px;
+            color: #333;
+            font-family: 'Courier New', monospace;
+          }
+          .code-note {
+            color: rgba(255,255,255,0.9);
+            margin: 15px 0 0 0;
+            font-size: 13px;
+          }
+          .booking-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+          }
+          .booking-info h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+          }
+          .booking-dates {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+          }
+          .booking-dates li {
+            padding: 5px 0;
+            color: #555;
+          }
+          .booking-dates li:before {
+            content: "📅 ";
+          }
+          .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666666;
+            font-size: 14px;
+            border-top: 1px solid #eeeeee;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">🐾 Fieldsy</div>
+          </div>
+          <div class="content">
+            <div class="alert-badge">🔔 Important Update</div>
+
+            <h2 style="margin-top: 10px;">Entry Code Changed</h2>
+
+            <p>Hi ${data.userName},</p>
+
+            <p>The field owner has updated the entry code for <strong>${data.fieldName}</strong>.</p>
+
+            ${data.fieldAddress ? `<p style="color: #666;"><strong>Location:</strong> ${data.fieldAddress}</p>` : ''}
+
+            <div class="code-box">
+              <p class="code-label">🔐 Your New Entry Code</p>
+              <div class="code-display">
+                <span class="code-value">${data.newEntryCode}</span>
+              </div>
+              <p class="code-note">Please save this code - you'll need it upon arrival</p>
+            </div>
+
+            <div class="booking-info">
+              <h4>📋 Your Upcoming Bookings</h4>
+              <ul class="booking-dates">
+                ${formattedDates.map(date => `<li>${date}</li>`).join('')}
+                ${hasMoreDates ? `<li style="color: #999;">...and ${data.upcomingBookingDates.length - 5} more</li>` : ''}
+              </ul>
+            </div>
+
+            <p><strong>What to do:</strong></p>
+            <ul>
+              <li>Save or screenshot this new entry code</li>
+              <li>Present this code to the field owner when you arrive</li>
+              <li>The old code will no longer work</li>
+            </ul>
+
+            <p>If you have any questions, please contact the field owner through the app.</p>
+
+            <p>See you at the field! 🐕</p>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} Fieldsy. All rights reserved.</p>
+            <p>Happy walks with your furry friends! 🐾</p>
           </div>
         </div>
       </body>

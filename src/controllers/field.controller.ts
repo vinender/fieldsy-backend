@@ -664,11 +664,16 @@ class FieldController {
     const addressUpdated = addressChanged || cityChanged || stateChanged || zipCodeChanged;
     const shouldNotifyAdmin = userRole === 'FIELD_OWNER' && addressUpdated;
 
+    // Entry code change detection
+    const entryCodeChanged = req.body.entryCode !== undefined && req.body.entryCode !== field.entryCode;
+    const previousEntryCode = field.entryCode;
+
     console.log('───────────────────────────────────────────────────────────────');
     console.log('📊 Final Decision:');
     console.log('   - Address Updated:', addressUpdated);
     console.log('   - User is FIELD_OWNER:', userRole === 'FIELD_OWNER');
     console.log('   - Should Notify Admin:', shouldNotifyAdmin);
+    console.log('   - Entry Code Changed:', entryCodeChanged);
     console.log('═══════════════════════════════════════════════════════════════');
 
     const previousAddressSnapshot = shouldNotifyAdmin
@@ -805,6 +810,82 @@ class FieldController {
         );
       } catch (notificationError) {
         console.error('Failed to send admin notification for field address change:', notificationError);
+      }
+    }
+
+    // Notify dog owners with upcoming bookings if entry code changed
+    if (entryCodeChanged && req.body.entryCode) {
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('🔐 ENTRY CODE CHANGE DETECTED - NOTIFYING BOOKED USERS');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('📋 Field ID:', updatedField.id);
+      console.log('📋 Field Name:', updatedField.name || 'N/A');
+      console.log('🔑 Previous Entry Code:', previousEntryCode || 'None');
+      console.log('🔑 New Entry Code:', req.body.entryCode);
+      console.log('───────────────────────────────────────────────────────────────');
+
+      try {
+        // Get all upcoming bookings for this field
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcomingBookings = await prisma.booking.findMany({
+          where: {
+            fieldId: updatedField.id,
+            date: { gte: today },
+            status: { in: ['CONFIRMED', 'PENDING'] }
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          }
+        });
+
+        // Get unique users who have upcoming bookings
+        const usersToNotify = new Map<string, { email: string; name: string; bookingDates: Date[] }>();
+        for (const booking of upcomingBookings) {
+          if (booking.user?.email) {
+            const existing = usersToNotify.get(booking.user.id);
+            if (existing) {
+              existing.bookingDates.push(booking.date);
+            } else {
+              usersToNotify.set(booking.user.id, {
+                email: booking.user.email,
+                name: booking.user.name || 'Valued Customer',
+                bookingDates: [booking.date]
+              });
+            }
+          }
+        }
+
+        console.log(`📧 Found ${usersToNotify.size} user(s) with upcoming bookings to notify`);
+
+        // Send emails to all affected users
+        const { emailService } = await import('../services/email.service');
+        for (const [userId, userData] of usersToNotify) {
+          try {
+            await emailService.sendEntryCodeUpdateNotification({
+              email: userData.email,
+              userName: userData.name,
+              fieldName: updatedField.name || 'the field',
+              fieldAddress: updatedField.address || '',
+              newEntryCode: req.body.entryCode,
+              upcomingBookingDates: userData.bookingDates
+            });
+            console.log(`✅ Entry code notification sent to ${userData.email}`);
+          } catch (emailError) {
+            console.error(`❌ Failed to send entry code update email to ${userData.email}:`, emailError);
+          }
+        }
+
+        console.log('═══════════════════════════════════════════════════════════════');
+      } catch (notifyError) {
+        console.error('Error notifying users about entry code change:', notifyError);
       }
     }
 
@@ -3118,7 +3199,7 @@ class FieldController {
     // Use defaults if no policies found
     if (bookingPolicies.length === 0) {
       bookingPolicies = [
-        'All bookings must be made at least 24 hours in advance',
+        // 'All bookings must be made at least 24 hours in advance',
         'The minimum booking slot is 1 hour',
         'Free cancellation up to 12 hours before the scheduled start time',
         'Users arriving late will not receive a time extension',
@@ -3164,6 +3245,131 @@ class FieldController {
     res.json({
       success: true,
       data: enrichedField,
+    });
+  });
+
+  // Update entry code for a field (Field owner only)
+  updateEntryCode = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { fieldId } = req.params;
+    const { entryCode } = req.body;
+    const userId = (req as any).user.id;
+
+    if (!entryCode || typeof entryCode !== 'string') {
+      throw new AppError('Entry code is required and must be a string', 400);
+    }
+
+    // Validate entry code format (alphanumeric, 4-10 characters)
+    const trimmedCode = entryCode.trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,10}$/.test(trimmedCode)) {
+      throw new AppError('Entry code must be 4-10 alphanumeric characters', 400);
+    }
+
+    // Resolve field (support both ObjectID and human-readable fieldId)
+    const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
+    const where = isObjectId ? { id: fieldId } : { fieldId: fieldId };
+
+    const field = await prisma.field.findUnique({
+      where,
+      select: {
+        id: true,
+        name: true,
+        ownerId: true,
+        entryCode: true,
+        address: true
+      }
+    });
+
+    if (!field) {
+      throw new AppError('Field not found', 404);
+    }
+
+    // Verify ownership
+    if (field.ownerId !== userId) {
+      throw new AppError('You do not have permission to update this field', 403);
+    }
+
+    const previousCode = field.entryCode;
+
+    // Update the entry code
+    const updatedField = await prisma.field.update({
+      where: { id: field.id },
+      data: { entryCode: trimmedCode }
+    });
+
+    // If entry code actually changed, notify dog owners with upcoming bookings
+    if (previousCode !== trimmedCode) {
+      try {
+        // Get all upcoming bookings for this field
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcomingBookings = await prisma.booking.findMany({
+          where: {
+            fieldId: field.id,
+            date: { gte: today },
+            status: { in: ['CONFIRMED', 'PENDING'] }
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          }
+        });
+
+        // Get unique users who have upcoming bookings
+        const usersToNotify = new Map<string, { email: string; name: string; bookingDates: Date[] }>();
+        for (const booking of upcomingBookings) {
+          if (booking.user?.email) {
+            const existing = usersToNotify.get(booking.user.id);
+            if (existing) {
+              existing.bookingDates.push(booking.date);
+            } else {
+              usersToNotify.set(booking.user.id, {
+                email: booking.user.email,
+                name: booking.user.name || 'Valued Customer',
+                bookingDates: [booking.date]
+              });
+            }
+          }
+        }
+
+        // Send emails to all affected users
+        const { emailService } = await import('../services/email.service');
+        for (const [, userData] of usersToNotify) {
+          try {
+            await emailService.sendEntryCodeUpdateNotification({
+              email: userData.email,
+              userName: userData.name,
+              fieldName: field.name || 'the field',
+              fieldAddress: field.address || '',
+              newEntryCode: trimmedCode,
+              upcomingBookingDates: userData.bookingDates
+            });
+          } catch (emailError) {
+            console.error(`Failed to send entry code update email to ${userData.email}:`, emailError);
+            // Continue with other users even if one fails
+          }
+        }
+
+        console.log(`✅ Entry code updated for field ${field.id}. Notified ${usersToNotify.size} users with upcoming bookings.`);
+      } catch (notifyError) {
+        console.error('Error notifying users about entry code change:', notifyError);
+        // Don't fail the update if notification fails
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Entry code updated successfully',
+      data: {
+        fieldId: field.id,
+        entryCode: trimmedCode,
+        previousCode: previousCode || null
+      }
     });
   });
 }
