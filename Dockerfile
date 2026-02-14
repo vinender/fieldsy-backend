@@ -24,8 +24,8 @@ RUN npm ci || npm install
 # Copy Prisma schema first (for Prisma client generation)
 COPY backend/prisma ./prisma
 
-# Generate Prisma client
-RUN npx prisma generate
+# Generate Prisma client (pin version to match @prisma/client in package.json)
+RUN npx prisma@6.13.0 generate
 
 # Copy source code
 COPY backend/ .
