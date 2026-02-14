@@ -183,6 +183,18 @@ class FieldController {
       amenityNames = await convertAmenityIdsToNames(amenityNames);
     }
 
+    // Handle price fields - explicitly set to null if empty/0
+    if (req.body.price30min !== undefined) {
+      req.body.price30min = req.body.price30min === '' || req.body.price30min === null || parseFloat(req.body.price30min) === 0
+        ? null
+        : parseFloat(req.body.price30min);
+    }
+    if (req.body.price1hr !== undefined) {
+      req.body.price1hr = req.body.price1hr === '' || req.body.price1hr === null || parseFloat(req.body.price1hr) === 0
+        ? null
+        : parseFloat(req.body.price1hr);
+    }
+
     const fieldData = {
       ...req.body,
       amenities: amenityNames,
@@ -668,6 +680,18 @@ class FieldController {
     // Convert amenity IDs to names if amenities are being updated
     if (req.body.amenities && req.body.amenities.length > 0) {
       req.body.amenities = await convertAmenityIdsToNames(req.body.amenities);
+    }
+
+    // Handle price fields - explicitly set to null if empty/0 to ensure proper removal
+    if (req.body.price30min !== undefined) {
+      req.body.price30min = req.body.price30min === '' || req.body.price30min === null || parseFloat(req.body.price30min) === 0
+        ? null
+        : parseFloat(req.body.price30min);
+    }
+    if (req.body.price1hr !== undefined) {
+      req.body.price1hr = req.body.price1hr === '' || req.body.price1hr === null || parseFloat(req.body.price1hr) === 0
+        ? null
+        : parseFloat(req.body.price1hr);
     }
 
     // Validate times if being updated (no minimum hours requirement, allow flexible hours)

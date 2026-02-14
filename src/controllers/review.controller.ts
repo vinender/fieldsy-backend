@@ -43,8 +43,48 @@ async function findReviewById(id: string, include?: any) {
   });
 }
 
+// Helper to update field stats with combined Fieldsy + Google reviews
+async function updateFieldStats(fieldId: string) {
+  // Get Fieldsy reviews stats
+  const fieldsyStats = await prisma.fieldReview.aggregate({
+    where: { fieldId },
+    _avg: { rating: true },
+    _count: { rating: true },
+    _sum: { rating: true },
+  });
+
+  // Get Google reviews stats
+  const googleStats = await prisma.googleReview.aggregate({
+    where: { fieldId },
+    _avg: { rating: true },
+    _count: { rating: true },
+    _sum: { rating: true },
+  });
+
+  const fieldsyCount = fieldsyStats._count.rating || 0;
+  const googleCount = googleStats._count.rating || 0;
+  const totalCount = fieldsyCount + googleCount;
+
+  const fieldsySum = fieldsyStats._sum.rating || 0;
+  const googleSum = googleStats._sum.rating || 0;
+  const totalSum = fieldsySum + googleSum;
+
+  const averageRating = totalCount > 0 ? totalSum / totalCount : 0;
+
+  // Update field with combined stats
+  await prisma.field.update({
+    where: { id: fieldId },
+    data: {
+      averageRating,
+      totalReviews: totalCount,
+    },
+  });
+
+  return { averageRating, totalReviews: totalCount };
+}
+
 class ReviewController {
-  // Get all reviews for a field with pagination
+  // Get all reviews for a field with pagination (blended Fieldsy + Google reviews)
   async getFieldReviews(req: Request, res: Response) {
     try {
       const { fieldId } = req.params;
@@ -59,66 +99,112 @@ class ReviewController {
       const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
       const whereClause = isObjectId ? { fieldId } : { field: { fieldId } };
 
-      // Build where clause
+      // Get the field's internal ObjectId for Google reviews lookup
+      let internalFieldId = fieldId;
+      if (!isObjectId) {
+        const field = await prisma.field.findFirst({
+          where: { fieldId },
+          select: { id: true }
+        });
+        if (field) {
+          internalFieldId = field.id;
+        }
+      }
+
+      // Build where clause for Fieldsy reviews
       const where: any = { ...whereClause };
       if (rating) {
         where.rating = rating;
       }
 
-      // Build order by clause
-      let orderBy: any = { createdAt: 'desc' };
-      if (sortBy === 'helpful') {
-        orderBy = { helpfulCount: 'desc' };
-      } else if (sortBy === 'rating_high') {
-        orderBy = { rating: 'desc' };
-      } else if (sortBy === 'rating_low') {
-        orderBy = { rating: 'asc' };
-      }
-
-      // Get reviews with user info
-      const [reviews, total] = await Promise.all([
-        prisma.fieldReview.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy,
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
+      // Fetch Fieldsy reviews
+      const fieldsyReviews = await prisma.fieldReview.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
             },
           },
-        }),
-        prisma.fieldReview.count({ where }),
-      ]);
-
-      // Get rating distribution (use whereClause for consistent filtering)
-      const ratingDistribution = await prisma.fieldReview.groupBy({
-        by: ['rating'],
-        where: whereClause,
-        _count: {
-          rating: true,
         },
       });
 
-      // Calculate average rating (use whereClause for consistent filtering)
-      const avgRating = await prisma.fieldReview.aggregate({
-        where: whereClause,
-        _avg: {
-          rating: true,
-        },
-        _count: {
-          rating: true,
-        },
+      // Fetch Google reviews
+      const googleReviews = await prisma.googleReview.findMany({
+        where: { fieldId: internalFieldId },
+        orderBy: { createdAt: 'desc' },
       });
+
+      // Transform Google reviews to match Fieldsy review format
+      const transformedGoogleReviews = googleReviews.map(gr => ({
+        id: gr.id,
+        reviewId: `G${gr.id.substring(0, 8)}`, // Prefix with 'G' for Google
+        fieldId: gr.fieldId,
+        userId: null,
+        bookingId: null,
+        userName: gr.authorName,
+        userImage: gr.authorPhoto,
+        rating: gr.rating,
+        title: null,
+        comment: gr.text,
+        images: [],
+        verified: true, // Google reviews are verified
+        helpfulCount: 0,
+        response: null,
+        respondedAt: null,
+        createdAt: gr.createdAt,
+        updatedAt: gr.updatedAt,
+        user: {
+          id: null,
+          name: gr.authorName,
+          image: gr.authorPhoto,
+        },
+        isGoogleReview: true, // Flag to identify Google reviews
+        reviewTime: gr.reviewTime, // Keep original Google time format
+      }));
+
+      // Merge and sort all reviews
+      let allReviews = [...fieldsyReviews, ...transformedGoogleReviews];
+
+      // Apply rating filter to Google reviews if needed
+      if (rating) {
+        allReviews = allReviews.filter(r => r.rating === rating);
+      }
+
+      // Sort combined reviews
+      if (sortBy === 'helpful') {
+        allReviews.sort((a, b) => (b.helpfulCount || 0) - (a.helpfulCount || 0));
+      } else if (sortBy === 'rating_high') {
+        allReviews.sort((a, b) => b.rating - a.rating);
+      } else if (sortBy === 'rating_low') {
+        allReviews.sort((a, b) => a.rating - b.rating);
+      } else {
+        // Default: sort by createdAt desc (most recent first)
+        allReviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }
+
+      // Paginate combined reviews
+      const total = allReviews.length;
+      const paginatedReviews = allReviews.slice(skip, skip + limit);
+
+      // Calculate combined rating distribution
+      const ratingDistribution: Record<number, number> = {};
+      allReviews.forEach(review => {
+        ratingDistribution[review.rating] = (ratingDistribution[review.rating] || 0) + 1;
+      });
+
+      // Calculate combined average rating
+      const totalRatings = allReviews.length;
+      const sumRatings = allReviews.reduce((sum, review) => sum + review.rating, 0);
+      const averageRating = totalRatings > 0 ? sumRatings / totalRatings : 0;
 
       res.json({
         success: true,
         data: {
-          reviews,
+          reviews: paginatedReviews,
           pagination: {
             page,
             limit,
@@ -126,12 +212,11 @@ class ReviewController {
             totalPages: Math.ceil(total / limit),
           },
           stats: {
-            averageRating: avgRating._avg.rating || 0,
-            totalReviews: avgRating._count.rating,
-            ratingDistribution: ratingDistribution.reduce((acc, item) => {
-              acc[item.rating] = item._count.rating;
-              return acc;
-            }, {} as Record<number, number>),
+            averageRating,
+            totalReviews: totalRatings,
+            ratingDistribution,
+            fieldsyReviewsCount: fieldsyReviews.length,
+            googleReviewsCount: googleReviews.length,
           },
         },
       });
@@ -322,24 +407,8 @@ class ReviewController {
         },
       });
 
-      // Update field's average rating and total reviews
-      const reviewStats = await prisma.fieldReview.aggregate({
-        where: { fieldId },
-        _avg: {
-          rating: true,
-        },
-        _count: {
-          rating: true,
-        },
-      });
-
-      await prisma.field.update({
-        where: { id: fieldId },
-        data: {
-          averageRating: reviewStats._avg.rating || 0,
-          totalReviews: reviewStats._count.rating,
-        },
-      });
+      // Update field's average rating and total reviews (including Google reviews)
+      await updateFieldStats(fieldId);
 
       console.log('=== Review Notification Debug ===');
       console.log('- Reviewer userId:', userId);
@@ -457,24 +526,8 @@ class ReviewController {
         },
       });
 
-      // Update field's average rating and total reviews
-      const reviewStats = await prisma.fieldReview.aggregate({
-        where: { fieldId: review.fieldId },
-        _avg: {
-          rating: true,
-        },
-        _count: {
-          rating: true,
-        },
-      });
-
-      await prisma.field.update({
-        where: { id: review.fieldId },
-        data: {
-          averageRating: reviewStats._avg.rating || 0,
-          totalReviews: reviewStats._count.rating,
-        },
-      });
+      // Update field's average rating and total reviews (including Google reviews)
+      await updateFieldStats(review.fieldId);
 
       res.json({
         success: true,
@@ -526,24 +579,8 @@ class ReviewController {
         where: { id: review.id },
       });
 
-      // Update field's average rating and total reviews
-      const reviewStats = await prisma.fieldReview.aggregate({
-        where: { fieldId: review.fieldId },
-        _avg: {
-          rating: true,
-        },
-        _count: {
-          rating: true,
-        },
-      });
-
-      await prisma.field.update({
-        where: { id: review.fieldId },
-        data: {
-          averageRating: reviewStats._avg.rating || 0,
-          totalReviews: reviewStats._count.rating,
-        },
-      });
+      // Update field's average rating and total reviews (including Google reviews)
+      await updateFieldStats(review.fieldId);
 
       res.json({
         success: true,
