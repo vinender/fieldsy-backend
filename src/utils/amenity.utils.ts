@@ -7,6 +7,14 @@ interface AmenityObject {
   iconUrl?: string;
 }
 
+// Cache for amenities to avoid repeated DB calls
+let amenityObjectsCache: {
+  data: Map<string, { id: string; name: string; icon: string | null }>;
+  timestamp: number;
+} | null = null;
+
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+
 /**
  * Transform amenity names to full amenity objects with id, label, value, and icon
  * @param amenityNames - Array of amenity names (e.g., ["dogAgility", "toilet"])
@@ -24,19 +32,32 @@ export async function transformAmenitiesToObjects(
     const normalizeKey = (str: string) =>
       str.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    // Fetch ALL amenities from database (we'll match them with normalization)
-    const amenities = await prisma.amenity.findMany({
-      select: {
-        id: true,
-        name: true,
-        icon: true,
-      },
-    });
+    let amenityMap: Map<string, { id: string; name: string; icon: string | null }>;
 
-    // Create a normalized map for case-insensitive matching
-    const amenityMap = new Map(
-      amenities.map((amenity) => [normalizeKey(amenity.name), amenity])
-    );
+    // Check if cache is valid and use it
+    if (amenityObjectsCache && (Date.now() - amenityObjectsCache.timestamp < CACHE_TTL)) {
+      amenityMap = amenityObjectsCache.data;
+    } else {
+      // Fetch ALL amenities from database and cache them
+      const amenities = await prisma.amenity.findMany({
+        select: {
+          id: true,
+          name: true,
+          icon: true,
+        },
+      });
+
+      // Create a normalized map for case-insensitive matching
+      amenityMap = new Map(
+        amenities.map((amenity) => [normalizeKey(amenity.name), amenity])
+      );
+
+      // Update cache
+      amenityObjectsCache = {
+        data: amenityMap,
+        timestamp: Date.now()
+      };
+    }
 
     // Transform the amenity names to objects, maintaining order - id, label, value, and iconUrl
     const transformedAmenities: AmenityObject[] = amenityNames
