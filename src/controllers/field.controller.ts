@@ -1684,13 +1684,21 @@ class FieldController {
         break;
 
       case 'pricing-availability':
+        // Handle price fields - convert empty/null/0 to null
+        const price30min = data.price30min === '' || data.price30min === null || data.price30min === undefined || parseFloat(data.price30min) === 0
+          ? null
+          : parseFloat(data.price30min);
+        const price1hr = data.price1hr === '' || data.price1hr === null || data.price1hr === undefined || parseFloat(data.price1hr) === 0
+          ? null
+          : parseFloat(data.price1hr);
+
         if (isNewField) {
           updateData = {
             name: 'Untitled Field',
             type: 'PRIVATE',
             price: parseFloat(data.price || data.pricePerHour) || 0, // Legacy field
-            price30min: parseFloat(data.price30min) || 0,
-            price1hr: parseFloat(data.price1hr) || 0,
+            price30min,
+            price1hr,
             bookingDuration: data.bookingDuration || '30min', // Legacy field
             instantBooking: data.instantBooking || false,
             pricingAvailabilityCompleted: true
@@ -1698,8 +1706,8 @@ class FieldController {
         } else {
           updateData = {
             price: parseFloat(data.price || data.pricePerHour) || 0, // Legacy field
-            price30min: parseFloat(data.price30min) || 0,
-            price1hr: parseFloat(data.price1hr) || 0,
+            price30min,
+            price1hr,
             bookingDuration: data.bookingDuration || '30min', // Legacy field
             instantBooking: data.instantBooking || false,
             pricingAvailabilityCompleted: true
