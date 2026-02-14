@@ -49,13 +49,14 @@ WORKDIR /app/backend
 # Copy package files
 COPY backend/package.json backend/package-lock.json* ./
 
-# Install only production dependencies
-RUN npm ci --omit=dev || npm install --production
+# Copy all node_modules from builder (includes all dependencies)
+COPY --from=builder /app/backend/node_modules ./node_modules
 
-# Copy Prisma schema and generated client from builder
+# Remove dev dependencies to keep image small
+RUN npm prune --production
+
+# Copy Prisma schema from builder
 COPY --from=builder /app/backend/prisma ./prisma
-COPY --from=builder /app/backend/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/backend/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built JavaScript files from builder
 COPY --from=builder /app/backend/dist ./dist
