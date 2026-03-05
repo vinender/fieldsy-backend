@@ -286,14 +286,9 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
         generatedPassword = crypto.randomBytes(8).toString('hex');
         const hashedPassword = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
 
-        // Check if user already exists with FIELD_OWNER role
-        const existingFieldOwner = await prisma.user.findUnique({
-          where: {
-            email_role: {
-              email: claim.email,
-              role: 'FIELD_OWNER'
-            }
-          }
+        // Check if user already exists with this email (any role)
+        const existingFieldOwner = await prisma.user.findFirst({
+          where: { email: claim.email }
         });
 
         if (!existingFieldOwner) {

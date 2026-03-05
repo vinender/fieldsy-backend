@@ -1487,14 +1487,9 @@ router.patch('/claims/:claimId/status', authenticateAdmin, async (req, res) => {
           generatedPassword = crypto.randomBytes(8).toString('hex');
           const hashedPassword = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
 
-          // Check if user already exists with FIELD_OWNER role
-          const existingFieldOwner = await prisma.user.findUnique({
-            where: {
-              email_role: {
-                email: claim.email,
-                role: 'FIELD_OWNER'
-              }
-            }
+          // Check if user already exists with this email (any role)
+          const existingFieldOwner = await prisma.user.findFirst({
+            where: { email: claim.email }
           });
 
           if (!existingFieldOwner) {
@@ -1726,12 +1721,12 @@ router.post('/profile/request-email-change', authenticateAdmin, async (req, res)
       return res.status(400).json({ error: 'New email must be different from your current email' });
     }
 
-    // Check if email is already in use
-    const existingUser = await prisma.user.findUnique({
-      where: { email_role: { email: trimmedEmail, role: admin.role } }
+    // Check if email is already in use by any user (regardless of role)
+    const existingUser = await prisma.user.findFirst({
+      where: { email: trimmedEmail }
     });
     if (existingUser) {
-      return res.status(409).json({ error: 'This email is already in use' });
+      return res.status(409).json({ error: 'This email is already in use by another account' });
     }
 
     await otpService.sendOtp(trimmedEmail, 'EMAIL_CHANGE', admin.name || undefined);
@@ -1760,12 +1755,12 @@ router.post('/profile/verify-email-change', authenticateAdmin, async (req, res) 
       return res.status(404).json({ error: 'Admin not found' });
     }
 
-    // Re-check uniqueness
-    const existingUser = await prisma.user.findUnique({
-      where: { email_role: { email: trimmedEmail, role: admin.role } }
+    // Re-check uniqueness (regardless of role)
+    const existingUser = await prisma.user.findFirst({
+      where: { email: trimmedEmail }
     });
     if (existingUser) {
-      return res.status(409).json({ error: 'This email is already in use' });
+      return res.status(409).json({ error: 'This email is already in use by another account' });
     }
 
     const isValid = await otpService.verifyOtp(trimmedEmail, otp, 'EMAIL_CHANGE');
@@ -1954,12 +1949,12 @@ router.post('/users/:userId/request-email-change', authenticateAdmin, async (req
       return res.status(400).json({ error: 'New email must be different from the current email' });
     }
 
-    // Check if the new email is already in use by another user with the same role
-    const existingUser = await prisma.user.findUnique({
-      where: { email_role: { email: trimmedEmail, role: user.role } }
+    // Check if the new email is already in use by any user (regardless of role)
+    const existingUser = await prisma.user.findFirst({
+      where: { email: trimmedEmail }
     });
     if (existingUser) {
-      return res.status(409).json({ error: 'This email is already in use' });
+      return res.status(409).json({ error: 'This email is already in use by another account' });
     }
 
     // Send OTP to the new email
@@ -1990,12 +1985,12 @@ router.post('/users/:userId/verify-email-change', authenticateAdmin, async (req,
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Re-check email uniqueness (race condition protection)
-    const existingUser = await prisma.user.findUnique({
-      where: { email_role: { email: trimmedEmail, role: user.role } }
+    // Re-check email uniqueness (regardless of role)
+    const existingUser = await prisma.user.findFirst({
+      where: { email: trimmedEmail }
     });
     if (existingUser) {
-      return res.status(409).json({ error: 'This email is already in use' });
+      return res.status(409).json({ error: 'This email is already in use by another account' });
     }
 
     // Verify OTP

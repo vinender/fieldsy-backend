@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "build:no-check": "swc src -d dist --copy-files",
-    "build:fast": "swc src -d dist --copy-files",
+    "build:no-check": "swc src -d dist --copy-files --strip-leading-paths",
+    "build:fast": "swc src -d dist --copy-files --strip-leading-paths",
     "start": "node dist/server.js",
     "start:pm2": "pm2 start ecosystem.config.js --env production",
     "stop:pm2": "pm2 stop fieldsy-api",

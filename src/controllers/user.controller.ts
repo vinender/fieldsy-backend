@@ -185,10 +185,10 @@ class UserController {
       throw new AppError('New email must be different from your current email', 400);
     }
 
-    // Check if email already taken for the same role
-    const existingUser = await UserModel.findByEmailAndRole(newEmail.toLowerCase(), userRole);
+    // Check if email already taken by any user (regardless of role)
+    const existingUser = await UserModel.findByEmail(newEmail.toLowerCase());
     if (existingUser) {
-      throw new AppError('This email is already registered', 409);
+      throw new AppError('This email is already registered with another account', 409);
     }
 
     // Send OTP to the new email
@@ -211,9 +211,9 @@ class UserController {
     }
 
     // Re-check uniqueness (race condition protection)
-    const existingUser = await UserModel.findByEmailAndRole(newEmail.toLowerCase(), userRole);
+    const existingUser = await UserModel.findByEmail(newEmail.toLowerCase());
     if (existingUser) {
-      throw new AppError('This email is already registered', 409);
+      throw new AppError('This email is already registered with another account', 409);
     }
 
     // Verify OTP
