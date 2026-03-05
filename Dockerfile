@@ -30,8 +30,8 @@ RUN npx prisma@6.13.0 generate
 # Copy source code
 COPY backend/ .
 
-# Build TypeScript to JavaScript
-RUN npm run build
+# Build TypeScript to JavaScript (using SWC for speed - type checking done in deploy script)
+RUN npm run build:fast
 
 # =====================================
 # Stage 2: Production - minimal runtime image
@@ -49,14 +49,13 @@ WORKDIR /app/backend
 # Copy package files
 COPY backend/package.json backend/package-lock.json* ./
 
-# Copy all node_modules from builder (includes all dependencies)
-COPY --from=builder /app/backend/node_modules ./node_modules
+# Install production dependencies only (skip devDependencies entirely)
+RUN npm ci --omit=dev || npm install --omit=dev
 
-# Remove dev dependencies to keep image small
-RUN npm prune --production
-
-# Copy Prisma schema from builder
+# Copy Prisma schema and generated client from builder
 COPY --from=builder /app/backend/prisma ./prisma
+COPY --from=builder /app/backend/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/backend/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built JavaScript files from builder
 COPY --from=builder /app/backend/dist ./dist

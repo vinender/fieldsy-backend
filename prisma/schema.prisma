@@ -178,6 +178,11 @@ model Field {
   // Admin blocking status
   isBlocked Boolean @default(false) // True when admin blocks the field (field won't appear in listings)
 
+  // Edit tracking
+  lastEditedBy     String? // User ID of last editor
+  lastEditedByRole String? // "ADMIN" or "FIELD_OWNER"
+  lastEditedAt     DateTime? // When the last edit was made
+
   // Owner information (denormalized for performance)
   ownerName String? // Owner's name (denormalized)
   joinedOn  String? // Owner's join date in "Month Year" format (e.g., "March 2025")

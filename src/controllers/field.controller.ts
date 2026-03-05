@@ -199,6 +199,9 @@ class FieldController {
       ...req.body,
       amenities: amenityNames,
       ownerId,
+      lastEditedBy: ownerId,
+      lastEditedByRole: userRole,
+      lastEditedAt: new Date(),
     };
 
     const field = await FieldModel.create(fieldData);
@@ -681,6 +684,11 @@ class FieldController {
     if (req.body.amenities && req.body.amenities.length > 0) {
       req.body.amenities = await convertAmenityIdsToNames(req.body.amenities);
     }
+
+    // Track who made this edit
+    req.body.lastEditedBy = userId;
+    req.body.lastEditedByRole = userRole;
+    req.body.lastEditedAt = new Date();
 
     // Handle price fields - explicitly set to null if empty/0 to ensure proper removal
     if (req.body.price30min !== undefined) {
@@ -1506,6 +1514,9 @@ class FieldController {
           uploadImagesCompleted: false,
           pricingAvailabilityCompleted: false,
           bookingRulesCompleted: false,
+          lastEditedBy: ownerId,
+          lastEditedByRole: 'FIELD_OWNER',
+          lastEditedAt: new Date(),
         };
 
         // If the first step is field-details, include that data
@@ -1736,6 +1747,11 @@ class FieldController {
       default:
         throw new AppError('Invalid step', 400);
     }
+
+    // Track who made this edit
+    updateData.lastEditedBy = ownerId;
+    updateData.lastEditedByRole = 'FIELD_OWNER';
+    updateData.lastEditedAt = new Date();
 
     // Update field
     const field = await FieldModel.update(fieldId, updateData);
