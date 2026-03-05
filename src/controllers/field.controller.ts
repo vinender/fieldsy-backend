@@ -169,12 +169,13 @@ class FieldController {
       throw new AppError('Only field owners can create fields', 403);
     }
 
-    // Validate times are provided and different (no minimum hours requirement)
+    // Validate closing time is strictly after opening time (same day only)
     if (req.body.openingTime && req.body.closingTime) {
-      if (req.body.openingTime === req.body.closingTime) {
-        throw new AppError('Opening and closing times must be different', 400);
+      const [oh, om] = req.body.openingTime.split(':').map(Number);
+      const [ch, cm] = req.body.closingTime.split(':').map(Number);
+      if ((ch * 60 + cm) <= (oh * 60 + om)) {
+        throw new AppError('Closing time must be after opening time', 400);
       }
-      // Note: We allow overnight operation (e.g., 10pm to 6am), so no "closing after opening" check
     }
 
     // Convert amenity IDs to names if amenities are provided
@@ -679,6 +680,17 @@ class FieldController {
     const previousAddressSnapshot = shouldNotifyAdmin
       ? formatAddress(field.address, field.city, field.state, field.zipCode)
       : null;
+
+    // Validate closing time is strictly after opening time (same day only)
+    const openingTime = req.body.openingTime || field.openingTime;
+    const closingTime = req.body.closingTime || field.closingTime;
+    if (openingTime && closingTime) {
+      const [oh, om] = openingTime.split(':').map(Number);
+      const [ch, cm] = closingTime.split(':').map(Number);
+      if ((ch * 60 + cm) <= (oh * 60 + om)) {
+        throw new AppError('Closing time must be after opening time', 400);
+      }
+    }
 
     // Convert amenity IDs to names if amenities are being updated
     if (req.body.amenities && req.body.amenities.length > 0) {
@@ -1521,9 +1533,13 @@ class FieldController {
 
         // If the first step is field-details, include that data
         if (step === 'field-details') {
-          // Validate times are different (no minimum hours requirement)
-          if (data.startTime && data.endTime && data.startTime === data.endTime) {
-            throw new AppError('Opening and closing times must be different', 400);
+          // Validate closing time is strictly after opening time (same day only)
+          if (data.startTime && data.endTime) {
+            const [oh, om] = data.startTime.split(':').map(Number);
+            const [ch, cm] = data.endTime.split(':').map(Number);
+            if ((ch * 60 + cm) <= (oh * 60 + om)) {
+              throw new AppError('Closing time must be after opening time', 400);
+            }
           }
 
           // Convert amenity IDs to names
@@ -1589,9 +1605,13 @@ class FieldController {
     // Update based on which step is being saved
     switch (step) {
       case 'field-details':
-        // Validate times are different (no minimum hours requirement)
-        if (data.startTime && data.endTime && data.startTime === data.endTime) {
-          throw new AppError('Opening and closing times must be different', 400);
+        // Validate closing time is strictly after opening time (same day only)
+        if (data.startTime && data.endTime) {
+          const [oh2, om2] = data.startTime.split(':').map(Number);
+          const [ch2, cm2] = data.endTime.split(':').map(Number);
+          if ((ch2 * 60 + cm2) <= (oh2 * 60 + om2)) {
+            throw new AppError('Closing time must be after opening time', 400);
+          }
         }
 
         // Convert amenity IDs to names

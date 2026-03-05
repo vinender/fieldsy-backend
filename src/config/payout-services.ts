@@ -87,7 +87,13 @@ export function getRefundService() {
 export function getSubscriptionService() {
   if (!_subscriptionService) {
     if (isPayoutEngineEnabled) {
-      _subscriptionService = getEngine().subscriptionService;
+      const engineService = getEngine().subscriptionService;
+      const builtInService = require('../services/subscription.service').subscriptionService;
+      // Engine doesn't expose createBookingFromSubscription — bridge from built-in service
+      if (!engineService.createBookingFromSubscription) {
+        engineService.createBookingFromSubscription = builtInService.createBookingFromSubscription.bind(builtInService);
+      }
+      _subscriptionService = engineService;
     } else {
       _subscriptionService = require('../services/subscription.service').subscriptionService;
     }
