@@ -178,10 +178,13 @@ class FieldController {
       }
     }
 
-    // Convert amenity IDs to names if amenities are provided
+    // Convert amenity IDs to names if amenities contain ObjectIds, otherwise keep as-is (slugs/names)
     let amenityNames = req.body.amenities || [];
     if (amenityNames && amenityNames.length > 0) {
-      amenityNames = await convertAmenityIdsToNames(amenityNames);
+      const hasObjectIds = amenityNames.some((id: string) => /^[0-9a-fA-F]{24}$/.test(id));
+      if (hasObjectIds) {
+        amenityNames = await convertAmenityIdsToNames(amenityNames);
+      }
     }
 
     // Handle price fields - explicitly set to null if empty/0
@@ -692,9 +695,12 @@ class FieldController {
       }
     }
 
-    // Convert amenity IDs to names if amenities are being updated
+    // Convert amenity IDs to names only if amenities contain ObjectIds, otherwise keep as-is (slugs/names)
     if (req.body.amenities && req.body.amenities.length > 0) {
-      req.body.amenities = await convertAmenityIdsToNames(req.body.amenities);
+      const hasObjectIds = req.body.amenities.some((id: string) => /^[0-9a-fA-F]{24}$/.test(id));
+      if (hasObjectIds) {
+        req.body.amenities = await convertAmenityIdsToNames(req.body.amenities);
+      }
     }
 
     // Track who made this edit
