@@ -37,33 +37,30 @@ RUN npm run build:fast
 # Stage 2: Production - minimal runtime image
 FROM node:20-alpine
 
-# Install runtime dependencies for native modules
-RUN apk add --no-cache libc6-compat
+# Install runtime dependencies and create non-root user early (before COPY)
+RUN apk add --no-cache libc6-compat && \
+    addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
 # Copy the local package so npm can resolve file:../packages/stripe-auto-payout
-COPY packages/stripe-auto-payout /app/packages/stripe-auto-payout
+COPY --chown=nodejs:nodejs packages/stripe-auto-payout /app/packages/stripe-auto-payout
 
 # Set working directory to match the relative path in package.json
 WORKDIR /app/backend
 
 # Copy package files
-COPY backend/package.json backend/package-lock.json* ./
+COPY --chown=nodejs:nodejs backend/package.json backend/package-lock.json* ./
 
 # Install production dependencies only (skip devDependencies entirely)
 RUN npm ci --omit=dev || npm install --omit=dev
 
 # Copy Prisma schema and generated client from builder
-COPY --from=builder /app/backend/prisma ./prisma
-COPY --from=builder /app/backend/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/backend/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nodejs:nodejs /app/backend/prisma ./prisma
+COPY --from=builder --chown=nodejs:nodejs /app/backend/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nodejs:nodejs /app/backend/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built JavaScript files from builder
-COPY --from=builder /app/backend/dist ./dist
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+COPY --from=builder --chown=nodejs:nodejs /app/backend/dist ./dist
 
 # Switch to non-root user
 USER nodejs
