@@ -1,6 +1,7 @@
 //@ts-nocheck
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/AppError';
+import { notifyError } from '../services/error-notifier.service';
 
 /**
  * Global error handling middleware
@@ -76,6 +77,18 @@ export const errorHandler = (
   // Send error response
   const statusCode = error.statusCode || 500;
   const status = error.status || 'error';
+
+  // Email notification for server errors (5xx)
+  if (statusCode >= 500) {
+    notifyError(err instanceof Error ? err : new Error(error.message), {
+      type: 'API_ERROR',
+      method: req.method,
+      url: req.originalUrl,
+      userId: (req as any).user?.id,
+      body: req.body,
+      statusCode,
+    }).catch(() => {}); // fire-and-forget
+  }
 
   res.status(statusCode).json({
     success: false,

@@ -68,6 +68,7 @@ import { initializeFirebase } from './config/firebase.config';
 
 // Import middleware
 import { errorHandler, notFound } from './middleware/error.middleware';
+import { notifyError } from './services/error-notifier.service';
 
 // Import API documentation
 import { apiDocumentation } from './utils/api-documentation';
@@ -477,6 +478,22 @@ class Server {
     // Device Token routes (for push notifications)
     this.app.use('/api/device-tokens', deviceTokenRoutes);
 
+    // Client-side error reporting endpoint
+    this.app.post('/api/error-report', (req: Request, res: Response) => {
+      const { message, stack, url, userAgent, userId, componentStack } = req.body;
+      if (!message) return res.status(400).json({ success: false });
+      const error = new Error(message);
+      error.stack = stack || componentStack || 'No stack trace from client';
+      notifyError(error, {
+        type: 'API_ERROR',
+        method: 'CLIENT',
+        url: url || 'unknown',
+        userId,
+        statusCode: 500,
+      }).catch(() => {});
+      res.json({ success: true });
+    });
+
     // Serve static files (if any)
     // this.app.use('/uploads', express.static('uploads'));
   }
@@ -504,6 +521,18 @@ class Server {
 
       const statusCode = err.statusCode || err.status || 500;
       const status = err.status || (statusCode >= 400 && statusCode < 500 ? 'fail' : 'error');
+
+      // Email notification for server errors (5xx)
+      if (statusCode >= 500) {
+        notifyError(err instanceof Error ? err : new Error(err.message), {
+          type: 'API_ERROR',
+          method: req.method,
+          url: req.originalUrl,
+          userId: (req as any).user?.id,
+          body: req.body,
+          statusCode,
+        }).catch(() => {});
+      }
 
       res.status(statusCode).json({
         success: false,
@@ -610,13 +639,16 @@ class Server {
     });
 
     // Handle uncaught exceptions
-    process.on('uncaughtException', (err) => {
+    process.on('uncaughtException', async (err) => {
       console.error('UNCAUGHT EXCEPTION! 💥');
       console.error(err.name, err.message);
       console.error(err.stack);
 
-      // In production, exit to allow process manager to restart
-      // In development, log and continue to avoid disruption
+      // Send email notification before shutting down
+      try {
+        await notifyError(err, { type: 'UNCAUGHT_EXCEPTION' });
+      } catch (_) {}
+
       if (NODE_ENV === 'production') {
         console.error('Shutting down due to uncaught exception...');
         process.exit(1);
@@ -625,13 +657,16 @@ class Server {
       }
     });
 
-    process.on('unhandledRejection', (err: any) => {
+    process.on('unhandledRejection', async (err: any) => {
       console.error('UNHANDLED REJECTION! 💥');
       console.error(err?.name, err?.message);
       console.error(err?.stack);
 
-      // In production, exit to allow process manager to restart
-      // In development, log and continue to avoid disruption
+      // Send email notification
+      try {
+        await notifyError(err instanceof Error ? err : new Error(String(err)), { type: 'UNHANDLED_REJECTION' });
+      } catch (_) {}
+
       if (NODE_ENV === 'production') {
         console.error('Shutting down due to unhandled rejection...');
         server.close(() => {

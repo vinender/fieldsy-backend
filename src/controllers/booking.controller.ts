@@ -1379,11 +1379,13 @@ class BookingController {
     let refundResult = null;
     if (isRefundEligible && isDogOwner) {
       try {
+        // Use booking.id (ObjectId) instead of id (which may be an orderNumber like "5316")
+        const bookingObjectId = booking.id;
         if (booking.subscriptionId) {
           const { getSubscriptionService: getSub } = await import('../config/payout-services');
-          refundResult = await getSub().refundSubscriptionBookingOccurrence(id, reason || 'requested_by_customer');
+          refundResult = await getSub().refundSubscriptionBookingOccurrence(bookingObjectId, reason || 'requested_by_customer');
         } else {
-          refundResult = await refundService.processRefund(id, reason);
+          refundResult = await refundService.processRefund(bookingObjectId, reason);
         }
       } catch (refundError: any) {
         console.error('Refund processing error:', refundError);
