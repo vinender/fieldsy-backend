@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import prisma from '../config/database';
 import { createNotification } from '../controllers/notification.controller';
 import { differenceInHours, parseISO, addHours, isBefore, isAfter, format } from 'date-fns';
+import { getNowUK } from '../utils/ukTime';
 
 /**
  * Scheduled job to send booking reminders
@@ -42,14 +43,14 @@ async function sendBookingReminders() {
   };
 
   try {
-    const now = new Date();
+    const now = getNowUK();
 
-    // Find all confirmed bookings that are in the future
+    // Find all confirmed bookings that are in the future (using UK time)
     const upcomingBookings = await prisma.booking.findMany({
       where: {
         status: 'CONFIRMED',
         date: {
-          gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) // Today or later
+          gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) // Today or later (UK time)
         }
       },
       include: {

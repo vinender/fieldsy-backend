@@ -13,6 +13,7 @@ const refundService = getRefundService();
 import { emailService } from '../services/email.service';
 import { transformAmenities } from '../utils/amenityHelper';
 import { resolveField } from '../utils/field.utils';
+import { getNowUK } from '../utils/ukTime';
 
 class BookingController {
   // Create a new booking
@@ -56,7 +57,7 @@ class BookingController {
       throw new AppError('This field has not been claimed by an owner yet and is not available for booking', 400);
     }
 
-    // Check if the time slot is in the past
+    // Check if the time slot is in the past (using UK time)
     const bookingDate = new Date(date);
     const [startHourStr, startPeriod] = startTime.split(/(?=[AP]M)/);
     let startHour = parseInt(startHourStr.split(':')[0]);
@@ -64,9 +65,9 @@ class BookingController {
     if (startPeriod === 'AM' && startHour === 12) startHour = 0;
 
     const slotDateTime = new Date(bookingDate);
-    slotDateTime.setUTCHours(startHour, parseInt(startHourStr.split(':')[1] || '0'), 0, 0);
+    slotDateTime.setHours(startHour, parseInt(startHourStr.split(':')[1] || '0'), 0, 0);
 
-    if (slotDateTime < new Date()) {
+    if (slotDateTime < getNowUK()) {
       throw new AppError('Cannot book a time slot in the past', 400);
     }
 
@@ -379,12 +380,11 @@ class BookingController {
       ? await transformAmenities(booking.field.amenities)
       : [];
 
-    // Calculate booking eligibility for cancellation/reschedule
-    const now = new Date();
+    // Calculate booking eligibility for cancellation/reschedule (using UK time)
+    const now = getNowUK();
     const bookingDateTime = new Date(booking.date);
 
     // Parse the start time properly (handles formats like "9:00AM", "9:00 AM", "09:00")
-    // Use setUTCHours to ensure consistent behavior regardless of server timezone
     const startTime = booking.startTime || '00:00';
     const timeMatch = startTime.match(/^(\d{1,2}):?(\d{2})?\s*(AM|PM)?$/i);
     if (timeMatch) {
@@ -395,7 +395,7 @@ class BookingController {
       if (period === 'PM' && hour !== 12) hour += 12;
       if (period === 'AM' && hour === 12) hour = 0;
 
-      bookingDateTime.setUTCHours(hour, minutes, 0, 0);
+      bookingDateTime.setHours(hour, minutes, 0, 0);
     }
 
     const hoursUntilBooking = Math.max(0, (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60));
@@ -561,8 +561,8 @@ class BookingController {
         lte: rangeEnd,
       };
     } else if (dateRange) {
-      // Predefined date ranges
-      const now = new Date();
+      // Predefined date ranges (UK time)
+      const now = getNowUK();
       let rangeStart: Date;
       let rangeEnd: Date = now;
 
@@ -1220,9 +1220,9 @@ class BookingController {
     });
   });
 
-  // Mark past bookings as completed (can be called by a cron job)
+  // Mark past bookings as completed (can be called by a cron job, uses UK time)
   markPastBookingsAsCompleted = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const now = new Date();
+    const now = getNowUK();
 
     // Find all bookings that are past their date/time and not already completed or cancelled
     const completedBookings = await prisma.booking.updateMany({
@@ -1268,8 +1268,8 @@ class BookingController {
       throw new AppError('You are not authorized to check this booking', 403);
     }
 
-    // Calculate time until booking from current time
-    const now = new Date();
+    // Calculate time until booking from current UK time
+    const now = getNowUK();
     const bookingDate = new Date(booking.date);
 
     // Parse the booking start time to add to the date
@@ -1279,13 +1279,13 @@ class BookingController {
     if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
     if (startPeriod === 'AM' && startHour === 12) startHour = 0;
 
-    bookingDate.setUTCHours(startHour, startMinute, 0, 0);
+    bookingDate.setHours(startHour, startMinute, 0, 0);
 
     // Debug logging
-    console.log('=== Refund Eligibility Check ===');
+    console.log('=== Refund Eligibility Check (UK Time) ===');
     console.log('Booking ID:', booking.id);
-    console.log('Current time:', now.toISOString());
-    console.log('Booking date/time:', bookingDate.toISOString());
+    console.log('Current UK time:', now);
+    console.log('Booking date/time:', bookingDate);
     console.log('Start time:', booking.startTime);
 
     // Calculate hours until booking from now
@@ -1339,8 +1339,8 @@ class BookingController {
       throw new AppError(`Cannot cancel a ${booking.status.toLowerCase()} booking`, 400);
     }
 
-    // Calculate time until booking from current time
-    const now = new Date();
+    // Calculate time until booking from current UK time
+    const now = getNowUK();
     const bookingDate = new Date(booking.date);
 
     // Parse the booking start time to add to the date
@@ -1350,13 +1350,13 @@ class BookingController {
     if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
     if (startPeriod === 'AM' && startHour === 12) startHour = 0;
 
-    bookingDate.setUTCHours(startHour, startMinute, 0, 0);
+    bookingDate.setHours(startHour, startMinute, 0, 0);
 
-    // Debug logging for cancellation
-    console.log('=== Cancel Booking Check ===');
+    // Debug logging for cancellation (UK time)
+    console.log('=== Cancel Booking Check (UK Time) ===');
     console.log('Booking ID:', booking.id);
-    console.log('Current time:', now.toISOString());
-    console.log('Booking date/time:', bookingDate.toISOString());
+    console.log('Current UK time:', now);
+    console.log('Booking date/time:', bookingDate);
     console.log('Start time:', booking.startTime);
 
     // Calculate hours until booking from now
@@ -1563,12 +1563,12 @@ class BookingController {
     // Track reschedule count (no limit - unlimited reschedules allowed)
     const rescheduleCount = (booking as any).rescheduleCount || 0;
 
-    // Check if booking is within reschedule window
+    // Check if booking is within reschedule window (using UK time)
     const bookingDateTime = new Date(booking.date);
     const [hours, minutes] = booking.startTime.split(':');
-    bookingDateTime.setUTCHours(parseInt(hours), parseInt(minutes), 0, 0);
+    bookingDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-    const now = new Date();
+    const now = getNowUK();
     const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     // Reschedule window is 12 hours (can be overridden by system settings)
@@ -1767,7 +1767,7 @@ class BookingController {
 
     // Parse the date
     const selectedDate = new Date(date as string);
-    const now = new Date();
+    const now = getNowUK();
 
     // Get start and end of day
     const startOfDayDate = new Date(selectedDate);
@@ -1857,8 +1857,8 @@ class BookingController {
 
       // If this is a recurring day, check if it's within the booking window
       if (isRecurringDay) {
-        // Only mark as reserved if it's a future date
-        const today = new Date();
+        // Only mark as reserved if it's a future date (UK time)
+        const today = getNowUK();
         today.setHours(0, 0, 0, 0);
 
         if (selectedDate >= today && selectedDate <= maxFutureDate) {
@@ -2198,8 +2198,8 @@ class BookingController {
     });
     const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
 
-    // Calculate the max date for future bookings
-    const maxFutureDate = new Date();
+    // Calculate the max date for future bookings (UK time)
+    const maxFutureDate = getNowUK();
     maxFutureDate.setDate(maxFutureDate.getDate() + maxAdvanceBookingDays);
 
     // Build where clause - if status is 'all' or empty, show all subscriptions
@@ -2251,7 +2251,7 @@ class BookingController {
       });
     }
 
-    const now = new Date();
+    const now = getNowUK();
 
     // Format subscriptions with calculated next billing date
     const formattedSubscriptions = subscriptions.map(sub => {
