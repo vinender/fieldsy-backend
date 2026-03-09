@@ -371,7 +371,7 @@ export class PaymentController {
       const timeSlotsKey = normalizedTimeSlots.sort().join('_');
       const repeatBookingKey = repeatBooking || 'none';
       // Create a hash of the booking parameters for idempotency
-      const idempotencyBase = `${userId}_${fieldId}_${date}_${timeSlotsKey}_${repeatBookingKey}_${numberOfDogs}`;
+      const idempotencyBase = `${userId}_${fieldId}_${date}_${timeSlotsKey}_${repeatBookingKey}_${numberOfDogs}_${Date.now()}`;
       const idempotencyKey = `booking_${crypto.createHash('sha256').update(idempotencyBase).digest('hex').substring(0, 32)}`;
 
       // Check if bookings already exist for any of the selected time slots
