@@ -64,7 +64,7 @@ class BookingController {
     if (startPeriod === 'AM' && startHour === 12) startHour = 0;
 
     const slotDateTime = new Date(bookingDate);
-    slotDateTime.setHours(startHour, parseInt(startHourStr.split(':')[1] || '0'), 0, 0);
+    slotDateTime.setUTCHours(startHour, parseInt(startHourStr.split(':')[1] || '0'), 0, 0);
 
     if (slotDateTime < new Date()) {
       throw new AppError('Cannot book a time slot in the past', 400);
@@ -384,6 +384,7 @@ class BookingController {
     const bookingDateTime = new Date(booking.date);
 
     // Parse the start time properly (handles formats like "9:00AM", "9:00 AM", "09:00")
+    // Use setUTCHours to ensure consistent behavior regardless of server timezone
     const startTime = booking.startTime || '00:00';
     const timeMatch = startTime.match(/^(\d{1,2}):?(\d{2})?\s*(AM|PM)?$/i);
     if (timeMatch) {
@@ -394,7 +395,7 @@ class BookingController {
       if (period === 'PM' && hour !== 12) hour += 12;
       if (period === 'AM' && hour === 12) hour = 0;
 
-      bookingDateTime.setHours(hour, minutes, 0, 0);
+      bookingDateTime.setUTCHours(hour, minutes, 0, 0);
     }
 
     const hoursUntilBooking = Math.max(0, (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60));
@@ -735,7 +736,7 @@ class BookingController {
           if (period === 'PM' && hour !== 12) hour += 12;
           if (period === 'AM' && hour === 12) hour = 0;
 
-          bookingDateTime.setHours(hour, minutes, 0, 0);
+          bookingDateTime.setUTCHours(hour, minutes, 0, 0);
         }
       }
 
@@ -1278,7 +1279,7 @@ class BookingController {
     if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
     if (startPeriod === 'AM' && startHour === 12) startHour = 0;
 
-    bookingDate.setHours(startHour, startMinute, 0, 0);
+    bookingDate.setUTCHours(startHour, startMinute, 0, 0);
 
     // Debug logging
     console.log('=== Refund Eligibility Check ===');
@@ -1349,7 +1350,7 @@ class BookingController {
     if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
     if (startPeriod === 'AM' && startHour === 12) startHour = 0;
 
-    bookingDate.setHours(startHour, startMinute, 0, 0);
+    bookingDate.setUTCHours(startHour, startMinute, 0, 0);
 
     // Debug logging for cancellation
     console.log('=== Cancel Booking Check ===');
@@ -1565,7 +1566,7 @@ class BookingController {
     // Check if booking is within reschedule window
     const bookingDateTime = new Date(booking.date);
     const [hours, minutes] = booking.startTime.split(':');
-    bookingDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    bookingDateTime.setUTCHours(parseInt(hours), parseInt(minutes), 0, 0);
 
     const now = new Date();
     const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
