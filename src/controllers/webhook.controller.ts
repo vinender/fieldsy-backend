@@ -22,7 +22,7 @@ import BookingModel from '../models/booking.model';
  *
  * 1. PAYMENTS WEBHOOK (/api/webhooks/payments)
  *    - For platform payment events (customer payments to your platform)
- *    - Secret: STRIPE_WEBHOOK_SECRET
+ *    - Secret: STRIPE_PAYMENT_WEBHOOK_SECRET
  *    - Events: payment_intent.*, charge.succeeded, charge.failed, charge.updated
  *
  * 2. CONNECT ACCOUNTS WEBHOOK (/api/webhooks/connect)
@@ -66,7 +66,7 @@ export class WebhookController {
    */
   async handlePaymentWebhook(req: Request, res: Response) {
     const sig = req.headers['stripe-signature'] as string;
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = process.env.STRIPE_PAYMENT_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
       console.error('[PaymentWebhook] Webhook secret not configured');
@@ -336,7 +336,7 @@ export class WebhookController {
    */
   async handleRefundWebhook(req: Request, res: Response) {
     const sig = req.headers['stripe-signature'] as string;
-    const webhookSecret = process.env.STRIPE_REFUND_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = process.env.STRIPE_REFUND_WEBHOOK_SECRET || process.env.STRIPE_PAYMENT_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
       console.error('[RefundWebhook] Webhook secret not configured');
@@ -714,18 +714,32 @@ export class WebhookController {
         }
       }
 
-      // Notify if there are requirements due
+      // Notify if there are requirements due (but avoid duplicate notifications)
       if (account.requirements?.currently_due && account.requirements.currently_due.length > 0) {
-        await createNotification({
-          userId: stripeAccount.userId,
-          type: 'stripe_requirements',
-          title: 'Action Required',
-          message: 'Your Stripe account needs additional information. Please complete the setup to receive payouts.',
-          data: {
-            stripeAccountId: account.id,
-            requirements: account.requirements.currently_due
+        // Check if a similar notification was already sent in the last 30 minutes
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+        const existingNotification = await prisma.notification.findFirst({
+          where: {
+            userId: stripeAccount.userId,
+            type: 'stripe_requirements',
+            createdAt: { gte: thirtyMinutesAgo }
           }
         });
+
+        if (!existingNotification) {
+          await createNotification({
+            userId: stripeAccount.userId,
+            type: 'stripe_requirements',
+            title: 'Action Required',
+            message: 'Your Stripe account needs additional information. Please complete the setup to receive payouts.',
+            data: {
+              stripeAccountId: account.id,
+              requirements: account.requirements.currently_due
+            }
+          });
+        } else {
+          console.log('[ConnectWebhook] Skipping duplicate stripe_requirements notification for user:', stripeAccount.userId);
+        }
       }
     } else {
       // Account not in our database - might be from metadata

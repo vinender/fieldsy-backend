@@ -16,14 +16,14 @@ export const payoutEngine = new StripeAutoPayoutEngine(
     stripe: {
       secretKey: process.env.STRIPE_SECRET_KEY!,
       webhookSecrets: {
-        payments: process.env.STRIPE_WEBHOOK_SECRET!,
+        payments: process.env.STRIPE_PAYMENT_WEBHOOK_SECRET!,
         connect: process.env.STRIPE_CONNECT_WEBHOOK_SECRET!,
         payouts:
           process.env.STRIPE_PAYOUT_WEBHOOK_SECRET ||
           process.env.STRIPE_CONNECT_WEBHOOK_SECRET!,
         refunds:
           process.env.STRIPE_REFUND_WEBHOOK_SECRET ||
-          process.env.STRIPE_WEBHOOK_SECRET!,
+          process.env.STRIPE_PAYMENT_WEBHOOK_SECRET!,
       },
     },
     currency: 'gbp',

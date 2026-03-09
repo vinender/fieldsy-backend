@@ -1282,7 +1282,7 @@ export class PaymentController {
   // Handle Stripe webhooks
   async handleWebhook(req: Request, res: Response) {
     const sig = req.headers['stripe-signature'] as string;
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = process.env.STRIPE_PAYMENT_WEBHOOK_SECRET;
     const connectWebhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
 
     if (!webhookSecret && !connectWebhookSecret) {

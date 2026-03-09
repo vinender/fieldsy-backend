@@ -10,4 +10,4 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   typescript: true,
 });
 
-export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+export const STRIPE_PAYMENT_WEBHOOK_SECRET = process.env.STRIPE_PAYMENT_WEBHOOK_SECRET || '';
