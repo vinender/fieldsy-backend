@@ -1776,52 +1776,49 @@ class BookingController {
     const endOfDayDate = new Date(selectedDate);
     endOfDayDate.setHours(23, 59, 59, 999);
 
-    // Get all bookings for this field on the selected date (excluding cancelled)
-    // Always use the MongoDB ObjectID for querying bookings
-    const bookings = await prisma.booking.findMany({
-      where: {
-        fieldId: field.id,
-        date: {
-          gte: startOfDayDate,
-          lte: endOfDayDate
+    // Run all 3 queries in parallel (they only depend on field.id)
+    const [bookings, activeSubscriptions, settings] = await Promise.all([
+      prisma.booking.findMany({
+        where: {
+          fieldId: field.id,
+          date: {
+            gte: startOfDayDate,
+            lte: endOfDayDate
+          },
+          status: {
+            notIn: ['CANCELLED']
+          }
         },
-        status: {
-          notIn: ['CANCELLED']
+        select: {
+          startTime: true,
+          endTime: true,
+          timeSlot: true,
+          status: true,
+          subscriptionId: true
         }
-      },
-      select: {
-        startTime: true,
-        endTime: true,
-        timeSlot: true,
-        status: true,
-        subscriptionId: true
-      }
-    });
-
-    // Get all active subscriptions for this field to mark recurring time slots
-    const activeSubscriptions = await prisma.subscription.findMany({
-      where: {
-        fieldId: field.id,
-        status: 'active',
-        cancelAtPeriodEnd: false
-      },
-      select: {
-        id: true,
-        interval: true,
-        dayOfWeek: true,
-        dayOfMonth: true,
-        timeSlot: true,
-        startTime: true,
-        endTime: true,
-        lastBookingDate: true,
-        createdAt: true
-      }
-    });
-
-    // Get system settings for maxAdvanceBookingDays
-    const settings = await prisma.systemSettings.findFirst({
-      select: { maxAdvanceBookingDays: true }
-    });
+      }),
+      prisma.subscription.findMany({
+        where: {
+          fieldId: field.id,
+          status: 'active',
+          cancelAtPeriodEnd: false
+        },
+        select: {
+          id: true,
+          interval: true,
+          dayOfWeek: true,
+          dayOfMonth: true,
+          timeSlot: true,
+          startTime: true,
+          endTime: true,
+          lastBookingDate: true,
+          createdAt: true
+        }
+      }),
+      prisma.systemSettings.findFirst({
+        select: { maxAdvanceBookingDays: true }
+      }),
+    ]);
     const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
     const maxFutureDate = new Date(selectedDate);
     maxFutureDate.setDate(maxFutureDate.getDate() + maxAdvanceBookingDays);

@@ -1,8 +1,6 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../config/database';
 
 const DEFAULT_TERMS = [
     {

@@ -1,10 +1,8 @@
 //@ts-nocheck
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
-
-const prisma = new PrismaClient();
 
 class FavoriteController {
   // Toggle favorite (save/unsave field)

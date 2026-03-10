@@ -451,20 +451,19 @@ class FieldController {
       return optimizedField;
     });
 
-    // Enrich fields with full amenity objects (only for the amenities we're sending)
-    const enrichedFields = await enrichFieldsWithAmenities(transformedFields);
-
-    // Get user's liked fields if authenticated
+    // Run amenity enrichment and favorites query in parallel
     const userId = (req as any).user?.id;
-    let userLikedFieldIds: Set<string> = new Set();
-
-    if (userId) {
-      const userFavorites = await prisma.favorite.findMany({
-        where: { userId },
-        select: { fieldId: true }
-      });
-      userLikedFieldIds = new Set(userFavorites.map(f => f.fieldId));
-    }
+    const [enrichedFields, userLikedFieldIds] = await Promise.all([
+      enrichFieldsWithAmenities(transformedFields),
+      (async () => {
+        if (!userId) return new Set<string>();
+        const userFavorites = await prisma.favorite.findMany({
+          where: { userId },
+          select: { fieldId: true }
+        });
+        return new Set(userFavorites.map(f => f.fieldId));
+      })(),
+    ]);
 
     // Add isLiked to each field and remove internal ID
     const fieldsWithLikeStatus = enrichedFields.map((field: any) => {
@@ -1133,23 +1132,15 @@ class FieldController {
     const limitNum = Number(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // Get all active fields with distance calculated
-    const allFieldsWithDistance = await FieldModel.searchByLocation(
+    // Get nearby fields within the requested radius
+    const nearbyFields = await FieldModel.searchByLocation(
       latitude,
       longitude,
-      999999 // Very large radius to get all fields
+      radiusNum
     );
 
-    // Split into nearby and remaining fields
-    const nearbyFields = allFieldsWithDistance.filter(
-      (field: any) => field.distanceMiles <= radiusNum
-    );
-    const remainingFields = allFieldsWithDistance.filter(
-      (field: any) => field.distanceMiles > radiusNum
-    );
-
-    // Combine: nearby fields first, then remaining fields
-    let combinedFields = [...nearbyFields, ...remainingFields];
+    // Use nearby fields directly (already sorted by distance from $near)
+    let combinedFields = nearbyFields;
 
     // Apply sorting if specified
     if (sortBy && typeof sortBy === 'string') {
@@ -1229,20 +1220,19 @@ class FieldController {
       };
     });
 
-    // Enrich fields with amenity labels (string array only)
-    const enrichedFields = await enrichFieldsWithAmenities(transformedFields);
-
-    // Get user's liked fields if authenticated
+    // Run amenity enrichment and favorites query in parallel
     const userId = (req as any).user?.id;
-    let userLikedFieldIds: Set<string> = new Set();
-
-    if (userId) {
-      const userFavorites = await prisma.favorite.findMany({
-        where: { userId },
-        select: { fieldId: true }
-      });
-      userLikedFieldIds = new Set(userFavorites.map(f => f.fieldId));
-    }
+    const [enrichedFields, userLikedFieldIds] = await Promise.all([
+      enrichFieldsWithAmenities(transformedFields),
+      (async () => {
+        if (!userId) return new Set<string>();
+        const userFavorites = await prisma.favorite.findMany({
+          where: { userId },
+          select: { fieldId: true }
+        });
+        return new Set(userFavorites.map(f => f.fieldId));
+      })(),
+    ]);
 
     // Add isLiked to each field
     const fieldsWithLikeStatus = enrichedFields.map((field: any) => ({
@@ -1262,8 +1252,7 @@ class FieldController {
         hasPrevPage: pageNum > 1,
       },
       metadata: {
-        nearbyCount: nearbyFields.length,
-        remainingCount: remainingFields.length,
+        nearbyCount: combinedFields.length,
         radius: radiusNum,
       },
     });
@@ -1279,91 +1268,70 @@ class FieldController {
     const userLat = lat ? Number(lat) : null;
     const userLng = lng ? Number(lng) : null;
 
-    // Get active fields with booking counts and ratings
-    const fields = await prisma.field.findMany({
-      where: {
-        isActive: true,
-        isSubmitted: true,
-      },
-      select: {
-        id: true,
-        fieldId: true, // Human-readable ID
-        name: true,
-        city: true,
-        state: true,
-        address: true,
-        price: true,
-        price30min: true,
-        price1hr: true,
-        bookingDuration: true,
-        averageRating: true,
-        totalReviews: true,
-        images: true,
-        amenities: true,
-        isClaimed: true,
-        ownerName: true,
-        latitude: true,
-        longitude: true,
-        location: true,
-        _count: {
-          select: {
-            bookings: {
-              where: {
-                status: {
-                  in: ['CONFIRMED', 'COMPLETED']
-                }
-              }
-            },
-          },
+    // Use denormalized averageRating + totalReviews for sorting (no _count needed)
+    // Sort by rating descending, then by totalReviews descending
+    const [fields, total] = await Promise.all([
+      prisma.field.findMany({
+        where: {
+          isActive: true,
+          isSubmitted: true,
+          isApproved: true,
+          isBlocked: false,
         },
-      },
-    });
+        select: {
+          id: true,
+          fieldId: true,
+          name: true,
+          city: true,
+          state: true,
+          address: true,
+          price: true,
+          price30min: true,
+          price1hr: true,
+          bookingDuration: true,
+          averageRating: true,
+          totalReviews: true,
+          images: true,
+          amenities: true,
+          isClaimed: true,
+          ownerName: true,
+          latitude: true,
+          longitude: true,
+          location: true,
+        },
+        orderBy: [
+          { averageRating: 'desc' },
+          { totalReviews: 'desc' },
+        ],
+        skip,
+        take: limitNum,
+      }),
+      prisma.field.count({
+        where: {
+          isActive: true,
+          isSubmitted: true,
+          isApproved: true,
+          isBlocked: false,
+        },
+      }),
+    ]);
 
-    // Calculate popularity score and distance
-    const fieldsWithScore = fields.map((field: any) => {
-      const bookingCount = field._count.bookings || 0;
-      const rating = field.averageRating || 0;
-      const reviewCount = field.totalReviews || 0;
-
-      // Popularity score formula: (rating * 0.4) + (bookingCount * 0.4) + (reviewCount * 0.2)
-      // Normalize booking count (assuming max 100 bookings gives full score)
-      const normalizedBookings = Math.min(bookingCount / 100, 1) * 5;
-      // Normalize review count (assuming 50 reviews gives full score)
-      const normalizedReviews = Math.min(reviewCount / 50, 1) * 5;
-
-      const popularityScore = (rating * 0.4) + (normalizedBookings * 0.4) + (normalizedReviews * 0.2);
-
-      // Calculate distance if user location is provided
+    const totalPages = Math.ceil(total / limitNum);
+    const paginatedFields = fields.map((field: any) => {
       let distanceMiles = undefined;
       if (userLat !== null && userLng !== null && field.latitude && field.longitude) {
-        const R = 3959; // Earth's radius in miles
+        const R = 3959;
         const dLat = (field.latitude - userLat) * Math.PI / 180;
         const dLng = (field.longitude - userLng) * Math.PI / 180;
-
         const a =
           Math.sin(dLat / 2) * Math.sin(dLat / 2) +
           Math.cos(userLat * Math.PI / 180) * Math.cos(field.latitude * Math.PI / 180) *
           Math.sin(dLng / 2) * Math.sin(dLng / 2);
-
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         distanceMiles = Number((R * c).toFixed(1));
       }
-
-      return {
-        ...field,
-        bookingCount,
-        popularityScore,
-        distanceMiles,
-      };
+      return { ...field, distanceMiles };
     });
-
-    // Sort by popularity score (highest first)
-    fieldsWithScore.sort((a, b) => b.popularityScore - a.popularityScore);
-
-    // Apply pagination
-    const total = fieldsWithScore.length;
-    const paginatedFields = fieldsWithScore.slice(skip, skip + limitNum);
-    const totalPages = Math.ceil(total / limitNum);
 
     // Transform to optimized field card format
     const transformedFields = paginatedFields.map((field: any) => {
@@ -1406,20 +1374,19 @@ class FieldController {
       };
     });
 
-    // Enrich fields with full amenity objects
-    const enrichedFields = await enrichFieldsWithAmenities(transformedFields);
-
-    // Get user's liked fields if authenticated
+    // Run amenity enrichment and favorites query in parallel
     const userId = (req as any).user?.id;
-    let userLikedFieldIds: Set<string> = new Set();
-
-    if (userId) {
-      const userFavorites = await prisma.favorite.findMany({
-        where: { userId },
-        select: { fieldId: true }
-      });
-      userLikedFieldIds = new Set(userFavorites.map(f => f.fieldId));
-    }
+    const [enrichedFields, userLikedFieldIds] = await Promise.all([
+      enrichFieldsWithAmenities(transformedFields),
+      (async () => {
+        if (!userId) return new Set<string>();
+        const userFavorites = await prisma.favorite.findMany({
+          where: { userId },
+          select: { fieldId: true }
+        });
+        return new Set(userFavorites.map(f => f.fieldId));
+      })(),
+    ]);
 
     // Add isLiked to each field
     const fieldsWithLikeStatus = enrichedFields.map((field: any) => ({

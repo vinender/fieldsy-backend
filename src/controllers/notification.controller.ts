@@ -1,9 +1,7 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import PushNotificationService from '../services/push-notification.service';
-
-const prisma = new PrismaClient();
 
 // Extend Request type to include userId
 interface AuthRequest extends Request {

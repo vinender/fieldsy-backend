@@ -1,10 +1,8 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import { sendMessageToKafka } from '../config/kafka';
 import UserModel from '../models/user.model';
-
-const prisma = new PrismaClient();
 
 // Get or create conversation
 export const getOrCreateConversation = async (req: Request, res: Response) => {

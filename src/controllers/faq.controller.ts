@@ -1,14 +1,21 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 
-const prisma = new PrismaClient();
+// In-memory cache for public FAQs (rarely changes)
+let faqCache: { data: any; timestamp: number } | null = null;
+const FAQ_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Get all FAQs (public)
 export const getFAQs = async (req: Request, res: Response) => {
   try {
     const { category } = req.query;
-    
+
+    // Use cache for unfiltered requests
+    if (!category && faqCache && (Date.now() - faqCache.timestamp < FAQ_CACHE_TTL)) {
+      return res.json(faqCache.data);
+    }
+
     const where: any = { isActive: true };
     if (category) {
       where.category = category;
@@ -19,7 +26,6 @@ export const getFAQs = async (req: Request, res: Response) => {
       orderBy: [
         { category: 'asc' },
         { order: 'asc' },
-        { createdAt: 'desc' }
       ]
     });
 
@@ -33,13 +39,20 @@ export const getFAQs = async (req: Request, res: Response) => {
       return acc;
     }, {});
 
-    res.json({
+    const response = {
       success: true,
       data: {
         faqs,
         grouped: groupedFAQs
       }
-    });
+    };
+
+    // Cache unfiltered results
+    if (!category) {
+      faqCache = { data: response, timestamp: Date.now() };
+    }
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching FAQs:', error);
     res.status(500).json({

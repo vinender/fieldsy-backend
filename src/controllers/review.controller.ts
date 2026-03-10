@@ -117,26 +117,26 @@ class ReviewController {
         where.rating = rating;
       }
 
-      // Fetch Fieldsy reviews
-      const fieldsyReviews = await prisma.fieldReview.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
+      // Fetch Fieldsy reviews and Google reviews in parallel
+      const [fieldsyReviews, googleReviews] = await Promise.all([
+        prisma.fieldReview.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
             },
           },
-        },
-      });
-
-      // Fetch Google reviews
-      const googleReviews = await prisma.googleReview.findMany({
-        where: { fieldId: internalFieldId },
-        orderBy: { createdAt: 'desc' },
-      });
+        }),
+        prisma.googleReview.findMany({
+          where: { fieldId: internalFieldId },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
 
       // Transform Google reviews to match Fieldsy review format
       const transformedGoogleReviews = googleReviews.map(gr => ({

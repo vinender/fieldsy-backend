@@ -104,6 +104,23 @@ export interface CreateFieldInput {
 }
 
 class FieldModel {
+  // Cache for blocked owner IDs (5 min TTL)
+  private blockedOwnersCache: { ids: string[]; timestamp: number } | null = null;
+  private readonly BLOCKED_OWNERS_TTL = 5 * 60 * 1000; // 5 minutes
+
+  private async getBlockedOwnerIds(): Promise<string[]> {
+    if (this.blockedOwnersCache && (Date.now() - this.blockedOwnersCache.timestamp < this.BLOCKED_OWNERS_TTL)) {
+      return this.blockedOwnersCache.ids;
+    }
+    const blockedOwners = await prisma.user.findMany({
+      where: { role: 'FIELD_OWNER', isBlocked: true },
+      select: { id: true }
+    });
+    const ids = blockedOwners.map(o => o.id);
+    this.blockedOwnersCache = { ids, timestamp: Date.now() };
+    return ids;
+  }
+
   // Helper to translate fieldId (human or ObjectID) to internal ObjectID
   async resolveId(id: string): Promise<string> {
     if (!id) return id;
@@ -202,6 +219,8 @@ class FieldModel {
             },
           },
           reviews: {
+            take: 10,
+            orderBy: { createdAt: 'desc' },
             include: {
               user: {
                 select: {
@@ -213,7 +232,6 @@ class FieldModel {
           },
           _count: {
             select: {
-              bookings: true,
               reviews: true,
               favorites: true,
             },
@@ -231,6 +249,8 @@ class FieldModel {
         where,
         include: {
           reviews: {
+            take: 10,
+            orderBy: { createdAt: 'desc' },
             include: {
               user: {
                 select: {
@@ -242,7 +262,6 @@ class FieldModel {
           },
           _count: {
             select: {
-              bookings: true,
               reviews: true,
               favorites: true,
             },
@@ -427,23 +446,15 @@ class FieldModel {
       isBlocked: false // Exclude blocked fields
     };
 
-    // Exclude fields from blocked field owners
+    // Exclude fields from blocked field owners (cached for 5 minutes)
     try {
-      const blockedOwners = await prisma.user.findMany({
-        where: {
-          role: 'FIELD_OWNER',
-          isBlocked: true
-        },
-        select: { id: true }
-      });
-
-      if (blockedOwners.length > 0) {
+      const blockedOwnerIds = await this.getBlockedOwnerIds();
+      if (blockedOwnerIds.length > 0) {
         whereClause.ownerId = {
-          notIn: blockedOwners.map(owner => owner.id)
+          notIn: blockedOwnerIds
         };
       }
     } catch (error: any) {
-      // If query fails, log but continue without this filter
       console.warn('Warning: Could not fetch blocked field owners:', error.message);
     }
 
@@ -941,50 +952,54 @@ class FieldModel {
       }
     }
 
-    // Fetch ALL fields without pagination first, so we can sort by image quality
-    // Then apply pagination after sorting
+    // Build select - only include _count when sorting by popularity
+    const fieldSelect: any = {
+      id: true,
+      fieldId: true,
+      name: true,
+      images: true,
+      price: true,
+      price30min: true,
+      price1hr: true,
+      bookingDuration: true,
+      averageRating: true,
+      totalReviews: true,
+      amenities: true,
+      isClaimed: true,
+      ownerName: true,
+      maxDogs: true,
+      size: true,
+      customFieldSize: true,
+      latitude: true,
+      longitude: true,
+      location: true,
+      address: true,
+      city: true,
+      state: true,
+      zipCode: true,
+    };
+
+    if (sortBy === 'popularity') {
+      fieldSelect._count = {
+        select: {
+          bookings: {
+            where: { status: { in: ['CONFIRMED', 'COMPLETED'] } }
+          },
+          reviews: true,
+        },
+      };
+    }
+
+    // If size filter is used, we need to fetch all for post-query filtering
+    // Otherwise, use DB-level pagination for performance
+    const needsPostQueryFilter = !!sizeFilter;
+
     const [allFields, total] = await Promise.all([
       prisma.field.findMany({
         where: whereClause,
-        // No skip/take here - we'll apply pagination after sorting by image quality
-        select: {
-          id: true,
-          fieldId: true, // Human-readable ID
-          name: true,
-          images: true, // First image for card thumbnail
-          price: true, // Legacy field
-          price30min: true, // New price field for 30 min slots
-          price1hr: true, // New price field for 1 hour slots
-          bookingDuration: true, // Legacy field
-          averageRating: true,
-          totalReviews: true,
-          amenities: true, // For amenity icons
-          isClaimed: true,
-          ownerName: true, // Denormalized owner name
-          size: true, // For size filtering
-          customFieldSize: true, // For custom size filtering
-          // Location fields for distance calculation
-          latitude: true,
-          longitude: true,
-          location: true, // JSON location object with lat/lng
-          // Address for display
-          address: true,
-          city: true,
-          state: true,
-          zipCode: true,
-          // Count bookings for popularity
-          _count: {
-            select: {
-              bookings: {
-                where: {
-                  status: { in: ['CONFIRMED', 'COMPLETED'] }
-                }
-              },
-              reviews: true,
-            },
-          },
-        },
+        select: fieldSelect,
         orderBy: this.buildOrderBy(sortBy, sortOrder),
+        ...(needsPostQueryFilter ? {} : { skip, take }),
       }),
       prisma.field.count({ where: whereClause }),
     ]);
@@ -1046,42 +1061,22 @@ class FieldModel {
       });
     }
 
-    // Sort fields by image quality:
-    // 1. Fields with premium images (S3/CDN URLs) come first (score 2)
-    // 2. Fields with WordPress URLs come next (score 1) - these are valid images
-    // 3. Fields with no valid images come last (score 0)
-    const getImageScore = (field: any): number => {
-      if (!field.images || field.images.length === 0) return 0;
+    if (needsPostQueryFilter) {
+      // When post-query filtering was needed, apply pagination in JS
+      const totalAfterFilter = filteredFields.length;
+      const paginatedFields = filteredFields.slice(skip, skip + take);
+      return {
+        fields: paginatedFields,
+        total: totalAfterFilter,
+        hasMore: skip + take < totalAfterFilter,
+      };
+    }
 
-      // Check if any image is a premium URL (S3, CDN, not WordPress)
-      const hasPremiumImage = field.images.some((img: string) => {
-        if (!isValidImageUrl(img)) return false;
-        return isPremiumImageUrl(img);
-      });
-
-      if (hasPremiumImage) return 2; // Premium images get highest priority
-
-      // Check if any image is valid (including WordPress)
-      const hasValidImage = field.images.some((img: string) => isValidImageUrl(img));
-
-      if (hasValidImage) return 1; // WordPress/other valid images get medium priority
-      return 0; // No valid images get lowest priority
-    };
-
-    filteredFields.sort((a: any, b: any) => {
-      const aScore = getImageScore(a);
-      const bScore = getImageScore(b);
-      return bScore - aScore; // Higher scores come first
-    });
-
-    // Apply pagination AFTER sorting by image quality
-    const totalAfterFilter = filteredFields.length;
-    const paginatedFields = filteredFields.slice(skip, skip + take);
-
+    // DB-level pagination was already applied
     return {
-      fields: paginatedFields,
-      total: totalAfterFilter,
-      hasMore: skip + take < totalAfterFilter,
+      fields: filteredFields,
+      total,
+      hasMore: skip + take < total,
     };
   }
 
@@ -1483,107 +1478,33 @@ class FieldModel {
     }));
   }
 
-  // Search fields by location using MongoDB geospatial query
+  // Search fields by location using bounding-box + in-memory Haversine distance
+  // Note: MongoDB $near geospatial query requires GeoJSON format data + 2dsphere index.
+  // Our location field stores {lat, lng, city, ...} (not GeoJSON), so we use the
+  // optimized in-memory approach with a DB-level bounding-box pre-filter instead.
   async searchByLocation(lat: number, lng: number, radius: number = 10) {
-    // Convert radius from miles to meters (MongoDB uses meters for $near)
-    const radiusInMeters = radius * 1609.34;
-
-    try {
-      // Use findRaw to leverage MongoDB's geospatial operators
-      // Note: This requires a 2dsphere index on the 'location' field
-      const rawFields = await prisma.field.findRaw({
-        filter: {
-          isActive: true,
-          isSubmitted: true,
-          isApproved: true, // Field must be approved by admin
-          // Note: isBlocked filter removed for production compatibility
-          // Will be added back after DB migration: isBlocked: { $ne: true },
-          location: {
-            $near: {
-              $geometry: {
-                type: "Point",
-                coordinates: [lng, lat]
-              },
-              $maxDistance: radiusInMeters
-            }
-          }
-        }
-      });
-
-      // Map raw results to our application structure
-      // findRaw returns BSON objects, so we need to be careful with ID mapping
-      const fieldsWithDistance = (rawFields as any[]).map((field: any) => {
-        // Calculate distance for display (since $near sorts by distance but doesn't return it)
-        // We still calculate this for the UI display, but we're doing it on a much smaller subset
-        const fieldLat = field.location?.coordinates?.[1] || field.latitude;
-        const fieldLng = field.location?.coordinates?.[0] || field.longitude;
-
-        let distanceMiles = 0;
-        if (fieldLat && fieldLng) {
-          const R = 3959; // Earth's radius in miles
-          const dLat = (fieldLat - lat) * Math.PI / 180;
-          const dLng = (fieldLng - lng) * Math.PI / 180;
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat * Math.PI / 180) * Math.cos(fieldLat * Math.PI / 180) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          distanceMiles = R * c;
-        }
-
-        // Map _id object to string id if needed, or use existing id string
-        const id = field._id?.$oid || field._id || field.id;
-
-        return {
-          id,
-          fieldId: field.fieldId,
-          name: field.name,
-          city: field.city,
-          state: field.state,
-          address: field.address,
-          zipCode: field.zipCode,
-          latitude: fieldLat,
-          longitude: fieldLng,
-          location: field.location,
-          price: field.price,
-          price30min: field.price30min,
-          price1hr: field.price1hr,
-          bookingDuration: field.bookingDuration,
-          averageRating: field.averageRating,
-          totalReviews: field.totalReviews,
-          images: field.images,
-          amenities: field.amenities,
-          isClaimed: field.isClaimed,
-          ownerId: field.ownerId?.$oid || field.ownerId, // Handle ObjectId reference
-          ownerName: field.ownerName,
-          distanceMiles: Number(distanceMiles.toFixed(1)),
-        };
-      });
-
-      return fieldsWithDistance;
-
-    } catch (error) {
-      console.error('Geospatial search error:', error);
-      // Fallback to in-memory search if index is missing or query fails
-      console.warn('Falling back to in-memory geospatial search');
-      return this.searchByLocationInMemory(lat, lng, radius);
-    }
+    return this.searchByLocationInMemory(lat, lng, radius);
   }
 
   // Fallback in-memory search (renamed from original searchByLocation)
   async searchByLocationInMemory(lat: number, lng: number, radius: number = 10) {
-    // Get all active fields
+    // Use bounding-box pre-filter to reduce dataset (approximate: 1 degree lat ≈ 69 miles)
+    const latDelta = radius / 69;
+    const lngDelta = radius / (69 * Math.cos(lat * Math.PI / 180));
+
     const allFields = await prisma.field.findMany({
       where: {
         isActive: true,
         isSubmitted: true,
-        isApproved: true // Field must be approved by admin
-        // Note: isBlocked filter removed for production compatibility
-        // Will be added back after DB migration
+        isApproved: true,
+        isBlocked: false,
+        // Bounding box filter at DB level
+        latitude: { gte: lat - latDelta, lte: lat + latDelta },
+        longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
       },
       select: {
         id: true,
-        fieldId: true, // Human-readable ID
+        fieldId: true,
         name: true,
         city: true,
         state: true,
@@ -1592,10 +1513,10 @@ class FieldModel {
         latitude: true,
         longitude: true,
         location: true,
-        price: true, // Legacy field
-        price30min: true, // New price field for 30 min slots
-        price1hr: true, // New price field for 1 hour slots
-        bookingDuration: true, // Legacy field
+        price: true,
+        price30min: true,
+        price1hr: true,
+        bookingDuration: true,
         averageRating: true,
         totalReviews: true,
         images: true,
@@ -1603,12 +1524,6 @@ class FieldModel {
         isClaimed: true,
         ownerId: true,
         ownerName: true,
-        _count: {
-          select: {
-            bookings: true,
-            reviews: true,
-          },
-        },
       },
     });
 

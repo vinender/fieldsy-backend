@@ -140,6 +140,14 @@ export async function enrichFieldWithAmenities(field: any): Promise<any> {
  * @param fields - Array of field objects with amenities as string arrays
  * @returns Array of field objects with amenity labels as string arrays
  */
+// Module-level cache for enrichFieldsWithAmenities (persists between calls)
+let enrichAmenityCache: {
+  data: Map<string, string>;
+  timestamp: number;
+} | null = null;
+
+const ENRICH_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
 export async function enrichFieldsWithAmenities(fields: any[]): Promise<any[]> {
   if (!fields || fields.length === 0) return fields;
 
@@ -147,19 +155,10 @@ export async function enrichFieldsWithAmenities(fields: any[]): Promise<any[]> {
   const normalizeKey = (str: string) =>
     str.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  // Cache amenities in memory to avoid repeated DB calls
-  // Simple singleton cache pattern
-  let amenityCache: {
-    data: Map<string, string>;
-    timestamp: number;
-  } | null = null;
-
-  const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
-
   // Check if cache is valid
-  if (amenityCache && (Date.now() - amenityCache.timestamp < CACHE_TTL)) {
+  if (enrichAmenityCache && (Date.now() - enrichAmenityCache.timestamp < ENRICH_CACHE_TTL)) {
     // Use cached data
-    const amenityMap = amenityCache.data;
+    const amenityMap = enrichAmenityCache.data;
 
     // Transform all fields using cache
     return fields.map((field) => {
@@ -201,8 +200,8 @@ export async function enrichFieldsWithAmenities(fields: any[]): Promise<any[]> {
     ])
   );
 
-  // Update cache
-  amenityCache = {
+  // Update module-level cache
+  enrichAmenityCache = {
     data: amenityMap,
     timestamp: Date.now()
   };

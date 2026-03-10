@@ -1,14 +1,12 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 import { emailService } from '../services/email.service';
 import bcrypt from 'bcryptjs';
 import { BCRYPT_ROUNDS } from '../config/constants';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Submit a field claim
 export const submitFieldClaim = asyncHandler(async (req: Request, res: Response) => {
