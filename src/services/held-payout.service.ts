@@ -201,7 +201,7 @@ export class HeldPayoutService {
             userId: booking.field.ownerId,
             type: 'PAYOUT_RELEASED',
             title: 'Payment Released',
-            message: `A payment of $${booking.fieldOwnerAmount} for booking on ${booking.date.toLocaleDateString()} has been released and will be processed soon.`,
+            message: `A payment of $${booking.fieldOwnerAmount} for booking on ${booking.date.toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} has been released and will be processed soon.`,
             data: { 
               bookingId: booking.id,
               amount: booking.fieldOwnerAmount

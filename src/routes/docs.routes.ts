@@ -309,7 +309,7 @@ router.get('/socket-docs', (req: Request, res: Response) => {
         </div>
 
         <div class="footer">
-            <p>Fieldsy API Documentation • Last Updated: ${new Date().toLocaleDateString()}</p>
+            <p>Fieldsy API Documentation • Last Updated: ${new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/London' })}</p>
             <p>For support, contact the backend team</p>
         </div>
     </div>

@@ -445,12 +445,13 @@ const getFieldClaimTemplate = (claimData: {
   submittedAt: Date;
   documents?: string[];
 }) => {
-  const formattedDate = new Date(claimData.submittedAt).toLocaleDateString('en-US', {
+  const formattedDate = new Date(claimData.submittedAt).toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'Europe/London'
   });
 
   return `
@@ -723,11 +724,12 @@ const getBookingConfirmationTemplate = (bookingData: {
   fieldOwnerName: string;
   entryCode?: string;
 }) => {
-  const formattedDate = new Date(bookingData.date).toLocaleDateString('en-US', {
+  const formattedDate = new Date(bookingData.date).toLocaleDateString('en-GB', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Europe/London'
   });
 
   return `
@@ -892,11 +894,12 @@ const getNewBookingNotificationTemplate = (bookingData: {
   dogOwnerName: string;
   entryCode?: string;
 }) => {
-  const formattedDate = new Date(bookingData.date).toLocaleDateString('en-US', {
+  const formattedDate = new Date(bookingData.date).toLocaleDateString('en-GB', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Europe/London'
   });
 
   return `
@@ -1067,12 +1070,13 @@ const getFieldSubmissionTemplate = (data: {
   fieldAddress: string;
   submittedAt: Date;
 }) => {
-  const formattedDate = new Date(data.submittedAt).toLocaleDateString('en-US', {
+  const formattedDate = new Date(data.submittedAt).toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'Europe/London'
   });
 
   return `
@@ -1220,12 +1224,13 @@ const getFieldApprovalTemplate = (data: {
   fieldName: string;
   fieldAddress: string;
 }) => {
-  const formattedDate = new Date().toLocaleDateString('en-US', {
+  const formattedDate = new Date().toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'Europe/London'
   });
 
   return `
@@ -1396,11 +1401,12 @@ const getBookingStatusChangeTemplate = (emailData: {
   newStatus: string;
   reason?: string;
 }) => {
-  const formattedDate = new Date(emailData.date).toLocaleDateString('en-US', {
+  const formattedDate = new Date(emailData.date).toLocaleDateString('en-GB', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Europe/London'
   });
 
   const statusColors: any = {
@@ -1568,11 +1574,12 @@ const getRecurringBookingCreatedTemplateDogOwner = (data: {
   numberOfDogs: number;
   totalPrice: number;
 }) => {
-  const formattedDate = new Date(data.bookingDate).toLocaleDateString('en-US', {
+  const formattedDate = new Date(data.bookingDate).toLocaleDateString('en-GB', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Europe/London'
   });
 
   return `
@@ -1745,11 +1752,12 @@ const getRecurringBookingCreatedTemplateFieldOwner = (data: {
   totalPrice: number;
   fieldOwnerAmount: number;
 }) => {
-  const formattedDate = new Date(data.bookingDate).toLocaleDateString('en-US', {
+  const formattedDate = new Date(data.bookingDate).toLocaleDateString('en-GB', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Europe/London'
   });
 
   return `
@@ -1930,11 +1938,12 @@ const getSubscriptionCancelledTemplate = (data: {
   isFieldOwner: boolean;
   dogOwnerName?: string;
 }) => {
-  const formattedDate = new Date(data.cancelledAt).toLocaleDateString('en-US', {
+  const formattedDate = new Date(data.cancelledAt).toLocaleDateString('en-GB', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Europe/London'
   });
 
   const title = data.isFieldOwner ? 'Recurring Booking Cancelled' : 'Subscription Cancelled';
@@ -2566,8 +2575,13 @@ const getBookingReminderTemplate = (data: {
   address: string;
   hoursUntilBooking: number;
 }) => {
-  const { format } = require('date-fns');
-  const formattedDate = format(data.bookingDate, 'EEEE, MMMM d, yyyy');
+  const formattedDate = new Date(data.bookingDate).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Europe/London'
+  });
   const reminderText = data.hoursUntilBooking >= 2
     ? `in ${data.hoursUntilBooking} hours`
     : 'very soon';
@@ -2764,6 +2778,7 @@ const getFieldAddressChangeNotificationTemplate = (data: {
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: 'Europe/London',
   }).format(new Date(data.changeDate));
 
   return `
@@ -3312,11 +3327,12 @@ const getEntryCodeUpdateTemplate = (data: {
   upcomingBookingDates: Date[];
 }) => {
   const formattedDates = data.upcomingBookingDates
-    .map(date => new Date(date).toLocaleDateString('en-US', {
+    .map(date => new Date(date).toLocaleDateString('en-GB', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'Europe/London'
     }))
     .slice(0, 5); // Show max 5 dates
 

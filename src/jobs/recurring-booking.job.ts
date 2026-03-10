@@ -5,6 +5,7 @@ import { createNotification } from '../controllers/notification.controller';
 import { getSubscriptionService } from '../config/payout-services';
 const subscriptionService = getSubscriptionService();
 import { addDays, addMonths, format, isBefore, isAfter } from 'date-fns';
+import { getNowUK } from '../utils/ukTime';
 
 /**
  * Scheduled job to automatically create recurring bookings for the next billing cycle
@@ -132,7 +133,7 @@ async function createUpcomingRecurringBookings() {
         }
 
         // Validate that next booking date is within advance booking days range
-        const today = new Date();
+        const today = getNowUK();
         today.setHours(0, 0, 0, 0);
 
         const maxFutureDate = new Date(today);
@@ -438,7 +439,7 @@ async function checkPastBookingsAndCreateNext() {
   };
 
   try {
-    const now = new Date();
+    const now = getNowUK();
 
     // Get system settings for maxAdvanceBookingDays
     const settings = await prisma.systemSettings.findFirst({
@@ -504,7 +505,7 @@ async function checkPastBookingsAndCreateNext() {
 
         // Calculate next booking date
         const lastBookingDate = subscription.lastBookingDate || lastBooking.date;
-        let nextBookingDate = new Date();
+        let nextBookingDate = getNowUK();
 
         if (subscription.interval === 'everyday') {
           nextBookingDate = addDays(lastBookingDate, 1);
@@ -515,7 +516,7 @@ async function checkPastBookingsAndCreateNext() {
         }
 
         // Ensure next booking date is in the future
-        const today = new Date();
+        const today = getNowUK();
         today.setHours(0, 0, 0, 0);
 
         if (isBefore(nextBookingDate, today)) {

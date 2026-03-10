@@ -152,7 +152,7 @@ export class PayoutProcessorJob {
         });
         
         const summaryMessage = `
-Daily Payout Summary for ${yesterday.toLocaleDateString()}:
+Daily Payout Summary for ${yesterday.toLocaleDateString('en-GB', { timeZone: 'Europe/London' })}:
 - Total Payouts: ${totalPayouts}
 - Total Amount: £${totalAmount.toFixed(2)}
 - Field Owners Paid: ${Object.keys(payoutsByOwner).length}

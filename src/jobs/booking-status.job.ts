@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../config/database';
+import { getNowUK } from '../utils/ukTime';
 
 /**
  * Job to automatically mark past CONFIRMED bookings as COMPLETED
@@ -11,7 +12,7 @@ export const initBookingStatusJob = () => {
         console.log('Running booking status update job...');
 
         try {
-            const now = new Date();
+            const now = getNowUK();
 
             // Find all CONFIRMED bookings that have ended
             // We need to check both the date and the end time
@@ -20,11 +21,12 @@ export const initBookingStatusJob = () => {
             // For simplicity and safety, we'll fetch confirmed bookings from the past few days up to today.
 
             // 1. Find bookings with date < today (strictly past dates)
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const pastDateBookings = await prisma.booking.updateMany({
                 where: {
                     status: 'CONFIRMED',
                     date: {
-                        lt: new Date(now.setHours(0, 0, 0, 0)) // Strictly less than start of today
+                        lt: startOfToday // Strictly less than start of today (UK time)
                     }
                 },
                 data: {
@@ -38,8 +40,7 @@ export const initBookingStatusJob = () => {
 
             // 2. Find bookings for TODAY that have ended
             // This requires checking the endTime string
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
             const todayBookings = await prisma.booking.findMany({
                 where: {

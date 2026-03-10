@@ -281,7 +281,7 @@ export const getEarningsSummary = async (req: Request, res: Response) => {
     const monthlyEarnings = Array.from({ length: 6 }, (_, i) => {
       const date = new Date();
       date.setMonth(date.getMonth() - (5 - i));
-      const month = date.toLocaleString('default', { month: 'short' });
+      const month = date.toLocaleString('default', { month: 'short', timeZone: 'Europe/London' });
       const year = date.getFullYear();
       
       const monthTransactions = monthlyTransactions.filter(t => {

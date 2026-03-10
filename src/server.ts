@@ -605,7 +605,7 @@ class Server {
 ║                                                    ║
 ║   Mode: ${NODE_ENV.padEnd(43)}║
 ║   Port: ${String(PORT).padEnd(43)}║
-║   Time: ${new Date().toLocaleString().padEnd(43)}║
+║   Time: ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' }).padEnd(43)}║
 ║                                                    ║
 ║   API: http://localhost:${PORT}/api                ║
 ║   Health: http://localhost:${PORT}/health          ║

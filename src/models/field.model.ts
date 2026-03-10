@@ -148,7 +148,7 @@ class FieldModel {
         // Format joinedOn as "Month Year" if not provided
         if (!joinedOn && owner.createdAt) {
           const date = new Date(owner.createdAt);
-          const month = date.toLocaleDateString('en-US', { month: 'long' });
+          const month = date.toLocaleDateString('en-GB', { month: 'long', timeZone: 'Europe/London' });
           const year = date.getFullYear();
           joinedOn = `${month} ${year}`;
         }
@@ -613,7 +613,7 @@ class FieldModel {
     let fieldsWithAvailability: string[] | undefined = undefined;
 
     if (where.date) {
-      const dayOfWeek = new Date(where.date).toLocaleDateString('en-US', { weekday: 'long' });
+      const dayOfWeek = new Date(where.date).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Europe/London' });
 
       // Don't add operating days to whereClause - we'll check ALL fields manually
       // This ensures we scan every field for availability
@@ -1240,7 +1240,7 @@ class FieldModel {
         }
         if (!data.joinedOn && owner.createdAt) {
           const date = new Date(owner.createdAt);
-          const month = date.toLocaleDateString('en-US', { month: 'long' });
+          const month = date.toLocaleDateString('en-GB', { month: 'long', timeZone: 'Europe/London' });
           const year = date.getFullYear();
           updateData.joinedOn = `${month} ${year}`;
         }

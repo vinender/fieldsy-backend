@@ -3243,7 +3243,8 @@ class FieldController {
       joinedOn: field.owner?.createdAt ? new Date(field.owner.createdAt).toLocaleDateString('en-GB', {
         day: '2-digit',
         month: 'short',
-        year: 'numeric'
+        year: 'numeric',
+        timeZone: 'Europe/London'
       }) : 'N/A',
     };
 

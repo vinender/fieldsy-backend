@@ -723,7 +723,8 @@ export class PaymentController {
             formattedDate: c.date.toLocaleDateString('en-GB', {
               weekday: 'short',
               day: 'numeric',
-              month: 'short'
+              month: 'short',
+              timeZone: 'Europe/London'
             }),
             bookedBy: c.existingBooking.user?.name || 'Another user'
           }));
@@ -814,7 +815,7 @@ export class PaymentController {
           // For recurring bookings, create a SEPARATE subscription for each slot
           const createdBookings = [];
           const bookingDate = new Date(date);
-          const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' });
+          const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Europe/London' });
           const dayOfMonth = bookingDate.getDate();
 
           for (const slot of normalizedTimeSlots) {
@@ -1211,7 +1212,8 @@ export class PaymentController {
           const bookingDateLabel = new Date(booking.date).toLocaleDateString('en-GB', {
             day: 'numeric',
             month: 'short',
-            year: 'numeric'
+            year: 'numeric',
+            timeZone: 'Europe/London'
           });
           const bookingTimeLabel = `${booking.startTime} - ${booking.endTime}`;
           const customerName = booking.user.name || booking.user.email || 'A dog owner';
@@ -1223,7 +1225,7 @@ export class PaymentController {
             userId: field.ownerId,
             type: 'booking_received',
             title: 'New Booking Received!',
-            message: `You have a new booking for ${field.name} on ${new Date(booking.date).toLocaleDateString()} at ${booking.startTime}`,
+            message: `You have a new booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} at ${booking.startTime}`,
             adminTitle: 'New booking scheduled',
             adminMessage: `${customerName} booked "${field.name}" for ${bookingDateLabel} at ${bookingTimeLabel}. Total £${amountDisplay}.`,
             data: {
@@ -1244,7 +1246,7 @@ export class PaymentController {
           userId: booking.userId,
           type: 'booking_confirmed',
           title: 'Booking Confirmed!',
-          message: `Your booking for ${field?.name || 'the field'} on ${new Date(booking.date).toLocaleDateString()} at ${booking.startTime} has been confirmed.`,
+          message: `Your booking for ${field?.name || 'the field'} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} at ${booking.startTime} has been confirmed.`,
           data: {
             bookingId: booking.id,
             fieldId: booking.fieldId,

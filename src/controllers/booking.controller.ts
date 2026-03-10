@@ -180,7 +180,7 @@ class BookingController {
           userId: field.ownerId,
           type: 'new_booking_received',
           title: 'New Booking Received!',
-          message: `You have a new booking request for ${field.name} on ${new Date(date).toLocaleDateString()} from ${startTime} to ${endTime}. Please review and confirm.`,
+          message: `You have a new booking request for ${field.name} on ${new Date(date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} from ${startTime} to ${endTime}. Please review and confirm.`,
           data: {
             bookingId: booking.id,
             fieldId: resolvedFieldId,
@@ -206,7 +206,7 @@ class BookingController {
         userId: dogOwnerId,
         type: 'booking_request_sent',
         title: 'Booking Request Sent',
-        message: `Your booking request for ${field.name} on ${new Date(date).toLocaleDateString()} has been sent to the field owner. You'll be notified once it's confirmed.`,
+        message: `Your booking request for ${field.name} on ${new Date(date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} has been sent to the field owner. You'll be notified once it's confirmed.`,
         data: {
           bookingId: booking.id,
           fieldId: field.id,
@@ -1035,7 +1035,7 @@ class BookingController {
         userId: (booking as any).userId,
         type: 'booking_confirmed',
         title: 'Booking Confirmed!',
-        message: `Your booking for ${field.name} on ${new Date(booking.date).toLocaleDateString()} has been confirmed by the field owner.`,
+        message: `Your booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} has been confirmed by the field owner.`,
         data: {
           bookingId: booking.id,
           fieldId: field.id,
@@ -1414,7 +1414,7 @@ class BookingController {
               userId: field.ownerId,
               type: 'booking_cancelled_by_customer',
               title: 'Booking Cancelled',
-              message: `A booking for ${field.name} on ${new Date(booking.date).toLocaleDateString()} has been cancelled by the customer.`,
+              message: `A booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} has been cancelled by the customer.`,
               data: {
                 bookingId: booking.id,
                 fieldId: field.id,
@@ -1475,7 +1475,7 @@ class BookingController {
             userId: (booking as any).userId,
             type: 'booking_cancelled_success',
             title: 'Booking Cancelled',
-            message: `Your booking for ${field.name} on ${new Date(booking.date).toLocaleDateString()} has been cancelled successfully.`,
+            message: `Your booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} has been cancelled successfully.`,
             data: {
               bookingId: booking.id,
               fieldId: field.id,
@@ -1488,7 +1488,7 @@ class BookingController {
             userId: (booking as any).userId,
             type: 'booking_cancelled_by_owner',
             title: 'Booking Cancelled by Field Owner',
-            message: `Unfortunately, your booking for ${field.name} on ${new Date(booking.date).toLocaleDateString()} has been cancelled by the field owner.`,
+            message: `Unfortunately, your booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} has been cancelled by the field owner.`,
             data: {
               bookingId: booking.id,
               fieldId: field.id,
@@ -1844,7 +1844,7 @@ class BookingController {
         isRecurringDay = true;
       } else if (subscription.interval === 'weekly') {
         // Check if selected date's day of week matches subscription's day
-        const selectedDayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+        const selectedDayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Europe/London' });
         if (subscription.dayOfWeek && selectedDayOfWeek.toLowerCase() === subscription.dayOfWeek.toLowerCase()) {
           isRecurringDay = true;
         }
@@ -2156,7 +2156,7 @@ class BookingController {
       // Format the conflicting dates for display
       const conflictDates = conflictCheck.conflictingDates.slice(0, 5).map(c => {
         const dateObj = new Date(c.date);
-        return dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        return dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
       });
       const moreCount = conflictCheck.conflictingDates.length > 5
         ? ` and ${conflictCheck.conflictingDates.length - 5} more`
@@ -2171,7 +2171,7 @@ class BookingController {
         message: `Note: ${conflictCheck.conflictingDates.length} date(s) will be skipped due to existing bookings: ${conflictDates.join(', ')}${moreCount}. Your recurring booking will continue on available dates.`,
         skippedDates: conflictCheck.conflictingDates.map(c => ({
           date: c.date.toISOString(),
-          formattedDate: new Date(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+          formattedDate: new Date(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' }),
           bookedBy: c.existingBooking.user?.name || 'Another user'
         }))
       });
@@ -2748,7 +2748,7 @@ class BookingController {
       if (subscription.interval === 'everyday') {
         isRecurringDay = true;
       } else if (subscription.interval === 'weekly') {
-        const selectedDayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+        const selectedDayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Europe/London' });
         if (subscription.dayOfWeek && selectedDayOfWeek.toLowerCase() === subscription.dayOfWeek.toLowerCase()) {
           isRecurringDay = true;
         }
