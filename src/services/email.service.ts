@@ -1,5 +1,5 @@
 //@ts-nocheck
-const nodemailer = require('nodemailer');
+import { BrevoClient } from '@getbrevo/brevo';
 import { config } from 'dotenv';
 import { FRONTEND_URL } from '../config/constants';
 
@@ -19,36 +19,20 @@ function formatBookingDisplayId(id: string): string {
   return `#${id.toUpperCase()}`;
 }
 
-// Email configuration
-const EMAIL_HOST = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com';
-const EMAIL_PORT = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587');
-const EMAIL_SECURE = process.env.EMAIL_SECURE === 'true';
-const EMAIL_USER = process.env.SMTP_USER || process.env.EMAIL_USER || '';
-const EMAIL_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASS || '';
-const EMAIL_FROM = process.env.EMAIL_FROM || '"Fieldsy" <noreply@fieldsy.com>';
+// Brevo configuration
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@fieldsy.com';
 
-// Create transporter only if email credentials are provided
-let transporter: any = null;
+// Initialize Brevo
+let brevoClient: BrevoClient | null = null;
+let emailReady = false;
 
-if (EMAIL_USER && EMAIL_PASS) {
-  transporter = nodemailer.createTransport({
-    host: EMAIL_HOST,
-    port: EMAIL_PORT,
-    secure: EMAIL_SECURE,
-    auth: {
-      user: EMAIL_USER,
-      pass: EMAIL_PASS,
-    },
-  });
-
-  // Verify transporter connection
-  transporter.verify((error: any, success: boolean) => {
-    if (error) {
-      console.error('[EmailService] Verification failed:', error.message);
-    }
-  });
+if (BREVO_API_KEY) {
+  brevoClient = new BrevoClient({ apiKey: BREVO_API_KEY });
+  emailReady = true;
+  console.log('[EmailService] Brevo initialized successfully');
 } else {
-  console.warn('[EmailService] Disabled - SMTP credentials not configured');
+  console.warn('[EmailService] Disabled - BREVO_API_KEY not configured');
 }
 
 // Email templates
@@ -2074,36 +2058,35 @@ const getSubscriptionCancelledTemplate = (data: {
 class EmailService {
   async sendMail(to: string, subject: string, html: string): Promise<boolean> {
     console.log('📧 [sendMail] Starting...');
-    console.log('📧 [sendMail] Transporter configured:', !!transporter);
+    console.log('📧 [sendMail] Brevo ready:', emailReady);
     console.log('📧 [sendMail] To:', to);
     console.log('📧 [sendMail] Subject:', subject);
     console.log('📧 [sendMail] From:', EMAIL_FROM);
 
-    if (!transporter) {
-      console.warn(`⚠️ Email service disabled. Transporter is null.`);
-      console.warn('Configure SMTP_USER/EMAIL_USER and SMTP_PASS/EMAIL_PASS in .env to enable email sending');
+    if (!emailReady || !brevoClient) {
+      console.warn(`⚠️ Email service disabled. BREVO_API_KEY not set.`);
       console.warn(`Email that would have been sent to: ${to}`);
       console.warn(`Subject: ${subject}`);
       return false;
     }
 
     try {
-      console.log('📧 [sendMail] Sending email via SMTP...');
-      const info = await transporter.sendMail({
-        from: EMAIL_FROM,
-        to,
+      console.log('📧 [sendMail] Sending email via Brevo...');
+      const response = await brevoClient.transactionalEmails.sendTransacEmail({
+        sender: { email: EMAIL_FROM, name: 'Fieldsy' },
+        to: [{ email: to }],
         subject,
-        html,
+        htmlContent: html,
       });
 
       console.log('✅ Email sent successfully!');
-      console.log('✅ Message ID:', info.messageId);
-      console.log('✅ Response:', info.response);
+      console.log('✅ Message ID:', response.messageId);
       return true;
     } catch (error: any) {
       console.error('❌ Failed to send email:', error.message);
-      console.error('❌ Error code:', error.code);
-      console.error('❌ Error command:', error.command);
+      if (error.body) {
+        console.error('❌ Brevo error body:', error.body);
+      }
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }
