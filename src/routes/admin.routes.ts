@@ -158,6 +158,10 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
         }
       }),
       prisma.booking.findMany({
+        where: {
+          field: { id: { not: undefined } },
+          user: { id: { not: undefined } }
+        },
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
@@ -265,7 +269,11 @@ router.get('/bookings', authenticateAdmin, async (req, res) => {
     const take = parseInt(limit as string);
 
     // Build where clause for filters
-    const whereClause: any = {};
+    // Exclude bookings with deleted fields or users (orphaned references)
+    const whereClause: any = {
+      field: { id: { not: undefined } },
+      user: { id: { not: undefined } }
+    };
     let shortBookingIdSearch: string | null = null;
 
     // Search filter - supports searching by user name OR booking ID (full, short, or sequential format)
@@ -2106,8 +2114,11 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
     // GROUP BY BOOKING APPROACH: Get all bookings with their payment, refund, and payout status
     // This ensures ONE ROW PER BOOKING instead of multiple rows per transaction event
 
-    // Build booking filter
-    const bookingWhere: any = {};
+    // Build booking filter (exclude orphaned bookings with deleted fields or users)
+    const bookingWhere: any = {
+      field: { id: { not: undefined } },
+      user: { id: { not: undefined } }
+    };
 
     if (dateRange !== 'ALL') {
       bookingWhere.createdAt = dateFilter;
@@ -2144,7 +2155,7 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
     let allTransactions: any[] = bookings.map(booking => {
       // Find payment transaction
       const paymentTransaction = booking.transactions.find(t => t.type === 'PAYMENT');
-      // Find refund transaction
+      // Find refund transaction (could be a separate REFUND type OR the payment itself marked as REFUNDED)
       const refundTransaction = booking.transactions.find(t => t.type === 'REFUND');
 
       // Get main transaction (payment if exists, otherwise first transaction)
@@ -2154,6 +2165,12 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
         return null; // Skip bookings without transactions
       }
 
+      // Detect refund: either a separate REFUND transaction exists, or the booking/payment is marked as refunded
+      const isRefunded = !!refundTransaction ||
+        booking.paymentStatus === 'REFUNDED' ||
+        mainTransaction.lifecycleStage === 'REFUNDED' ||
+        !!mainTransaction.refundedAt;
+
       // Calculate fees
       const amount = mainTransaction.amount || 0;
       const stripeFee = amount > 0 ? Math.round(((amount * 0.015) + 0.20) * 100) / 100 : 0;
@@ -2162,10 +2179,13 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
       const platformFee = Math.floor((amountAfterStripeFee * platformCommissionRate) / 100 * 100) / 100;
       const fieldOwnerEarnings = Math.floor((amountAfterStripeFee - platformFee) * 100) / 100;
 
+      // Refund amount: from separate refund tx, or full amount if refunded via Stripe directly
+      const refundAmount = refundTransaction?.amount || (isRefunded ? amount : 0);
+
       return {
         id: mainTransaction.id,
         bookingId: booking.bookingId || booking.id,
-        type: 'PAYMENT', // Always show as PAYMENT in table, details show refund/payout status
+        type: 'PAYMENT',
         amount: amount,
         stripeFee,
         amountAfterStripeFee,
@@ -2175,25 +2195,18 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
         status: mainTransaction.status,
         description: mainTransaction.description,
         // Payment identifiers
-        stripePaymentIntentId: paymentTransaction?.stripePaymentIntentId,
-        stripeChargeId: paymentTransaction?.stripeChargeId,
+        stripePaymentIntentId: paymentTransaction?.stripePaymentIntentId || mainTransaction.stripePaymentIntentId,
+        stripeChargeId: paymentTransaction?.stripeChargeId || mainTransaction.stripeChargeId,
         stripeBalanceTransactionId: paymentTransaction?.stripeBalanceTransactionId,
         // Transfer identifiers
         stripeTransferId: mainTransaction.stripeTransferId,
         connectedAccountId: mainTransaction.connectedAccountId,
         // Refund identifiers
-        stripeRefundId: refundTransaction?.stripeRefundId,
-        // Lifecycle - compute effective lifecycle stage based on booking status
+        stripeRefundId: refundTransaction?.stripeRefundId || mainTransaction.stripeRefundId,
+        // Lifecycle
         lifecycleStage: (() => {
-          // If booking is cancelled and refunded, show REFUNDED
-          if (booking.status === 'CANCELLED' && refundTransaction) {
-            return 'REFUNDED';
-          }
-          // If booking is cancelled (no refund yet or not refundable), show CANCELLED
-          if (booking.status === 'CANCELLED') {
-            return 'CANCELLED';
-          }
-          // Otherwise use the transaction's lifecycle stage
+          if (isRefunded) return 'REFUNDED';
+          if (booking.status === 'CANCELLED') return 'CANCELLED';
           return mainTransaction.lifecycleStage;
         })(),
         paymentReceivedAt: mainTransaction.paymentReceivedAt || mainTransaction.createdAt,
@@ -2201,7 +2214,7 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
         transferredAt: mainTransaction.transferredAt,
         payoutInitiatedAt: mainTransaction.payoutInitiatedAt,
         payoutCompletedAt: mainTransaction.payoutCompletedAt,
-        refundedAt: refundTransaction?.refundedAt || refundTransaction?.createdAt,
+        refundedAt: refundTransaction?.refundedAt || mainTransaction.refundedAt,
         failureCode: mainTransaction.failureCode,
         failureMessage: mainTransaction.failureMessage,
         createdAt: booking.createdAt,
@@ -2228,10 +2241,10 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
           subscriptionId: booking.subscriptionId,
           field: booking.field
         },
-        // Refund info (if exists)
-        hasRefund: !!refundTransaction,
-        refundAmount: refundTransaction?.amount,
-        refundStatus: refundTransaction?.status,
+        // Refund info
+        hasRefund: isRefunded,
+        refundAmount: refundAmount,
+        refundStatus: isRefunded ? 'COMPLETED' : null,
         // Payout info from booking
         payoutStatus: booking.payoutStatus,
         payoutReleasedAt: booking.payoutReleasedAt
@@ -2259,37 +2272,61 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
     // Apply pagination
     const paginatedTransactions = allTransactions.slice(skip, skip + take);
 
-    // Calculate stats
-    const [
-      totalPaymentsResult,
-      totalRefundsResult,
-      totalPayoutsResult,
-      platformFeeResult
-    ] = await Promise.all([
-      prisma.transaction.aggregate({
-        where: { type: 'PAYMENT', status: 'COMPLETED' },
-        _sum: { amount: true }
-      }),
-      prisma.transaction.aggregate({
-        where: { type: 'REFUND', status: 'COMPLETED' },
-        _sum: { amount: true }
-      }),
-      prisma.payout.aggregate({
-        where: { status: 'paid' },
-        _sum: { amount: true }
-      }),
-      prisma.transaction.aggregate({
-        where: { type: 'PAYMENT', status: 'COMPLETED' },
-        _sum: { platformFee: true }
-      })
-    ]);
+    // Calculate stats from the already-filtered allTransactions (before type/status filter)
+    // Use the pre-filter list (allTransactions before type filter was applied)
+    // We need to use the full mapped list, so compute from bookings directly
+    const statsTransactions = bookings.map(booking => {
+      const paymentTx = booking.transactions.find(t => t.type === 'PAYMENT');
+      const mainTx = paymentTx || booking.transactions[0];
+      if (!mainTx) return null;
+
+      const amount = mainTx.amount || 0;
+      const stripeFee = amount > 0 ? Math.round(((amount * 0.015) + 0.20) * 100) / 100 : 0;
+
+      const isRefunded = booking.paymentStatus === 'REFUNDED' ||
+        mainTx.lifecycleStage === 'REFUNDED' ||
+        !!mainTx.refundedAt ||
+        !!booking.transactions.find(t => t.type === 'REFUND');
+
+      return { amount, stripeFee, platformFee: mainTx.platformFee || 0, isRefunded };
+    }).filter(t => t !== null);
+
+    // Payments: sum of all completed payment amounts
+    const totalPayments = statsTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    // Refunds: sum of refunded payment amounts (negative in display)
+    const totalRefunds = statsTransactions
+      .filter(t => t.isRefunded)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    // Platform Revenue:
+    // - For non-refunded payments: platform earns the platformFee (commission)
+    // - For refunded payments: platform LOSES the Stripe processing fee
+    //   (Stripe refunds customer in full, but keeps their processing fee — platform absorbs this cost)
+    const platformRevenueFromActive = statsTransactions
+      .filter(t => !t.isRefunded)
+      .reduce((sum, t) => sum + t.platformFee, 0);
+    const platformLossFromRefunds = statsTransactions
+      .filter(t => t.isRefunded)
+      .reduce((sum, t) => sum + t.stripeFee, 0);
+    const netRevenue = platformRevenueFromActive - platformLossFromRefunds;
+
+    // Payouts: only count payouts for valid bookings
+    const validBookingIds = bookings.map(b => b.id);
+    const paidPayouts = await prisma.payout.findMany({
+      where: { status: 'paid' },
+      select: { amount: true, bookingIds: true }
+    });
+    const totalPayoutsAmount = paidPayouts
+      .filter(p => p.bookingIds.some(bid => validBookingIds.includes(bid)))
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
 
     const stats = {
-      totalPayments: totalPaymentsResult._sum.amount || 0,
-      totalRefunds: totalRefundsResult._sum.amount || 0,
-      totalPayouts: totalPayoutsResult._sum.amount || 0,
-      totalTransfers: 0, // Can be calculated from separate transfers if tracked
-      netRevenue: platformFeeResult._sum.platformFee || 0
+      totalPayments: Math.round(totalPayments * 100) / 100,
+      totalRefunds: Math.round(totalRefunds * 100) / 100,
+      totalPayouts: Math.round(totalPayoutsAmount * 100) / 100,
+      totalTransfers: 0,
+      netRevenue: Math.round(netRevenue * 100) / 100
     };
 
     res.json({
