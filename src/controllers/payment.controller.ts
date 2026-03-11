@@ -455,7 +455,7 @@ export class PaymentController {
       // Payment goes to platform account (admin) first
       const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
         amount: amountInCents,
-        currency: 'eur',
+        currency: 'gbp',
         metadata: {
           userId,
           fieldId,
@@ -985,7 +985,7 @@ export class PaymentController {
             bookingId: booking.id,
             userId,
             amount,
-            currency: 'EUR',
+            currency: 'GBP',
             status: 'completed',
             paymentMethod: 'card',
             stripePaymentId: paymentIntent.id,
