@@ -146,10 +146,19 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
       // Current stats
       prisma.user.count(),
       prisma.field.count(),
-      prisma.booking.count(),
+      prisma.booking.count({
+        where: {
+          field: { id: { not: undefined } },
+          user: { id: { not: undefined } }
+        }
+      }),
       prisma.booking.aggregate({
         _sum: { totalPrice: true },
-        where: { paymentStatus: 'PAID' }
+        where: {
+          paymentStatus: 'PAID',
+          field: { id: { not: undefined } },
+          user: { id: { not: undefined } }
+        }
       }),
       prisma.booking.count({
         where: {
@@ -185,14 +194,18 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
       }),
       prisma.booking.count({
         where: {
-          createdAt: { lte: compareEndDate }
+          createdAt: { lte: compareEndDate },
+          field: { id: { not: undefined } },
+          user: { id: { not: undefined } }
         }
       }),
       prisma.booking.aggregate({
         _sum: { totalPrice: true },
         where: {
           paymentStatus: 'PAID',
-          createdAt: { lte: compareEndDate }
+          createdAt: { lte: compareEndDate },
+          field: { id: { not: undefined } },
+          user: { id: { not: undefined } }
         }
       }),
       prisma.booking.count({
@@ -248,7 +261,11 @@ router.get('/revenue/total', authenticateAdmin, async (req, res) => {
   try {
     const totalRevenue = await prisma.booking.aggregate({
       _sum: { totalPrice: true },
-      where: { paymentStatus: 'PAID' }
+      where: {
+        paymentStatus: 'PAID',
+        field: { id: { not: undefined } },
+        user: { id: { not: undefined } }
+      }
     });
 
     res.json({
