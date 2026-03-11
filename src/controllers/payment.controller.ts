@@ -1029,77 +1029,77 @@ export class PaymentController {
           console.log('[PaymentController] Created transaction record for immediate payment:', paymentIntent.id);
         }
 
-        // Send notifications
+        // Send notifications and emails in background (non-blocking)
+        // Payment is already confirmed — don't delay the response
         const slotsDisplay = normalizedTimeSlots.length === 1
           ? normalizedTimeSlots[0]
           : `${normalizedTimeSlots.length} time slots`;
 
-        await createNotification({
-          userId,
-          type: 'BOOKING_CONFIRMATION',
-          title: 'Booking Confirmed',
-          message: `Your booking for ${field.name} on ${date} (${slotsDisplay}) has been confirmed.`,
-          data: { bookingId: booking.id, bookingIds: allBookingIds, fieldId }
-        });
-
-        if (field.ownerId && field.ownerId !== userId) {
-          await createNotification({
-            userId: field.ownerId,
-            type: 'NEW_BOOKING',
-            title: 'New Booking',
-            message: `You have a new booking for ${field.name} on ${date} (${slotsDisplay}).`,
-            data: { bookingId: booking.id, bookingIds: allBookingIds, fieldId }
-          });
-        }
-
-        // Send email notifications
-        try {
-          // Get field owner details for email
-          const fieldOwner = await prisma.user.findUnique({
-            where: { id: field.ownerId },
-            select: { name: true, email: true }
-          });
-
-          // Send booking confirmation email to dog owner
-          if (user.email) {
-            await emailService.sendBookingConfirmationToDogOwner({
-              email: user.email,
-              userName: user.name || 'Valued Customer',
-              bookingId: booking.bookingId || booking.id,
-              fieldId: field.fieldId || '',
-              fieldName: field.name,
-              fieldAddress: field.address || '',
-              date: new Date(date),
-              startTime: startTimeStr,
-              endTime: endTimeStr,
-              totalPrice: amount,
-              fieldOwnerName: fieldOwner?.name || 'Field Owner',
-              entryCode: field.entryCode || undefined
+        // Fire and forget — notifications and emails happen asynchronously
+        (async () => {
+          try {
+            await createNotification({
+              userId,
+              type: 'BOOKING_CONFIRMATION',
+              title: 'Booking Confirmed',
+              message: `Your booking for ${field.name} on ${date} (${slotsDisplay}) has been confirmed.`,
+              data: { bookingId: booking.id, bookingIds: allBookingIds, fieldId }
             });
-          }
 
-          // Send new booking notification email to field owner
-          if (fieldOwner?.email) {
-            await emailService.sendNewBookingNotificationToFieldOwner({
-              email: fieldOwner.email,
-              ownerName: fieldOwner.name || 'Field Owner',
-              bookingId: booking.bookingId || booking.id,
-              fieldId: field.fieldId || '',
-              fieldName: field.name,
-              date: new Date(date),
-              startTime: startTimeStr,
-              endTime: endTimeStr,
-              totalPrice: amount,
-              fieldOwnerAmount,
-              platformCommission,
-              dogOwnerName: user.name || user.email || 'Customer',
-              entryCode: field.entryCode || undefined
+            if (field.ownerId && field.ownerId !== userId) {
+              await createNotification({
+                userId: field.ownerId,
+                type: 'NEW_BOOKING',
+                title: 'New Booking',
+                message: `You have a new booking for ${field.name} on ${date} (${slotsDisplay}).`,
+                data: { bookingId: booking.id, bookingIds: allBookingIds, fieldId }
+              });
+            }
+
+            // Send email notifications
+            const fieldOwner = await prisma.user.findUnique({
+              where: { id: field.ownerId },
+              select: { name: true, email: true }
             });
+
+            if (user.email) {
+              await emailService.sendBookingConfirmationToDogOwner({
+                email: user.email,
+                userName: user.name || 'Valued Customer',
+                bookingId: booking.bookingId || booking.id,
+                fieldId: field.fieldId || '',
+                fieldName: field.name,
+                fieldAddress: field.address || '',
+                date: new Date(date),
+                startTime: startTimeStr,
+                endTime: endTimeStr,
+                totalPrice: amount,
+                fieldOwnerName: fieldOwner?.name || 'Field Owner',
+                entryCode: field.entryCode || undefined
+              });
+            }
+
+            if (fieldOwner?.email) {
+              await emailService.sendNewBookingNotificationToFieldOwner({
+                email: fieldOwner.email,
+                ownerName: fieldOwner.name || 'Field Owner',
+                bookingId: booking.bookingId || booking.id,
+                fieldId: field.fieldId || '',
+                fieldName: field.name,
+                date: new Date(date),
+                startTime: startTimeStr,
+                endTime: endTimeStr,
+                totalPrice: amount,
+                fieldOwnerAmount,
+                platformCommission,
+                dogOwnerName: user.name || user.email || 'Customer',
+                entryCode: field.entryCode || undefined
+              });
+            }
+          } catch (bgError) {
+            console.error('Error sending booking notifications/emails (background):', bgError);
           }
-        } catch (emailError) {
-          console.error('Error sending booking emails:', emailError);
-          // Don't fail the booking if email fails
-        }
+        })();
       }
 
       res.json({
@@ -1207,65 +1207,68 @@ export class PaymentController {
           }
         });
 
-        // Send notification to field owner about new booking (also notifies admins)
-        if (field?.ownerId && field.ownerId !== booking.userId) {
-          const bookingDateLabel = new Date(booking.date).toLocaleDateString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            timeZone: 'Europe/London'
-          });
-          const bookingTimeLabel = `${booking.startTime} - ${booking.endTime}`;
-          const customerName = booking.user.name || booking.user.email || 'A dog owner';
-          const amountDisplay = typeof booking.totalPrice === 'number'
-            ? booking.totalPrice.toFixed(2)
-            : booking.totalPrice;
-
-          await NotificationService.createNotification({
-            userId: field.ownerId,
-            type: 'booking_received',
-            title: 'New Booking Received!',
-            message: `You have a new booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} at ${booking.startTime}`,
-            adminTitle: 'New booking scheduled',
-            adminMessage: `${customerName} booked "${field.name}" for ${bookingDateLabel} at ${bookingTimeLabel}. Total £${amountDisplay}.`,
-            data: {
-              bookingId: booking.id,
-              fieldId: booking.fieldId,
-              fieldName: field.name,
-              date: booking.date,
-              time: `${booking.startTime} - ${booking.endTime}`,
-              customerName: booking.user.name || booking.user.email,
-              numberOfDogs: booking.numberOfDogs,
-              amount: booking.totalPrice
-            }
-          }, true); // true = also notify admins
-        }
-
-        // Send confirmation notification to dog owner
-        await createNotification({
-          userId: booking.userId,
-          type: 'booking_confirmed',
-          title: 'Booking Confirmed!',
-          message: `Your booking for ${field?.name || 'the field'} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} at ${booking.startTime} has been confirmed.`,
-          data: {
-            bookingId: booking.id,
-            fieldId: booking.fieldId,
-            fieldName: field?.name,
-            date: booking.date,
-            time: `${booking.startTime} - ${booking.endTime}`,
-            amount: booking.totalPrice,
-            paymentIntentId
-          }
-        });
-
-        // Send confirmation email (implement email service)
-        // await emailService.sendBookingConfirmation(booking);
-
+        // Send response immediately — don't wait for notifications
         res.json({
           success: true,
           booking,
           message: 'Payment confirmed successfully'
         });
+
+        // Send notifications in background (non-blocking, after response)
+        (async () => {
+          try {
+            if (field?.ownerId && field.ownerId !== booking.userId) {
+              const bookingDateLabel = new Date(booking.date).toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                timeZone: 'Europe/London'
+              });
+              const bookingTimeLabel = `${booking.startTime} - ${booking.endTime}`;
+              const customerName = booking.user.name || booking.user.email || 'A dog owner';
+              const amountDisplay = typeof booking.totalPrice === 'number'
+                ? booking.totalPrice.toFixed(2)
+                : booking.totalPrice;
+
+              await NotificationService.createNotification({
+                userId: field.ownerId,
+                type: 'booking_received',
+                title: 'New Booking Received!',
+                message: `You have a new booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} at ${booking.startTime}`,
+                adminTitle: 'New booking scheduled',
+                adminMessage: `${customerName} booked "${field.name}" for ${bookingDateLabel} at ${bookingTimeLabel}. Total £${amountDisplay}.`,
+                data: {
+                  bookingId: booking.id,
+                  fieldId: booking.fieldId,
+                  fieldName: field.name,
+                  date: booking.date,
+                  time: `${booking.startTime} - ${booking.endTime}`,
+                  customerName: booking.user.name || booking.user.email,
+                  numberOfDogs: booking.numberOfDogs,
+                  amount: booking.totalPrice
+                }
+              }, true);
+            }
+
+            await createNotification({
+              userId: booking.userId,
+              type: 'booking_confirmed',
+              title: 'Booking Confirmed!',
+              message: `Your booking for ${field?.name || 'the field'} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} at ${booking.startTime} has been confirmed.`,
+              data: {
+                bookingId: booking.id,
+                fieldId: booking.fieldId,
+                fieldName: field?.name,
+                date: booking.date,
+                time: `${booking.startTime} - ${booking.endTime}`,
+                amount: booking.totalPrice,
+                paymentIntentId
+              }
+            });
+          } catch (bgError) {
+            console.error('Error sending payment confirmation notifications (background):', bgError);
+          }
+        })();
       } else {
         res.status(400).json({
           error: 'Payment not successful',
