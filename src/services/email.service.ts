@@ -21,7 +21,7 @@ function formatBookingDisplayId(id: string): string {
 
 // Brevo configuration
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
-const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@fieldsy.com';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'info@fieldsy.co.uk';
 
 // Initialize Brevo
 let brevoClient: BrevoClient | null = null;
