@@ -96,7 +96,9 @@ async function createUpcomingRecurringBookings() {
     const activeSubscriptions = await prisma.subscription.findMany({
       where: {
         status: 'active',
-        cancelAtPeriodEnd: false
+        cancelAtPeriodEnd: false,
+        field: { id: { not: undefined } },
+        user: { id: { not: undefined } }
       },
       include: {
         field: {
@@ -453,7 +455,9 @@ async function checkPastBookingsAndCreateNext() {
     const subscriptions = await prisma.subscription.findMany({
       where: {
         status: 'active',
-        cancelAtPeriodEnd: false
+        cancelAtPeriodEnd: false,
+        field: { id: { not: undefined } },
+        user: { id: { not: undefined } }
       },
       include: {
         field: {

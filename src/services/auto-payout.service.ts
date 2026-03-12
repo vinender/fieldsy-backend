@@ -92,7 +92,9 @@ export class AutomaticPayoutService {
             { payoutStatus: null },
             { payoutStatus: 'PENDING' },
             { payoutStatus: 'HELD' }
-          ]
+          ],
+          field: { id: { not: undefined } },
+          user: { id: { not: undefined } }
         },
         include: {
           field: {

@@ -27,6 +27,8 @@ export const initPayoutJobs = () => {
         where: {
           status: 'CONFIRMED',
           paymentStatus: 'PAID',
+          field: { id: { not: undefined } },
+          user: { id: { not: undefined } }
         },
         select: {
           id: true,
@@ -390,7 +392,9 @@ export async function processAutomaticTransfers() {
         OR: [
           { payoutStatus: { isSet: false } },
           { payoutStatus: null }
-        ]
+        ],
+        field: { id: { not: undefined } },
+        user: { id: { not: undefined } }
       },
       include: {
         payment: true,

@@ -139,7 +139,9 @@ export class HeldPayoutService {
         where: {
           payoutStatus: 'HELD',
           status: { in: ['CONFIRMED', 'COMPLETED'] },
-          paymentStatus: 'PAID'
+          paymentStatus: 'PAID',
+          field: { id: { not: undefined } },
+          user: { id: { not: undefined } }
         },
         include: {
           field: {

@@ -1036,7 +1036,9 @@ export class PaymentController {
           : `${normalizedTimeSlots.length} time slots`;
 
         // Fire and forget — notifications and emails happen asynchronously
+        // Each step is independent so one failure doesn't block the others
         (async () => {
+          // 1. In-app notifications (independent of emails)
           try {
             await createNotification({
               userId,
@@ -1045,7 +1047,11 @@ export class PaymentController {
               message: `Your booking for ${field.name} on ${date} (${slotsDisplay}) has been confirmed.`,
               data: { bookingId: booking.id, bookingIds: allBookingIds, fieldId }
             });
+          } catch (err) {
+            console.error('[Payment] Failed to send dog owner notification:', err);
+          }
 
+          try {
             if (field.ownerId && field.ownerId !== userId) {
               await createNotification({
                 userId: field.ownerId,
@@ -1055,14 +1061,19 @@ export class PaymentController {
                 data: { bookingId: booking.id, bookingIds: allBookingIds, fieldId }
               });
             }
+          } catch (err) {
+            console.error('[Payment] Failed to send field owner notification:', err);
+          }
 
-            // Send email notifications
+          // 2. Email notifications (independent of in-app notifications)
+          try {
             const fieldOwner = await prisma.user.findUnique({
               where: { id: field.ownerId },
               select: { name: true, email: true }
             });
 
             if (user.email) {
+              console.log(`[Payment] Sending booking confirmation email to dog owner: ${user.email}`);
               await emailService.sendBookingConfirmationToDogOwner({
                 email: user.email,
                 userName: user.name || 'Valued Customer',
@@ -1077,9 +1088,13 @@ export class PaymentController {
                 fieldOwnerName: fieldOwner?.name || 'Field Owner',
                 entryCode: field.entryCode || undefined
               });
+              console.log(`[Payment] Dog owner booking email sent to ${user.email}`);
+            } else {
+              console.log('[Payment] Dog owner has no email, skipping confirmation email');
             }
 
             if (fieldOwner?.email) {
+              console.log(`[Payment] Sending new booking notification email to field owner: ${fieldOwner.email}`);
               await emailService.sendNewBookingNotificationToFieldOwner({
                 email: fieldOwner.email,
                 ownerName: fieldOwner.name || 'Field Owner',
@@ -1095,9 +1110,12 @@ export class PaymentController {
                 dogOwnerName: user.name || user.email || 'Customer',
                 entryCode: field.entryCode || undefined
               });
+              console.log(`[Payment] Field owner booking email sent to ${fieldOwner.email}`);
+            } else {
+              console.log('[Payment] Field owner has no email, skipping notification email');
             }
-          } catch (bgError) {
-            console.error('Error sending booking notifications/emails (background):', bgError);
+          } catch (emailErr) {
+            console.error('[Payment] Failed to send booking emails:', emailErr);
           }
         })();
       }
@@ -1214,8 +1232,9 @@ export class PaymentController {
           message: 'Payment confirmed successfully'
         });
 
-        // Send notifications in background (non-blocking, after response)
+        // Send notifications and emails in background (non-blocking, after response)
         (async () => {
+          // 1. In-app notifications
           try {
             if (field?.ownerId && field.ownerId !== booking.userId) {
               const bookingDateLabel = new Date(booking.date).toLocaleDateString('en-GB', {
@@ -1249,7 +1268,11 @@ export class PaymentController {
                 }
               }, true);
             }
+          } catch (err) {
+            console.error('[ConfirmPayment] Failed to send field owner notification:', err);
+          }
 
+          try {
             await createNotification({
               userId: booking.userId,
               type: 'booking_confirmed',
@@ -1265,8 +1288,60 @@ export class PaymentController {
                 paymentIntentId
               }
             });
-          } catch (bgError) {
-            console.error('Error sending payment confirmation notifications (background):', bgError);
+          } catch (err) {
+            console.error('[ConfirmPayment] Failed to send dog owner notification:', err);
+          }
+
+          // 2. Email notifications
+          try {
+            if (booking.user?.email) {
+              console.log(`[ConfirmPayment] Sending booking confirmation email to dog owner: ${booking.user.email}`);
+              await emailService.sendBookingConfirmationToDogOwner({
+                email: booking.user.email,
+                userName: booking.user.name || 'Valued Customer',
+                bookingId: (booking as any).bookingId || booking.id,
+                fieldId: (field as any)?.fieldId || '',
+                fieldName: field?.name || 'Field',
+                fieldAddress: (field as any)?.address || '',
+                date: new Date(booking.date),
+                startTime: booking.startTime,
+                endTime: booking.endTime,
+                totalPrice: booking.totalPrice,
+                fieldOwnerName: field?.owner?.name || 'Field Owner',
+                entryCode: (field as any)?.entryCode || undefined
+              });
+              console.log(`[ConfirmPayment] Dog owner booking email sent to ${booking.user.email}`);
+            } else {
+              console.log('[ConfirmPayment] Dog owner has no email, skipping confirmation email');
+            }
+
+            if (field?.owner?.email) {
+              console.log(`[ConfirmPayment] Sending new booking notification email to field owner: ${field.owner.email}`);
+              const { fieldOwnerAmount: foAmount, platformFeeAmount: pfAmount } = await calculatePayoutAmounts(
+                booking.totalPrice,
+                field.ownerId || ''
+              );
+              await emailService.sendNewBookingNotificationToFieldOwner({
+                email: field.owner.email,
+                ownerName: field.owner.name || 'Field Owner',
+                bookingId: (booking as any).bookingId || booking.id,
+                fieldId: (field as any)?.fieldId || '',
+                fieldName: field.name,
+                date: new Date(booking.date),
+                startTime: booking.startTime,
+                endTime: booking.endTime,
+                totalPrice: booking.totalPrice,
+                fieldOwnerAmount: foAmount,
+                platformCommission: pfAmount,
+                dogOwnerName: booking.user?.name || booking.user?.email || 'Customer',
+                entryCode: (field as any)?.entryCode || undefined
+              });
+              console.log(`[ConfirmPayment] Field owner booking email sent to ${field.owner.email}`);
+            } else {
+              console.log('[ConfirmPayment] Field owner has no email, skipping notification email');
+            }
+          } catch (emailErr) {
+            console.error('[ConfirmPayment] Failed to send booking emails:', emailErr);
           }
         })();
       } else {
