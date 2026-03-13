@@ -43,44 +43,52 @@ export class RefundService {
         throw new Error('Booking not found');
       }
 
-      if (!booking.payment) {
-        throw new Error('No payment found for this booking');
+      // Resolve Stripe payment intent ID — from payment record or directly from booking
+      // Multi-slot bookings share one payment intent but only the first booking has a Payment record
+      const stripePaymentId = booking.payment?.stripePaymentId || booking.paymentIntentId;
+
+      if (!stripePaymentId) {
+        throw new Error('No Stripe payment intent found for this booking');
       }
 
-      // Check if already refunded
-      if (booking.payment.status === 'refunded') {
+      // Check if this specific booking was already refunded
+      if (booking.paymentStatus === 'REFUNDED') {
         return {
           success: false,
           message: 'Booking already refunded'
         };
       }
 
-      // Check if payment was successful
-      if (booking.payment.status !== 'completed') {
+      // If payment record exists, also check its status (but don't block if no record — multi-slot)
+      if (booking.payment && booking.payment.status !== 'completed' && booking.payment.status !== 'refunded') {
         return {
           success: false,
           message: 'Cannot refund incomplete payment'
         };
       }
 
+      // Use booking.totalPrice (per-slot amount) — NOT payment.amount (full multi-slot total)
+      // This ensures each slot in a multi-slot booking refunds only its share
+      const bookingAmount = booking.totalPrice;
+
       // Calculate refund amount based on cancellation timing
       const bookingDate = new Date(booking.date);
       const bookingTime = booking.startTime.split(':');
       bookingDate.setHours(parseInt(bookingTime[0]), parseInt(bookingTime[1]));
-      
+
       const now = new Date();
       const hoursUntilBooking = (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-      
+
       let refundAmount = 0;
       let refundPercentage = 0;
-      
+
       if (hoursUntilBooking >= cancellationWindowHours) {
         // Full refund if cancelled at least cancellationWindowHours before
-        refundAmount = booking.payment.amount;
+        refundAmount = bookingAmount;
         refundPercentage = 100;
       } else if (hoursUntilBooking >= cancellationWindowHours / 2) {
         // 50% refund if cancelled between half and full cancellation window
-        refundAmount = booking.payment.amount * 0.5;
+        refundAmount = bookingAmount * 0.5;
         refundPercentage = 50;
       } else {
         // No refund if cancelled less than half the cancellation window
@@ -88,35 +96,48 @@ export class RefundService {
         refundPercentage = 0;
       }
 
+      console.log(`[RefundService] Booking ${booking.id}: totalPrice=£${bookingAmount}, refundAmount=£${refundAmount}, refundPercentage=${refundPercentage}%, stripePaymentId=${stripePaymentId}`);
+
       // Process refund through Stripe if amount > 0
       let stripeRefund = null;
-      if (refundAmount > 0 && booking.payment.stripePaymentId) {
+      if (refundAmount > 0) {
         try {
-          // Create refund in Stripe
-          // Note: Stripe only accepts 'duplicate', 'fraudulent', or 'requested_by_customer' as reason
+          // Create refund in Stripe — partial refund against the shared payment intent
           stripeRefund = await stripe.refunds.create({
-            payment_intent: booking.payment.stripePaymentId,
+            payment_intent: stripePaymentId,
             amount: Math.round(refundAmount * 100), // Convert to cents
             reason: 'requested_by_customer',
             metadata: {
               bookingId: booking.id,
               userId: booking.userId,
               fieldId: booking.fieldId,
-              cancellationReason: reason?.substring(0, 500) || 'No reason provided' // Store user's reason in metadata (max 500 chars)
+              cancellationReason: reason?.substring(0, 500) || 'No reason provided'
             }
           });
 
-          // Update payment record
-          await prisma.payment.update({
-            where: { id: booking.payment.id },
-            data: {
-              status: 'refunded',
-              stripeRefundId: stripeRefund.id,
-              refundAmount: refundAmount,
-              refundReason: reason,
-              processedAt: new Date()
-            }
-          });
+          // Update payment record if it exists for this booking
+          if (booking.payment) {
+            // Check if ALL sibling bookings sharing this payment intent are now refunded
+            const siblingBookings = await prisma.booking.findMany({
+              where: {
+                paymentIntentId: stripePaymentId,
+                id: { not: booking.id }
+              },
+              select: { paymentStatus: true }
+            });
+            const allSiblingsRefunded = siblingBookings.every(b => b.paymentStatus === 'REFUNDED');
+
+            await prisma.payment.update({
+              where: { id: booking.payment.id },
+              data: {
+                status: allSiblingsRefunded ? 'refunded' : 'partially_refunded',
+                stripeRefundId: stripeRefund.id,
+                refundAmount: (booking.payment.refundAmount || 0) + refundAmount, // Accumulate refunds
+                refundReason: reason,
+                processedAt: new Date()
+              }
+            });
+          }
 
           // Create transaction record for refund with lifecycle tracking
           await prisma.transaction.create({
@@ -127,7 +148,7 @@ export class RefundService {
               type: 'REFUND',
               status: 'COMPLETED',
               stripeRefundId: stripeRefund.id,
-              stripePaymentIntentId: booking.payment.stripePaymentId,
+              stripePaymentIntentId: stripePaymentId,
               description: `Refund for booking cancellation (${refundPercentage}%)`,
               // Lifecycle tracking
               lifecycleStage: 'REFUNDED',
@@ -135,7 +156,7 @@ export class RefundService {
             }
           });
 
-          // Update booking/payment payout metadata
+          // Update booking payout metadata
           await prisma.booking.update({
             where: { id: booking.id },
             data: {
@@ -209,7 +230,8 @@ export class RefundService {
    */
   async processFieldOwnerPayout(booking: any, refundedAmount: number): Promise<void> {
     try {
-      const totalAmount = booking.payment.amount;
+      // Use booking.totalPrice (per-slot) — not payment.amount (may be full multi-slot total)
+      const totalAmount = booking.totalPrice || booking.payment?.amount || 0;
       const fieldOwnerShare = totalAmount - refundedAmount;
       
       // Calculate platform commission (20%)
