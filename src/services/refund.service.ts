@@ -59,8 +59,12 @@ export class RefundService {
         };
       }
 
-      // If payment record exists, also check its status (but don't block if no record — multi-slot)
-      if (booking.payment && booking.payment.status !== 'completed' && booking.payment.status !== 'refunded') {
+      // If payment record exists, check its status (but don't block if no record — multi-slot)
+      // Allow: completed, refunded, partially_refunded (sibling slot already refunded)
+      if (booking.payment &&
+          booking.payment.status !== 'completed' &&
+          booking.payment.status !== 'refunded' &&
+          booking.payment.status !== 'partially_refunded') {
         return {
           success: false,
           message: 'Cannot refund incomplete payment'
@@ -115,8 +119,12 @@ export class RefundService {
             }
           });
 
-          // Update payment record if it exists for this booking
-          if (booking.payment) {
+          // Update the shared payment record — find it either from this booking or via paymentIntentId
+          const paymentRecord = booking.payment || await prisma.payment.findFirst({
+            where: { stripePaymentId: stripePaymentId }
+          });
+
+          if (paymentRecord) {
             // Check if ALL sibling bookings sharing this payment intent are now refunded
             const siblingBookings = await prisma.booking.findMany({
               where: {
@@ -128,11 +136,11 @@ export class RefundService {
             const allSiblingsRefunded = siblingBookings.every(b => b.paymentStatus === 'REFUNDED');
 
             await prisma.payment.update({
-              where: { id: booking.payment.id },
+              where: { id: paymentRecord.id },
               data: {
                 status: allSiblingsRefunded ? 'refunded' : 'partially_refunded',
                 stripeRefundId: stripeRefund.id,
-                refundAmount: (booking.payment.refundAmount || 0) + refundAmount, // Accumulate refunds
+                refundAmount: (paymentRecord.refundAmount || 0) + refundAmount,
                 refundReason: reason,
                 processedAt: new Date()
               }
