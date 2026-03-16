@@ -569,12 +569,11 @@ export class PaymentController {
 
         paymentIntentParams.customer = customerId;
         paymentIntentParams.payment_method = paymentMethod.stripePaymentMethodId;
-        paymentIntentParams.confirm = true; // Auto-confirm the payment
-        paymentIntentParams.return_url = `${FRONTEND_URL}/user/my-bookings`; // Add return URL for 3D Secure
-        // Use specific payment method configuration
+        paymentIntentParams.confirm = true; // Auto-confirm — Stripe will return requires_action if 3DS is needed
+        paymentIntentParams.return_url = `${FRONTEND_URL}/user/my-bookings`;
         paymentIntentParams.automatic_payment_methods = {
           enabled: true,
-          allow_redirects: 'never' // Never allow redirect-based payment methods
+          allow_redirects: 'always' // Allow 3DS redirect flows for SCA compliance
         };
       } else {
         // Use automatic payment methods for new card entry
@@ -1126,6 +1125,7 @@ export class PaymentController {
         bookingIds: allBookingIds, // All booking IDs for multi-slot bookings
         slotsCount: normalizedTimeSlots.length,
         paymentSucceeded: paymentIntent.status === 'succeeded',
+        requiresAction: paymentIntent.status === 'requires_action', // 3DS/OTP required
         publishableKey: `pk_test_${process.env.STRIPE_SECRET_KEY?.slice(8, 40)}`, // Send publishable key
         // Include skipped dates for recurring bookings (these dates will be automatically skipped)
         ...(skippedDates.length > 0 && {
