@@ -145,10 +145,10 @@ AboutPageSchema.statics.findOneOrCreate = async function() {
     aboutPage = await this.create({
       heroSection: {
         sectionTitle: 'About Us',
-        mainTitle: 'Find Safe, Private Dog Walking Fields Near You',
-        description: 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely. Born out of love for dogs and a need for secure, off-lead spaces, Fieldsy helps you find and book private dog walking fields across the UK—quickly and effortlessly.',
+        mainTitle: 'All-in-One Platform for Smarter Field Operations',
+        description: 'Fieldsy brings every aspect of field operations into a single, easy-to-use platform. From property claims and terrain tracking to team coordination and document management—we help you digitize, streamline, and scale your fieldwork with confidence. No more juggling spreadsheets, paperwork, or disconnected tools. With Fieldsy, everything you need is at your fingertips, wherever the field takes you.',
         buttonText: 'Download App',
-        image: '/about/dog2.png',
+        image: 'https://fieldsy-s3.s3.eu-west-2.amazonaws.com/defaults/about/dog2.webp',
         stats: []
       },
       missionSection: {

@@ -76,6 +76,11 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
       aboutDogIcons,
       bypassUsername,
       bypassPassword,
+      howItWorksTitle,
+      howItWorksSteps,
+      landownersSectionTitle,
+      landownersSectionDescription,
+      landownersSectionImage,
 
     } = req.body;
 
@@ -163,6 +168,11 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
           ...(req.body.platformFieldOwnersImage !== undefined && { platformFieldOwnersImage: req.body.platformFieldOwnersImage }),
           ...(req.body.platformWaveImage !== undefined && { platformWaveImage: req.body.platformWaveImage }),
           ...(req.body.platformHoverImage !== undefined && { platformHoverImage: req.body.platformHoverImage }),
+          ...(howItWorksTitle !== undefined && { howItWorksTitle }),
+          ...(howItWorksSteps !== undefined && { howItWorksSteps }),
+          ...(landownersSectionTitle !== undefined && { landownersSectionTitle }),
+          ...(landownersSectionDescription !== undefined && { landownersSectionDescription }),
+          ...(landownersSectionImage !== undefined && { landownersSectionImage }),
 
         }
       });
@@ -300,6 +310,11 @@ export const getPublicSettings = async (req: Request, res: Response) => {
         platformFieldOwnersTitle: true,
 
         platformFieldOwnersBullets: true,
+        howItWorksTitle: true,
+        howItWorksSteps: true,
+        landownersSectionTitle: true,
+        landownersSectionDescription: true,
+        landownersSectionImage: true,
 
       }
     });

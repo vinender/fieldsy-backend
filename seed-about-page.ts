@@ -22,7 +22,7 @@ async function seedAboutPage() {
         mainTitle: 'Find Safe, Private Dog\nWalking Fields Near You',
         description: 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely. Born out of love for dogs and a need for secure, off-lead spaces, Fieldsy helps you find and book private dog walking fields across the UK—quickly and effortlessly.',
         buttonText: 'Download App',
-        image: '/about/dog2.png',
+        image: 'https://fieldsy-s3.s3.eu-west-2.amazonaws.com/defaults/about/dog2.webp',
         stats: [
           { value: '500+', label: 'Early Access Signups', order: 1 },
           { value: '200+', label: 'Private Fields Being Onboarded', order: 2 },
@@ -34,7 +34,7 @@ async function seedAboutPage() {
         title: 'Our Mission',
         description: 'To provide dog owners with easy access to safe, secure, and private fields where their dogs can exercise, play, and socialize freely without the worry of other dogs, livestock, or traffic.',
         buttonText: 'Join Our Community',
-        image: '/about/mission.png'
+        image: 'https://fieldsy-s3.s3.eu-west-2.amazonaws.com/defaults/about/dog2.webp'
       },
       whoWeAreSection: {
         title: 'Who We Are',
@@ -64,7 +64,7 @@ async function seedAboutPage() {
         title: 'What We Do',
         subtitle: 'Making dog walking safer and more enjoyable',
         description: 'We connect dog owners with private field owners, creating a marketplace for safe, bookable dog exercise spaces.',
-        image: '/about/what-we-do.png',
+        image: 'https://fieldsy-s3.s3.eu-west-2.amazonaws.com/defaults/about/dog2.webp',
         features: [
           {
             title: 'Vetted Fields',

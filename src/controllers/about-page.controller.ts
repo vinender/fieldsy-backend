@@ -12,10 +12,10 @@ export const getAboutPage = async (req: Request, res: Response) => {
       aboutPage = await prisma.aboutPage.create({
         data: {
           heroSectionTitle: 'About Us',
-          heroMainTitle: 'Find Safe, Private Dog Walking Fields Near You',
-          heroDescription: 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.',
+          heroMainTitle: 'All-in-One Platform for Smarter Field Operations',
+          heroDescription: 'Fieldsy brings every aspect of field operations into a single, easy-to-use platform. From property claims and terrain tracking to team coordination and document management—we help you digitize, streamline, and scale your fieldwork with confidence. No more juggling spreadsheets, paperwork, or disconnected tools. With Fieldsy, everything you need is at your fingertips, wherever the field takes you.',
           heroButtonText: 'Download App',
-          heroImage: '/about/dog2.png',
+          heroImage: 'https://fieldsy-s3.s3.eu-west-2.amazonaws.com/defaults/about/dog2.webp',
           heroStats: [
             { value: '500+', label: 'Early Access Signups', order: 1 },
             { value: '200+', label: 'Private Fields Being Onboarded', order: 2 },

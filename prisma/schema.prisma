@@ -739,6 +739,15 @@ model SystemSettings {
   platformFieldOwnersTitle    String?  @default("Turn Your Land into a Dog's Dream & Earn") // Field owners card title
   platformFieldOwnersBullets  String[] @default(["Earn passive income while helping pets", "Host dog owners with full control", "Set your availability and pricing", "List your field for free"]) // Field owners card bullet points
 
+  // How It Works Section Settings (Homepage)
+  howItWorksTitle String? @default("How Fieldsy Works") // Section title
+  howItWorksSteps Json?   // Array of steps: [{icon, title, description, image, thumbnail, order}]
+
+  // How It Works Page — For Landowners Section
+  landownersSectionTitle       String? @default("How Fieldsy Works for Landowners")
+  landownersSectionDescription String? @default("List or claim your field, set your schedule, and start earning—it's simple, secure, and flexible.")
+  landownersSectionImage       String? // Image URL
+
   // Bypass Authentication Settings
   bypassUsername             String? @default("admin") // Username to bypass coming soon page
   bypassPassword             String? @default("fieldsy123") // Password to bypass coming soon page
