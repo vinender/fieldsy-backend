@@ -1397,10 +1397,19 @@ class FieldModel {
     const whereClause: any = {
       isActive: true,
       isSubmitted: true,
-      isApproved: true // Field must be approved by admin
-      // Note: isBlocked filter removed for production compatibility
-      // Will be added back after DB migration
+      isApproved: true,
+      isBlocked: false
     };
+
+    // Exclude fields from blocked field owners
+    try {
+      const blockedOwnerIds = await this.getBlockedOwnerIds();
+      if (blockedOwnerIds.length > 0) {
+        whereClause.ownerId = { notIn: blockedOwnerIds };
+      }
+    } catch (error: any) {
+      console.warn('Warning: Could not fetch blocked field owners for suggestions:', error.message);
+    }
 
     // Check if query might be a UK postcode
     const isPostcode = isValidUKPostcode(query) || isPartialPostcode(query);
