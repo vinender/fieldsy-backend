@@ -688,7 +688,7 @@ export class PaymentController {
       let payoutStatus = 'PENDING';
       let payoutHeldReason = undefined;
 
-      if (paymentIntent.status === 'succeeded') {
+      if (primaryPaymentIntent.status === 'succeeded') {
         if (!fieldOwnerStripeAccount || !fieldOwnerStripeAccount.chargesEnabled || !fieldOwnerStripeAccount.payoutsEnabled) {
           // Hold the payout if field owner doesn't have a connected Stripe account
           payoutStatus = 'HELD';
