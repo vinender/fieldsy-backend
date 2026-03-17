@@ -107,7 +107,8 @@ router.get('/payout-stats', async (req, res) => {
 router.post('/topup-balance', async (req, res) => {
   try {
     const Stripe = (await import('stripe')).default;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    const stripeKey = (process.env.STRIPE_PRODUCTION_MODE === 'true' ? process.env.STRIPE_LIVE_SECRET_KEY : process.env.STRIPE_TEST_SECRET_KEY)!;
+    const stripe = new Stripe(stripeKey, {
       apiVersion: '2025-07-30.basil' as any,
     });
 
@@ -184,7 +185,8 @@ router.post('/topup-balance', async (req, res) => {
 router.get('/balance', async (req, res) => {
   try {
     const Stripe = (await import('stripe')).default;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    const stripeKey = (process.env.STRIPE_PRODUCTION_MODE === 'true' ? process.env.STRIPE_LIVE_SECRET_KEY : process.env.STRIPE_TEST_SECRET_KEY)!;
+    const stripe = new Stripe(stripeKey, {
       apiVersion: '2025-07-30.basil' as any,
     });
 

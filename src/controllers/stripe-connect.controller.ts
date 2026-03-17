@@ -4,15 +4,11 @@ import prisma from '../config/database';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 import Stripe from 'stripe';
+import { stripe } from '../config/stripe.config';
 import { getPayoutService, getHeldPayoutService } from '../config/payout-services';
 const payoutService = getPayoutService();
 const heldPayoutService = getHeldPayoutService();
 import { FRONTEND_URL } from '../config/constants';
-
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-07-30.basil'
-});
 
 class StripeConnectController {
   // Create Stripe Connect account

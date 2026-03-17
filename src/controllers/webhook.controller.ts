@@ -3,7 +3,7 @@
 // This file is kept for reference only. Safe to delete once integration is verified.
 //@ts-nocheck
 import { Request, Response } from 'express';
-import { stripe } from '../config/stripe.config';
+import { stripe, STRIPE_PAYMENT_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET, STRIPE_PAYOUT_WEBHOOK_SECRET, STRIPE_REFUND_WEBHOOK_SECRET } from '../config/stripe.config';
 import prisma from '../config/database';
 import Stripe from 'stripe';
 import { createNotification } from './notification.controller';
@@ -66,7 +66,7 @@ export class WebhookController {
    */
   async handlePaymentWebhook(req: Request, res: Response) {
     const sig = req.headers['stripe-signature'] as string;
-    const webhookSecret = process.env.STRIPE_PAYMENT_WEBHOOK_SECRET;
+    const webhookSecret = STRIPE_PAYMENT_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
       console.error('[PaymentWebhook] Webhook secret not configured');
@@ -154,7 +154,7 @@ export class WebhookController {
    */
   async handleConnectWebhook(req: Request, res: Response) {
     const sig = req.headers['stripe-signature'] as string;
-    const webhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    const webhookSecret = STRIPE_CONNECT_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
       console.error('[ConnectWebhook] Webhook secret not configured');
@@ -245,7 +245,7 @@ export class WebhookController {
   async handlePayoutWebhook(req: Request, res: Response) {
     const sig = req.headers['stripe-signature'] as string;
     // Payout events come from connected accounts, so use connect webhook secret
-    const webhookSecret = process.env.STRIPE_PAYOUT_WEBHOOK_SECRET || process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    const webhookSecret = STRIPE_PAYOUT_WEBHOOK_SECRET || STRIPE_CONNECT_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
       console.error('[PayoutWebhook] Webhook secret not configured');
@@ -336,7 +336,7 @@ export class WebhookController {
    */
   async handleRefundWebhook(req: Request, res: Response) {
     const sig = req.headers['stripe-signature'] as string;
-    const webhookSecret = process.env.STRIPE_REFUND_WEBHOOK_SECRET || process.env.STRIPE_PAYMENT_WEBHOOK_SECRET;
+    const webhookSecret = STRIPE_REFUND_WEBHOOK_SECRET || STRIPE_PAYMENT_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
       console.error('[RefundWebhook] Webhook secret not configured');

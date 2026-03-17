@@ -2374,7 +2374,7 @@ class BookingController {
     // not Stripe's subscription product. The stripeSubscriptionId field may contain a payment intent ID.
     if (subscription.stripeSubscriptionId && subscription.stripeSubscriptionId.startsWith('sub_')) {
       try {
-        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+        const stripe = require('stripe')(process.env.STRIPE_PRODUCTION_MODE === 'true' ? process.env.STRIPE_LIVE_SECRET_KEY : process.env.STRIPE_TEST_SECRET_KEY);
 
         if (cancelImmediately) {
           // Cancel immediately and issue prorated refund

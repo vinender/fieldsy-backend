@@ -14,16 +14,22 @@ const adapter = new FieldsyPayoutAdapter();
 export const payoutEngine = new StripeAutoPayoutEngine(
   {
     stripe: {
-      secretKey: process.env.STRIPE_SECRET_KEY!,
+      secretKey: (process.env.STRIPE_PRODUCTION_MODE === 'true'
+        ? process.env.STRIPE_LIVE_SECRET_KEY
+        : process.env.STRIPE_TEST_SECRET_KEY)!,
       webhookSecrets: {
-        payments: process.env.STRIPE_PAYMENT_WEBHOOK_SECRET!,
-        connect: process.env.STRIPE_CONNECT_WEBHOOK_SECRET!,
-        payouts:
-          process.env.STRIPE_PAYOUT_WEBHOOK_SECRET ||
-          process.env.STRIPE_CONNECT_WEBHOOK_SECRET!,
-        refunds:
-          process.env.STRIPE_REFUND_WEBHOOK_SECRET ||
-          process.env.STRIPE_PAYMENT_WEBHOOK_SECRET!,
+        payments: (process.env.STRIPE_PRODUCTION_MODE === 'true'
+          ? process.env.STRIPE_LIVE_PAYMENT_WEBHOOK_SECRET
+          : process.env.STRIPE_TEST_PAYMENT_WEBHOOK_SECRET)!,
+        connect: (process.env.STRIPE_PRODUCTION_MODE === 'true'
+          ? process.env.STRIPE_LIVE_CONNECT_WEBHOOK_SECRET
+          : process.env.STRIPE_TEST_CONNECT_WEBHOOK_SECRET)!,
+        payouts: (process.env.STRIPE_PRODUCTION_MODE === 'true'
+          ? process.env.STRIPE_LIVE_PAYOUT_WEBHOOK_SECRET || process.env.STRIPE_LIVE_CONNECT_WEBHOOK_SECRET
+          : process.env.STRIPE_TEST_PAYOUT_WEBHOOK_SECRET || process.env.STRIPE_TEST_CONNECT_WEBHOOK_SECRET)!,
+        refunds: (process.env.STRIPE_PRODUCTION_MODE === 'true'
+          ? process.env.STRIPE_LIVE_REFUND_WEBHOOK_SECRET || process.env.STRIPE_LIVE_PAYMENT_WEBHOOK_SECRET
+          : process.env.STRIPE_TEST_REFUND_WEBHOOK_SECRET || process.env.STRIPE_TEST_PAYMENT_WEBHOOK_SECRET)!,
       },
     },
     currency: 'gbp',

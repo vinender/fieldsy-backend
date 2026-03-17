@@ -1,6 +1,6 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
-import { stripe } from '../config/stripe.config';
+import { stripe, STRIPE_PAYMENT_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET } from '../config/stripe.config';
 import prisma from '../config/database';
 import Stripe from 'stripe';
 import { createNotification } from './notification.controller';
@@ -453,27 +453,17 @@ export class PaymentController {
 
       // Prepare payment intent parameters
       // Payment goes to platform account (admin) first
-      const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
-        amount: amountInCents,
+      // ============================================================
+      // CREATE ONE PAYMENT INTENT PER SLOT
+      // Each slot gets its own PaymentIntent so refunds are isolated
+      // ============================================================
+      const pricePerSlot = amount / normalizedTimeSlots.length;
+      const pricePerSlotCents = Math.round(pricePerSlot * 100);
+      const platformCommissionPerSlot = platformCommission / normalizedTimeSlots.length;
+      const fieldOwnerAmountPerSlot = fieldOwnerAmount / normalizedTimeSlots.length;
+
+      const basePaymentIntentParams: Partial<Stripe.PaymentIntentCreateParams> = {
         currency: 'gbp',
-        metadata: {
-          userId,
-          fieldId,
-          fieldOwnerId: field.ownerId || '',
-          numberOfDogs: numberOfDogs.toString(),
-          date,
-          timeSlots: JSON.stringify(normalizedTimeSlots), // Store as JSON array
-          timeSlotCount: normalizedTimeSlots.length.toString(),
-          repeatBooking: repeatBooking || 'none',
-          duration: duration || '60min', // Booking duration (30min or 60min)
-          type: 'field_booking',
-          platformCommission: platformCommission.toString(),
-          fieldOwnerAmount: fieldOwnerAmount.toString(),
-          commissionRate: commissionRate.toString(),
-          isCustomCommission: isCustomCommission.toString(),
-          defaultCommissionRate: defaultCommissionRate.toString()
-        },
-        description: `Booking for ${field.name} on ${date} - ${normalizedTimeSlots.length} slot(s)`,
         receipt_email: (req as any).user?.email,
       };
 
@@ -567,31 +557,63 @@ export class PaymentController {
           });
         }
 
-        paymentIntentParams.customer = customerId;
-        paymentIntentParams.payment_method = paymentMethod.stripePaymentMethodId;
-        paymentIntentParams.confirm = true; // Auto-confirm — Stripe will return requires_action if 3DS is needed
-        paymentIntentParams.return_url = `${FRONTEND_URL}/user/my-bookings`;
-        paymentIntentParams.automatic_payment_methods = {
+        basePaymentIntentParams.customer = customerId;
+        basePaymentIntentParams.payment_method = paymentMethod.stripePaymentMethodId;
+        basePaymentIntentParams.confirm = true;
+        basePaymentIntentParams.return_url = `${FRONTEND_URL}/user/my-bookings`;
+        basePaymentIntentParams.automatic_payment_methods = {
           enabled: true,
-          allow_redirects: 'always' // Allow 3DS redirect flows for SCA compliance
+          allow_redirects: 'always'
         };
       } else {
-        // Use automatic payment methods for new card entry
-        paymentIntentParams.automatic_payment_methods = {
+        basePaymentIntentParams.automatic_payment_methods = {
           enabled: true,
         };
       }
 
-      // Create payment intent with error handling and idempotency
-      let paymentIntent;
+      // Create one PaymentIntent per slot
+      const paymentIntents: any[] = [];
       try {
-        paymentIntent = await stripe.paymentIntents.create(paymentIntentParams, {
-          idempotencyKey: idempotencyKey
-        });
+        for (let i = 0; i < normalizedTimeSlots.length; i++) {
+          const slot = normalizedTimeSlots[i];
+          const slotIdempotencyKey = `${idempotencyKey}_slot_${i}`;
+
+          const slotPaymentIntent = await stripe.paymentIntents.create({
+            ...basePaymentIntentParams,
+            amount: pricePerSlotCents,
+            metadata: {
+              userId,
+              fieldId,
+              fieldOwnerId: field.ownerId || '',
+              numberOfDogs: numberOfDogs.toString(),
+              date,
+              timeSlot: slot,
+              slotIndex: i.toString(),
+              totalSlots: normalizedTimeSlots.length.toString(),
+              repeatBooking: repeatBooking || 'none',
+              duration: duration || '60min',
+              type: 'field_booking',
+              platformCommission: platformCommissionPerSlot.toString(),
+              fieldOwnerAmount: fieldOwnerAmountPerSlot.toString(),
+              commissionRate: commissionRate.toString(),
+              isCustomCommission: isCustomCommission.toString(),
+              defaultCommissionRate: defaultCommissionRate.toString()
+            },
+            description: `Booking for ${field.name} on ${date} - ${slot}`,
+          } as Stripe.PaymentIntentCreateParams, {
+            idempotencyKey: slotIdempotencyKey
+          });
+
+          paymentIntents.push(slotPaymentIntent);
+        }
       } catch (stripeError: any) {
         console.error('Error creating payment intent:', stripeError);
 
-        // Handle specific Stripe errors
+        // Rollback: cancel any already-created payment intents
+        for (const pi of paymentIntents) {
+          try { await stripe.paymentIntents.cancel(pi.id); } catch (e) { /* best effort */ }
+        }
+
         if (stripeError.type === 'StripeInvalidRequestError') {
           if (stripeError.message.includes('No such PaymentMethod')) {
             return res.status(400).json({
@@ -607,7 +629,6 @@ export class PaymentController {
           }
         }
 
-        // Generic payment error
         return res.status(500).json({
           error: 'Unable to process payment. Please try again.',
           code: 'PAYMENT_PROCESSING_ERROR',
@@ -647,9 +668,12 @@ export class PaymentController {
       const subscriptionActualEndMinutes = subscriptionStartMinutes + subscriptionDurationMinutes;
       const endTimeStr = minutesToTimeForSubscription(subscriptionActualEndMinutes);
 
-      // Create a booking record with appropriate status
-      const bookingStatus = paymentIntent.status === 'succeeded' ? 'CONFIRMED' : 'PENDING';
-      const paymentStatus = paymentIntent.status === 'succeeded' ? 'PAID' : 'PENDING';
+      // Determine booking status from the first payment intent (all share the same card/status)
+      const primaryPaymentIntent = paymentIntents[0];
+      const allSucceeded = paymentIntents.every(pi => pi.status === 'succeeded');
+      const anyRequiresAction = paymentIntents.some(pi => pi.status === 'requires_action');
+      const bookingStatus = allSucceeded ? 'CONFIRMED' : 'PENDING';
+      const paymentStatus = allSucceeded ? 'PAID' : 'PENDING';
 
       // Check if field owner has a connected Stripe account
       const fieldOwnerStripeAccount = await prisma.stripeAccount.findUnique({
@@ -734,10 +758,7 @@ export class PaymentController {
       }
 
       // Create a booking for each selected time slot
-      // Calculate per-slot amounts
-      const pricePerSlot = amount / normalizedTimeSlots.length;
-      const platformCommissionPerSlot = platformCommission / normalizedTimeSlots.length;
-      const fieldOwnerAmountPerSlot = fieldOwnerAmount / normalizedTimeSlots.length;
+      // Per-slot amounts already calculated above (pricePerSlot, platformCommissionPerSlot, fieldOwnerAmountPerSlot)
 
       // Helper function to parse time string to minutes
       const parseTimeToMinutes = (timeStr: string): number => {
@@ -899,6 +920,9 @@ export class PaymentController {
               }
             }
 
+            // Each slot gets its own PaymentIntent
+            const slotPaymentIntent = paymentIntents[normalizedTimeSlots.indexOf(slot)];
+
             const newBooking = await tx.booking.create({
               data: {
                 fieldId,
@@ -914,11 +938,11 @@ export class PaymentController {
                 bookingId: await BookingModel.generateBookingId(),
                 status: bookingStatus,
                 paymentStatus: paymentStatus,
-                paymentIntentId: paymentIntent.id,
+                paymentIntentId: slotPaymentIntent.id, // Each booking has its own PaymentIntent
                 payoutStatus,
                 payoutHeldReason,
                 repeatBooking: normalizedRepeatBooking || repeatBooking || 'none',
-                subscriptionId: slotSubscriptionId, // Each booking has its own subscription
+                subscriptionId: slotSubscriptionId,
                 bookingDuration: duration || '60min'
               }
             });
@@ -972,61 +996,61 @@ export class PaymentController {
       }
       // ============================================================
 
-      // Use first booking as primary for backward compatibility
-      const booking = bookings[0];
+      const booking = bookings[0]; // Primary booking for notifications
       const allBookingIds = bookings.map(b => b.id);
 
-      // If payment was auto-confirmed with saved card, create notifications
-      if (paymentIntent.status === 'succeeded') {
-        // Create payment record
-        await prisma.payment.create({
-          data: {
-            bookingId: booking.id,
-            userId,
-            amount,
-            currency: 'GBP',
-            status: 'completed',
-            paymentMethod: 'card',
-            stripePaymentId: paymentIntent.id,
-            processedAt: new Date()
-          }
+      // If payment was auto-confirmed with saved card, create payment + transaction records per booking
+      if (allSucceeded) {
+        const fieldOwnerStripeAccount = await prisma.stripeAccount.findFirst({
+          where: { userId: field.ownerId }
         });
 
-        // Create transaction record for admin tracking (immediately when payment succeeds)
-        // Check if transaction doesn't already exist for this payment intent
-        const existingTransaction = await prisma.transaction.findFirst({
-          where: { stripePaymentIntentId: paymentIntent.id }
-        });
+        // Create one Payment record and one Transaction record per booking/slot
+        for (let i = 0; i < bookings.length; i++) {
+          const slotBooking = bookings[i];
+          const slotPI = paymentIntents[i];
 
-        if (!existingTransaction) {
-          // Get field owner's connected Stripe account ID
-          const fieldOwnerStripeAccount = await prisma.stripeAccount.findFirst({
-            where: { userId: field.ownerId }
-          });
-
-          await prisma.transaction.create({
+          await prisma.payment.create({
             data: {
-              bookingId: booking.id,
+              bookingId: slotBooking.id,
               userId,
-              fieldOwnerId: field.ownerId || null,
-              amount: amount,
-              netAmount: fieldOwnerAmount,
-              platformFee: platformCommission,
-              commissionRate: commissionRate,
-              isCustomCommission: isCustomCommission,
-              defaultCommissionRate: defaultCommissionRate,
-              type: 'PAYMENT',
-              status: 'COMPLETED',
-              stripePaymentIntentId: paymentIntent.id,
-              connectedAccountId: fieldOwnerStripeAccount?.stripeAccountId || null,
-              // Lifecycle tracking
-              lifecycleStage: 'PAYMENT_RECEIVED',
-              paymentReceivedAt: new Date(),
-              description: `Payment for booking at ${field.name}`
+              amount: pricePerSlot,
+              currency: 'GBP',
+              status: 'completed',
+              paymentMethod: 'card',
+              stripePaymentId: slotPI.id,
+              processedAt: new Date()
             }
           });
-          console.log('[PaymentController] Created transaction record for immediate payment:', paymentIntent.id);
+
+          const existingTxn = await prisma.transaction.findFirst({
+            where: { stripePaymentIntentId: slotPI.id }
+          });
+
+          if (!existingTxn) {
+            await prisma.transaction.create({
+              data: {
+                bookingId: slotBooking.id,
+                userId,
+                fieldOwnerId: field.ownerId || null,
+                amount: pricePerSlot,
+                netAmount: fieldOwnerAmountPerSlot,
+                platformFee: platformCommissionPerSlot,
+                commissionRate: commissionRate,
+                isCustomCommission: isCustomCommission,
+                defaultCommissionRate: defaultCommissionRate,
+                type: 'PAYMENT',
+                status: 'COMPLETED',
+                stripePaymentIntentId: slotPI.id,
+                connectedAccountId: fieldOwnerStripeAccount?.stripeAccountId || null,
+                lifecycleStage: 'PAYMENT_RECEIVED',
+                paymentReceivedAt: new Date(),
+                description: `Payment for booking at ${field.name} - ${slotBooking.timeSlot || normalizedTimeSlots[i]}`
+              }
+            });
+          }
         }
+        console.log(`[PaymentController] Created ${bookings.length} payment + transaction records for ${bookings.length} slots`);
 
         // Send notifications and emails in background (non-blocking)
         // Payment is already confirmed — don't delay the response
@@ -1120,13 +1144,19 @@ export class PaymentController {
       }
 
       res.json({
-        clientSecret: paymentIntent.client_secret,
+        // Primary client secret (first slot) — for single-slot bookings this is the only one
+        clientSecret: primaryPaymentIntent.client_secret,
+        // All client secrets — frontend confirms each one for multi-slot bookings
+        clientSecrets: paymentIntents.map(pi => pi.client_secret),
+        paymentIntentIds: paymentIntents.map(pi => pi.id),
         bookingId: booking.id,
-        bookingIds: allBookingIds, // All booking IDs for multi-slot bookings
+        bookingIds: allBookingIds,
         slotsCount: normalizedTimeSlots.length,
-        paymentSucceeded: paymentIntent.status === 'succeeded',
-        requiresAction: paymentIntent.status === 'requires_action', // 3DS/OTP required
-        publishableKey: `pk_test_${process.env.STRIPE_SECRET_KEY?.slice(8, 40)}`, // Send publishable key
+        paymentSucceeded: allSucceeded,
+        requiresAction: anyRequiresAction,
+        publishableKey: process.env.STRIPE_PRODUCTION_MODE === 'true'
+          ? process.env.STRIPE_LIVE_PUBLISHABLE_KEY
+          : process.env.STRIPE_TEST_PUBLISHABLE_KEY,
         // Include skipped dates for recurring bookings (these dates will be automatically skipped)
         ...(skippedDates.length > 0 && {
           skippedDates,
@@ -1362,8 +1392,8 @@ export class PaymentController {
   // Handle Stripe webhooks
   async handleWebhook(req: Request, res: Response) {
     const sig = req.headers['stripe-signature'] as string;
-    const webhookSecret = process.env.STRIPE_PAYMENT_WEBHOOK_SECRET;
-    const connectWebhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    const webhookSecret = STRIPE_PAYMENT_WEBHOOK_SECRET;
+    const connectWebhookSecret = STRIPE_CONNECT_WEBHOOK_SECRET;
 
     if (!webhookSecret && !connectWebhookSecret) {
       console.error('Stripe webhook secret not configured');
