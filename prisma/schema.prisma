@@ -766,11 +766,24 @@ model Term {
   content Json? // string or string[]
   isList Boolean @default(false)
   order Int @default(0)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("terms")
+}
+
+model PrivacyPolicy {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  title String
+  content Json? // string or string[]
+  isList Boolean @default(false)
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("privacy_policies")
 }
 
 model AllowedIp {
