@@ -714,41 +714,76 @@ class BookingModel {
     return { available: true };
   }
 
-  // Get booking statistics for a field owner
+  // Get booking statistics for a field owner (using aggregation queries)
   async getFieldOwnerStats(ownerId: string) {
-    const bookings = await this.findByFieldOwner(ownerId);
+    const ownerWhere = { field: { ownerId } };
 
-    const stats = {
-      total: bookings.length,
-      pending: bookings.filter(b => b.status === 'PENDING').length,
-      confirmed: bookings.filter(b => b.status === 'CONFIRMED').length,
-      completed: bookings.filter(b => b.status === 'COMPLETED').length,
-      cancelled: bookings.filter(b => b.status === 'CANCELLED').length,
-      totalRevenue: bookings
-        .filter(b => b.status === 'COMPLETED')
-        .reduce((sum, b) => sum + b.totalPrice, 0),
+    const [statusCounts, revenueResult] = await Promise.all([
+      prisma.booking.groupBy({
+        by: ['status'],
+        where: ownerWhere,
+        _count: true,
+      }),
+      prisma.booking.aggregate({
+        where: { ...ownerWhere, status: 'COMPLETED' },
+        _sum: { totalPrice: true },
+      }),
+    ]);
+
+    const countByStatus: Record<string, number> = {};
+    let total = 0;
+    for (const entry of statusCounts) {
+      countByStatus[entry.status] = entry._count;
+      total += entry._count;
+    }
+
+    return {
+      total,
+      pending: countByStatus['PENDING'] || 0,
+      confirmed: countByStatus['CONFIRMED'] || 0,
+      completed: countByStatus['COMPLETED'] || 0,
+      cancelled: countByStatus['CANCELLED'] || 0,
+      totalRevenue: revenueResult._sum.totalPrice || 0,
     };
-
-    return stats;
   }
 
-  // Get booking statistics for a dog owner
+  // Get booking statistics for a dog owner (using aggregation queries)
   async getDogOwnerStats(dogOwnerId: string) {
-    const bookings = await this.findByDogOwner(dogOwnerId);
+    const ownerWhere = { userId: dogOwnerId };
 
-    const stats = {
-      total: bookings.length,
-      upcoming: bookings.filter(b =>
-        b.status === 'CONFIRMED' && new Date(b.date) >= new Date()
-      ).length,
-      completed: bookings.filter(b => b.status === 'COMPLETED').length,
-      cancelled: bookings.filter(b => b.status === 'CANCELLED').length,
-      totalSpent: bookings
-        .filter(b => b.status === 'COMPLETED')
-        .reduce((sum, b) => sum + b.totalPrice, 0),
+    const [statusCounts, upcomingCount, spentResult] = await Promise.all([
+      prisma.booking.groupBy({
+        by: ['status'],
+        where: ownerWhere,
+        _count: true,
+      }),
+      prisma.booking.count({
+        where: {
+          ...ownerWhere,
+          status: 'CONFIRMED',
+          date: { gte: new Date() },
+        },
+      }),
+      prisma.booking.aggregate({
+        where: { ...ownerWhere, status: 'COMPLETED' },
+        _sum: { totalPrice: true },
+      }),
+    ]);
+
+    const countByStatus: Record<string, number> = {};
+    let total = 0;
+    for (const entry of statusCounts) {
+      countByStatus[entry.status] = entry._count;
+      total += entry._count;
+    }
+
+    return {
+      total,
+      upcoming: upcomingCount,
+      completed: countByStatus['COMPLETED'] || 0,
+      cancelled: countByStatus['CANCELLED'] || 0,
+      totalSpent: spentResult._sum.totalPrice || 0,
     };
-
-    return stats;
   }
   // Sanitize booking object for API responses
   sanitize(booking: any) {

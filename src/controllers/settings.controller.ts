@@ -1,6 +1,7 @@
 //@ts-nocheck
 import { Request, Response } from 'express';
 import prisma from '../config/database';
+import { invalidateSettingsCache } from '../config/settings-cache';
 import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 
@@ -177,6 +178,8 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
         }
       });
     }
+
+    invalidateSettingsCache();
 
     res.json({
       success: true,

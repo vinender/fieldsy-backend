@@ -2,11 +2,12 @@
 import { Router } from 'express';
 import bookingController from '../controllers/booking.controller';
 import { protect, restrictTo } from '../middleware/auth.middleware';
+import { searchLimiter } from '../middleware/rateLimiter.middleware';
 
 const router = Router();
 
 // Public routes to check availability
-router.get('/availability', bookingController.checkAvailability);
+router.get('/availability', searchLimiter, bookingController.checkAvailability);
 router.get('/recurring-conflicts', bookingController.checkRecurringConflicts);
 router.get('/fields/:fieldId/slot-availability', bookingController.getSlotAvailability);
 router.post('/check-slots-availability', bookingController.checkSelectedSlotsAvailability);

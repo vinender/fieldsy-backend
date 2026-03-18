@@ -12,6 +12,7 @@ import { emailService } from '../services/email.service';
 import BookingModel from '../models/booking.model';
 import { FRONTEND_URL } from '../config/constants';
 import { resolveField } from '../utils/field.utils';
+import { getSystemSettings } from '../config/settings-cache';
 
 /**
  * Check if a date is valid for a field's operating days
@@ -165,14 +166,9 @@ export class PaymentController {
       };
 
       // Check availability for ALL slots atomically before proceeding
-      for (const slot of normalizedTimeSlots) {
-        const [slotStart, displaySlotEnd] = slot.split(' - ').map((t: string) => t.trim());
-        const startMinutes = parseTimeToMinutesLocal(slotStart);
-        const actualEndMinutes = startMinutes + actualDurationMinutes;
-        const actualSlotEnd = minutesToTimeStrLocal(actualEndMinutes);
-
-        // Check for conflicting bookings
-        const conflictingBookings = await prisma.booking.findMany({
+      // Batch DB queries: fetch all bookings and recurring subscriptions ONCE
+      const [slotBookings, activeSubscriptions] = await Promise.all([
+        prisma.booking.findMany({
           where: {
             fieldId,
             date: bookingDate,
@@ -187,10 +183,41 @@ export class PaymentController {
             timeSlot: true,
             userId: true
           }
-        });
+        }),
+        prisma.subscription.findMany({
+          where: {
+            fieldId,
+            status: 'active',
+            cancelAtPeriodEnd: false
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        })
+      ]);
 
-        // Check for time overlap with existing bookings
-        for (const booking of conflictingBookings) {
+      // Pre-compute recurring subscription date matching
+      const requestedDate = new Date(bookingDate);
+      requestedDate.setHours(0, 0, 0, 0);
+      const requestedDayOfWeek = requestedDate.getDay();
+      const requestedDayOfMonth = requestedDate.getDate();
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const requestedDayName = dayNames[requestedDayOfWeek];
+
+      for (const slot of normalizedTimeSlots) {
+        const [slotStart, displaySlotEnd] = slot.split(' - ').map((t: string) => t.trim());
+        const startMinutes = parseTimeToMinutesLocal(slotStart);
+        const actualEndMinutes = startMinutes + actualDurationMinutes;
+        const actualSlotEnd = minutesToTimeStrLocal(actualEndMinutes);
+
+        // Check for time overlap with existing bookings (in-memory)
+        for (const booking of slotBookings) {
           const bookingStart = parseTimeToMinutesLocal(booking.startTime);
           const bookingEnd = parseTimeToMinutesLocal(booking.endTime);
           const requestedStart = startMinutes;
@@ -217,25 +244,41 @@ export class PaymentController {
           }
         }
 
-        // Also check for recurring subscription conflicts
-        const recurringConflict = await BookingModel.checkRecurringSlotConflict(
-          fieldId,
-          bookingDate,
-          slotStart,
-          actualSlotEnd
-        );
+        // Check for recurring subscription conflicts (in-memory)
+        for (const subscription of activeSubscriptions) {
+          let isDateMatch = false;
 
-        if (recurringConflict.hasConflict) {
-          console.log('[PaymentController] Recurring subscription conflict detected:', {
-            requestedSlot: slot,
-            reason: recurringConflict.reason
-          });
-          return res.status(409).json({
-            error: recurringConflict.reason || 'This slot is reserved by a recurring booking',
-            code: 'RECURRING_SLOT_CONFLICT',
-            unavailableSlot: slot,
-            message: recurringConflict.reason
-          });
+          if (subscription.interval === 'everyday') {
+            isDateMatch = true;
+          } else if (subscription.interval === 'weekly') {
+            isDateMatch = subscription.dayOfWeek === requestedDayName;
+          } else if (subscription.interval === 'monthly') {
+            isDateMatch = subscription.dayOfMonth === requestedDayOfMonth;
+          }
+
+          if (isDateMatch) {
+            const subStart = parseTimeToMinutesLocal(subscription.startTime);
+            const subEnd = parseTimeToMinutesLocal(subscription.endTime);
+
+            const hasTimeOverlap =
+              (startMinutes >= subStart && startMinutes < subEnd) ||
+              (actualEndMinutes > subStart && actualEndMinutes <= subEnd) ||
+              (startMinutes <= subStart && actualEndMinutes >= subEnd);
+
+            if (hasTimeOverlap) {
+              const reason = `This time slot is reserved by a ${subscription.interval} recurring booking (${subscription.timeSlot})`;
+              console.log('[PaymentController] Recurring subscription conflict detected:', {
+                requestedSlot: slot,
+                reason
+              });
+              return res.status(409).json({
+                error: reason,
+                code: 'RECURRING_SLOT_CONFLICT',
+                unavailableSlot: slot,
+                message: reason
+              });
+            }
+          }
         }
       }
 
@@ -681,7 +724,7 @@ export class PaymentController {
       });
 
       // Get system settings for payout release schedule
-      const systemSettings = await prisma.systemSettings.findFirst();
+      const systemSettings = await getSystemSettings();
       const payoutReleaseSchedule = systemSettings?.payoutReleaseSchedule || 'after_cancellation_window';
 
       // Determine payout status based on Stripe account connection and release schedule

@@ -1,5 +1,6 @@
 //@ts-nocheck
 import prisma from '../config/database';
+import { getSystemSettings } from '../config/settings-cache';
 
 /**
  * Get the effective commission rate for a field owner
@@ -19,7 +20,7 @@ export async function getEffectiveCommissionRate(userId: string): Promise<{
     });
 
     // Get the system default
-    const settings = await prisma.systemSettings.findFirst();
+    const settings = await getSystemSettings();
     const defaultRate = settings?.defaultCommissionRate || 20;
 
     // If user has a custom rate, use it

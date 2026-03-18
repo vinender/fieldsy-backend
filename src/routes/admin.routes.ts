@@ -3,15 +3,15 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import { authenticateAdmin } from '../middleware/admin.middleware';
 import fieldController from '../controllers/field.controller';
 import { emailService } from '../services/email.service';
 import { otpService } from '../services/otp.service';
 import { BCRYPT_ROUNDS } from '../config/constants';
+import { strictLimiter } from '../middleware/rateLimiter.middleware';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Admin login endpoint
 router.post('/login', async (req, res) => {
@@ -80,7 +80,7 @@ router.get('/verify', authenticateAdmin, async (req, res) => {
 });
 
 // Get dashboard statistics
-router.get('/stats', authenticateAdmin, async (req, res) => {
+router.get('/stats', authenticateAdmin, strictLimiter, async (req, res) => {
   try {
     const { period = 'Today' } = req.query;
 
@@ -702,43 +702,72 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
       prisma.field.count({ where: searchFilter })
     ]);
 
-    // Calculate total earnings for each field (sum of successful payouts from payouts collection)
-    const fieldsWithEarnings = await Promise.all(fields.map(async (field) => {
-      // Find Stripe Account for the owner
-      const stripeAccount = await prisma.stripeAccount.findUnique({
-        where: { userId: field.ownerId }
-      });
+    // Batch-fetch all data needed for earnings calculation (3 queries instead of 30)
+    const fieldIds = fields.map(f => f.id);
+    const ownerIds = [...new Set(fields.map(f => f.ownerId))];
 
-      let totalPayouts = 0;
-      if (stripeAccount) {
-        // Get all bookings for THIS specific field
-        const fieldBookings = await prisma.booking.findMany({
+    // 1. Batch-fetch stripe accounts for all owners on this page
+    const stripeAccounts = await prisma.stripeAccount.findMany({
+      where: { userId: { in: ownerIds } }
+    });
+    const stripeAccountByOwnerId = new Map(stripeAccounts.map(sa => [sa.userId, sa]));
+
+    // 2. Batch-fetch all paid booking IDs for fields on this page
+    const allFieldBookings = await prisma.booking.findMany({
+      where: {
+        fieldId: { in: fieldIds },
+        paymentStatus: 'PAID'
+      },
+      select: { id: true, fieldId: true }
+    });
+
+    // Group booking IDs by fieldId for quick lookup
+    const bookingIdsByFieldId = new Map<string, Set<string>>();
+    const allBookingIds: string[] = [];
+    for (const b of allFieldBookings) {
+      if (!bookingIdsByFieldId.has(b.fieldId)) {
+        bookingIdsByFieldId.set(b.fieldId, new Set());
+      }
+      bookingIdsByFieldId.get(b.fieldId)!.add(b.id);
+      allBookingIds.push(b.id);
+    }
+
+    // 3. Batch-fetch all paid payouts that reference any of these bookings
+    const stripeAccountIds = stripeAccounts.map(sa => sa.id);
+    const allPayouts = allBookingIds.length > 0 && stripeAccountIds.length > 0
+      ? await prisma.payout.findMany({
           where: {
-            fieldId: field.id,
-            paymentStatus: 'PAID'
-          },
-          select: { id: true }
-        });
+            stripeAccountId: { in: stripeAccountIds },
+            status: 'paid',
+            bookingIds: { hasSome: allBookingIds }
+          }
+        })
+      : [];
 
-        const fieldBookingIds = fieldBookings.map(b => b.id);
+    // Build a map from stripeAccountId to its payouts for fast lookup
+    const payoutsByStripeAccountId = new Map<string, typeof allPayouts>();
+    for (const payout of allPayouts) {
+      if (!payoutsByStripeAccountId.has(payout.stripeAccountId)) {
+        payoutsByStripeAccountId.set(payout.stripeAccountId, []);
+      }
+      payoutsByStripeAccountId.get(payout.stripeAccountId)!.push(payout);
+    }
 
-        if (fieldBookingIds.length > 0) {
-          // Get payouts that include bookings from THIS field
-          const payouts = await prisma.payout.findMany({
-            where: {
-              stripeAccountId: stripeAccount.id,
-              status: 'paid',
-              bookingIds: {
-                hasSome: fieldBookingIds
-              }
-            }
-          });
+    // Calculate earnings per field in-memory (no additional queries)
+    const fieldsWithEarnings = fields.map((field) => {
+      const stripeAccount = stripeAccountByOwnerId.get(field.ownerId);
+      let totalPayouts = 0;
 
-          // Calculate the portion of each payout that belongs to this field
+      if (stripeAccount) {
+        const fieldBookingIdSet = bookingIdsByFieldId.get(field.id);
+
+        if (fieldBookingIdSet && fieldBookingIdSet.size > 0) {
+          const payouts = payoutsByStripeAccountId.get(stripeAccount.id) || [];
+
           totalPayouts = payouts.reduce((sum, payout) => {
             // Count how many bookings in this payout belong to this field
             const payoutFieldBookings = payout.bookingIds.filter(id =>
-              fieldBookingIds.includes(id)
+              fieldBookingIdSet.has(id)
             );
 
             // Calculate proportional amount
@@ -756,7 +785,7 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
         ...field,
         totalEarnings: totalPayouts
       };
-    }));
+    });
 
     res.json({
       success: true,
@@ -935,7 +964,7 @@ router.get('/payments', authenticateAdmin, async (req, res) => {
 });
 
 // Get booking stats based on period
-router.get('/booking-stats', authenticateAdmin, async (req, res) => {
+router.get('/booking-stats', authenticateAdmin, strictLimiter, async (req, res) => {
   try {
     const { period = 'Today' } = req.query;
 
@@ -997,110 +1026,93 @@ router.get('/booking-stats', authenticateAdmin, async (req, res) => {
       })
     ]);
 
-    // Calculate data points for chart
+    // Single query: fetch all bookings in range with only the fields we need
+    const chartQueryStart = period === 'Yearly' ? new Date(now.getFullYear(), 0, 1) : startDate;
+    const chartQueryEnd = period === 'Yearly' ? new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999) : endDate;
+
+    const chartBookings = await prisma.booking.findMany({
+      where: {
+        createdAt: { gte: chartQueryStart, lte: chartQueryEnd }
+      },
+      select: { status: true, paymentStatus: true, createdAt: true }
+    });
+
+    // Bucket bookings in-memory by period and status
     let chartData = [];
     if (period === 'Today' || period === 'Weekly') {
       // Show daily data
       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const buckets: { completed: number; cancelled: number; refunded: number }[] = [];
+      for (let i = 0; i < 7; i++) {
+        buckets.push({ completed: 0, cancelled: 0, refunded: 0 });
+      }
+
+      for (const b of chartBookings) {
+        const bDate = new Date(b.createdAt);
+        const diffMs = bDate.getTime() - startDate.getTime();
+        const dayIndex = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        if (dayIndex < 0 || dayIndex >= 7) continue;
+
+        if (b.status === 'COMPLETED') buckets[dayIndex].completed++;
+        if (b.status === 'CANCELLED') buckets[dayIndex].cancelled++;
+        if (b.paymentStatus === 'REFUNDED') buckets[dayIndex].refunded++;
+      }
+
       for (let i = 0; i < 7; i++) {
         const dayStart = new Date(startDate);
         dayStart.setDate(startDate.getDate() + i);
-        const dayEnd = new Date(dayStart);
-        dayEnd.setDate(dayEnd.getDate() + 1);
-
-        const [dayCompleted, dayCancelled, dayRefunded] = await Promise.all([
-          prisma.booking.count({
-            where: {
-              status: 'COMPLETED',
-              createdAt: { gte: dayStart, lt: dayEnd }
-            }
-          }),
-          prisma.booking.count({
-            where: {
-              status: 'CANCELLED',
-              createdAt: { gte: dayStart, lt: dayEnd }
-            }
-          }),
-          prisma.booking.count({
-            where: {
-              paymentStatus: 'REFUNDED',
-              createdAt: { gte: dayStart, lt: dayEnd }
-            }
-          })
-        ]);
-
-        const dayIndex = dayStart.getDay();
+        const jsDay = dayStart.getDay();
         chartData.push({
-          day: days[dayIndex === 0 ? 6 : dayIndex - 1],
-          values: [dayCompleted, dayCancelled, dayRefunded]
+          day: days[jsDay === 0 ? 6 : jsDay - 1],
+          values: [buckets[i].completed, buckets[i].cancelled, buckets[i].refunded]
         });
       }
     } else if (period === 'Monthly') {
       // Show weekly data for the month
       const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+      const buckets: { completed: number; cancelled: number; refunded: number }[] = [];
       for (let i = 0; i < 4; i++) {
-        const weekStart = new Date(startDate);
-        weekStart.setDate(startDate.getDate() + (i * 7));
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekEnd.getDate() + 7);
+        buckets.push({ completed: 0, cancelled: 0, refunded: 0 });
+      }
 
-        const [weekCompleted, weekCancelled, weekRefunded] = await Promise.all([
-          prisma.booking.count({
-            where: {
-              status: 'COMPLETED',
-              createdAt: { gte: weekStart, lt: weekEnd }
-            }
-          }),
-          prisma.booking.count({
-            where: {
-              status: 'CANCELLED',
-              createdAt: { gte: weekStart, lt: weekEnd }
-            }
-          }),
-          prisma.booking.count({
-            where: {
-              paymentStatus: 'REFUNDED',
-              createdAt: { gte: weekStart, lt: weekEnd }
-            }
-          })
-        ]);
+      for (const b of chartBookings) {
+        const bDate = new Date(b.createdAt);
+        const diffMs = bDate.getTime() - startDate.getTime();
+        const weekIndex = Math.min(Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)), 3);
+        if (weekIndex < 0) continue;
 
+        if (b.status === 'COMPLETED') buckets[weekIndex].completed++;
+        if (b.status === 'CANCELLED') buckets[weekIndex].cancelled++;
+        if (b.paymentStatus === 'REFUNDED') buckets[weekIndex].refunded++;
+      }
+
+      for (let i = 0; i < 4; i++) {
         chartData.push({
           day: weeks[i],
-          values: [weekCompleted, weekCancelled, weekRefunded]
+          values: [buckets[i].completed, buckets[i].cancelled, buckets[i].refunded]
         });
       }
     } else {
       // Show monthly data for the year
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const buckets: { completed: number; cancelled: number; refunded: number }[] = [];
       for (let i = 0; i < 12; i++) {
-        const monthStart = new Date(now.getFullYear(), i, 1);
-        const monthEnd = new Date(now.getFullYear(), i + 1, 0);
+        buckets.push({ completed: 0, cancelled: 0, refunded: 0 });
+      }
 
-        const [monthCompleted, monthCancelled, monthRefunded] = await Promise.all([
-          prisma.booking.count({
-            where: {
-              status: 'COMPLETED',
-              createdAt: { gte: monthStart, lte: monthEnd }
-            }
-          }),
-          prisma.booking.count({
-            where: {
-              status: 'CANCELLED',
-              createdAt: { gte: monthStart, lte: monthEnd }
-            }
-          }),
-          prisma.booking.count({
-            where: {
-              paymentStatus: 'REFUNDED',
-              createdAt: { gte: monthStart, lte: monthEnd }
-            }
-          })
-        ]);
+      for (const b of chartBookings) {
+        const bDate = new Date(b.createdAt);
+        const monthIndex = bDate.getMonth();
 
+        if (b.status === 'COMPLETED') buckets[monthIndex].completed++;
+        if (b.status === 'CANCELLED') buckets[monthIndex].cancelled++;
+        if (b.paymentStatus === 'REFUNDED') buckets[monthIndex].refunded++;
+      }
+
+      for (let i = 0; i < 12; i++) {
         chartData.push({
           day: months[i],
-          values: [monthCompleted, monthCancelled, monthRefunded]
+          values: [buckets[i].completed, buckets[i].cancelled, buckets[i].refunded]
         });
       }
     }
@@ -1125,7 +1137,7 @@ router.get('/booking-stats', authenticateAdmin, async (req, res) => {
 });
 
 // Get field utilization stats
-router.get('/field-utilization', authenticateAdmin, async (req, res) => {
+router.get('/field-utilization', authenticateAdmin, strictLimiter, async (req, res) => {
   try {
     const { period = 'Today' } = req.query;
 
@@ -2083,7 +2095,7 @@ router.patch('/users/:userId/change-password', authenticateAdmin, async (req, re
 // ============================================================================
 
 // Get all transactions (payments, refunds, payouts, transfers)
-router.get('/transactions', authenticateAdmin, async (req, res) => {
+router.get('/transactions', authenticateAdmin, strictLimiter, async (req, res) => {
   try {
     const {
       page = '1',
@@ -2147,7 +2159,23 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
       bookingWhere.bookingId = searchTerm;
     }
 
-    // Get bookings with all related data
+    // Apply type filter at DB level where possible
+    if (type === 'REFUND') {
+      bookingWhere.paymentStatus = 'REFUNDED';
+    } else if (type === 'PAYOUT') {
+      bookingWhere.payoutStatus = { in: ['RELEASED', 'COMPLETED'] };
+    }
+
+    // Apply status filter at DB level
+    if (status !== 'ALL') {
+      bookingWhere.transactions = { some: { status: status as string } };
+    }
+
+    // Only need transactions for pagination, not full scan
+    // Get total count first (cheap)
+    const total = await prisma.booking.count({ where: bookingWhere });
+
+    // Get paginated bookings (DB-level pagination)
     const bookings = await prisma.booking.findMany({
       where: bookingWhere,
       include: {
@@ -2165,7 +2193,9 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
           orderBy: { createdAt: 'asc' }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
     });
 
     // Transform bookings into transaction records (one row per booking)
@@ -2268,82 +2298,48 @@ router.get('/transactions', authenticateAdmin, async (req, res) => {
       };
     }).filter(t => t !== null); // Remove null entries
 
-    // Apply type filter after transformation
-    if (type !== 'ALL') {
-      if (type === 'REFUND') {
-        allTransactions = allTransactions.filter(t => t.hasRefund);
-      } else if (type === 'PAYOUT') {
-        allTransactions = allTransactions.filter(t => t.payoutStatus === 'RELEASED' || t.payoutStatus === 'COMPLETED');
-      }
-      // For PAYMENT, show all (default)
+    // Pagination already applied at DB level
+    const paginatedTransactions = allTransactions;
+
+    // Compute stats with aggregate queries (not full scans)
+    // Build a base where clause for stats (same date filter, ignore pagination)
+    const statsWhere: any = {
+      field: { id: { not: undefined } },
+      user: { id: { not: undefined } }
+    };
+    if (dateRange !== 'ALL' && Object.keys(dateFilter).length > 0) {
+      statsWhere.createdAt = dateFilter;
     }
 
-    // Apply status filter
-    if (status !== 'ALL') {
-      allTransactions = allTransactions.filter(t => t.status === status);
-    }
+    const [paymentStats, refundStats, payoutAgg] = await Promise.all([
+      // Total payments (non-refunded)
+      prisma.booking.aggregate({
+        where: { ...statsWhere, paymentStatus: 'PAID' },
+        _sum: { totalPrice: true, platformCommission: true },
+      }),
+      // Total refunds
+      prisma.booking.aggregate({
+        where: { ...statsWhere, paymentStatus: 'REFUNDED' },
+        _sum: { totalPrice: true },
+      }),
+      // Total payouts
+      prisma.payout.aggregate({
+        where: { status: 'paid' },
+        _sum: { amount: true },
+      }),
+    ]);
 
-    // Get total before pagination
-    const total = allTransactions.length;
-
-    // Apply pagination
-    const paginatedTransactions = allTransactions.slice(skip, skip + take);
-
-    // Calculate stats from the already-filtered allTransactions (before type/status filter)
-    // Use the pre-filter list (allTransactions before type filter was applied)
-    // We need to use the full mapped list, so compute from bookings directly
-    const statsTransactions = bookings.map(booking => {
-      const paymentTx = booking.transactions.find(t => t.type === 'PAYMENT');
-      const mainTx = paymentTx || booking.transactions[0];
-      if (!mainTx) return null;
-
-      const amount = mainTx.amount || 0;
-      const stripeFee = amount > 0 ? Math.round(((amount * 0.015) + 0.20) * 100) / 100 : 0;
-
-      const isRefunded = booking.paymentStatus === 'REFUNDED' ||
-        mainTx.lifecycleStage === 'REFUNDED' ||
-        !!mainTx.refundedAt ||
-        !!booking.transactions.find(t => t.type === 'REFUND');
-
-      return { amount, stripeFee, platformFee: mainTx.platformFee || 0, isRefunded };
-    }).filter(t => t !== null);
-
-    // Payments: sum of all completed payment amounts
-    const totalPayments = statsTransactions.reduce((sum, t) => sum + t.amount, 0);
-
-    // Refunds: sum of refunded payment amounts (negative in display)
-    const totalRefunds = statsTransactions
-      .filter(t => t.isRefunded)
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    // Platform Revenue:
-    // - For non-refunded payments: platform earns the platformFee (commission)
-    // - For refunded payments: platform LOSES the Stripe processing fee
-    //   (Stripe refunds customer in full, but keeps their processing fee — platform absorbs this cost)
-    const platformRevenueFromActive = statsTransactions
-      .filter(t => !t.isRefunded)
-      .reduce((sum, t) => sum + t.platformFee, 0);
-    const platformLossFromRefunds = statsTransactions
-      .filter(t => t.isRefunded)
-      .reduce((sum, t) => sum + t.stripeFee, 0);
-    const netRevenue = platformRevenueFromActive - platformLossFromRefunds;
-
-    // Payouts: only count payouts for valid bookings
-    const validBookingIds = bookings.map(b => b.id);
-    const paidPayouts = await prisma.payout.findMany({
-      where: { status: 'paid' },
-      select: { amount: true, bookingIds: true }
-    });
-    const totalPayoutsAmount = paidPayouts
-      .filter(p => p.bookingIds.some(bid => validBookingIds.includes(bid)))
-      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalPayments = paymentStats._sum.totalPrice || 0;
+    const totalRefunds = refundStats._sum.totalPrice || 0;
+    const platformRevenue = paymentStats._sum.platformCommission || 0;
+    const totalPayoutsAmount = payoutAgg._sum.amount || 0;
 
     const stats = {
       totalPayments: Math.round(totalPayments * 100) / 100,
       totalRefunds: Math.round(totalRefunds * 100) / 100,
       totalPayouts: Math.round(totalPayoutsAmount * 100) / 100,
       totalTransfers: 0,
-      netRevenue: Math.round(netRevenue * 100) / 100
+      netRevenue: Math.round(platformRevenue * 100) / 100
     };
 
     res.json({

@@ -3,12 +3,13 @@ import { Router } from 'express';
 import fieldController from '../controllers/field.controller';
 import { protect, restrictTo } from '../middleware/auth.middleware';
 import { optionalAuth } from '../middleware/auth.middleware';
+import { generalLimiter } from '../middleware/rateLimiter.middleware';
 
 const router = Router();
 
 // Public routes (with optional auth for better data)
-router.get('/', optionalAuth, fieldController.getAllFields);
-router.get('/active', optionalAuth, fieldController.getActiveFields); // Public endpoint for active fields only (with isLiked if authenticated)
+router.get('/', generalLimiter, optionalAuth, fieldController.getAllFields);
+router.get('/active', generalLimiter, optionalAuth, fieldController.getActiveFields); // Public endpoint for active fields only (with isLiked if authenticated)
 router.get('/price-range', fieldController.getPriceRange); // Get min and max prices
 router.get('/suggestions', fieldController.getFieldSuggestions);
 router.get('/search/location', fieldController.searchByLocation);

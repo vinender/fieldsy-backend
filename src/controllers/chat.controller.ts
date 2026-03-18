@@ -137,49 +137,56 @@ export const getConversations = async (req: Request, res: Response) => {
       take: Number(limit)
     });
 
-    // Get participants info for each conversation
-    const conversationsWithParticipants = await Promise.all(
-      conversations.map(async (conv) => {
-        const participants = await prisma.user.findMany({
-          where: {
-            id: {
-              in: conv.participants
-            }
-          },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            role: true
-          }
-        });
+    // Batch-fetch all participant info and unread counts to avoid N+1 queries
+    const allParticipantIds = [...new Set(conversations.flatMap(conv => conv.participants))];
+    const conversationIds = conversations.map(conv => conv.id);
 
-        // Get unread count
-        const unreadCount = await prisma.message.count({
-          where: {
-            conversationId: conv.id,
-            receiverId: userId,
-            isRead: false
-          }
-        });
-
-        // Identify the other participant
-        const otherUser = participants.find(p => p.id !== userId);
-
-        return {
-          ...conv,
-          participants,
-          otherUser: otherUser ? {
-            id: otherUser.id,
-            name: otherUser.name,
-            image: otherUser.image,
-            role: otherUser.role
-          } : null,
-          unreadCount
-        };
+    const [allParticipants, unreadCounts] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: allParticipantIds } },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          role: true
+        }
+      }),
+      prisma.message.groupBy({
+        by: ['conversationId'],
+        where: {
+          conversationId: { in: conversationIds },
+          receiverId: userId,
+          isRead: false
+        },
+        _count: { _all: true }
       })
-    );
+    ]);
+
+    // Build lookup maps for O(1) access
+    const participantMap = new Map(allParticipants.map(p => [p.id, p]));
+    const unreadCountMap = new Map(unreadCounts.map(uc => [uc.conversationId, uc._count._all]));
+
+    const conversationsWithParticipants = conversations.map((conv) => {
+      const participants = conv.participants
+        .map(pid => participantMap.get(pid))
+        .filter(Boolean);
+
+      const otherUser = participants.find(p => p!.id !== userId);
+      const unreadCount = unreadCountMap.get(conv.id) || 0;
+
+      return {
+        ...conv,
+        participants,
+        otherUser: otherUser ? {
+          id: otherUser.id,
+          name: otherUser.name,
+          image: otherUser.image,
+          role: otherUser.role
+        } : null,
+        unreadCount
+      };
+    });
 
     // Get total count
     const total = await prisma.conversation.count({

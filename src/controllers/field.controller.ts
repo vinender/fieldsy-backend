@@ -8,6 +8,7 @@ import prisma from '../config/database';
 import { enrichFieldWithAmenities, enrichFieldsWithAmenities, transformAmenitiesToObjects } from '../utils/amenity.utils';
 import { convertAmenityIdsToNames } from '../utils/amenity.converter';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSystemSettings } from '../config/settings-cache';
 
 // Initialize S3 client for image deletion
 const s3Client = new S3Client({
@@ -770,9 +771,7 @@ class FieldController {
 
       try {
         const { emailService } = await import('../services/email.service');
-        const settings = await prisma.systemSettings.findFirst({
-          select: { adminEmail: true, supportEmail: true },
-        });
+        const settings = await getSystemSettings({ adminEmail: true, supportEmail: true });
 
         console.log('🔍 Settings Retrieved:');
         console.log('   - Admin Email from settings:', settings?.adminEmail || 'NOT SET');
@@ -2028,7 +2027,7 @@ class FieldController {
     try {
       // Get default platform commission rate and check for custom commission for this field owner
       const [systemSettings, ownerUser] = await Promise.all([
-        prisma.systemSettings.findFirst(),
+        getSystemSettings(),
         prisma.user.findUnique({
           where: { id: ownerId },
           select: { commissionRate: true }
@@ -2237,7 +2236,7 @@ class FieldController {
     try {
       // Get default platform commission rate and check for custom commission for this field owner
       const [systemSettings, ownerUser] = await Promise.all([
-        prisma.systemSettings.findFirst(),
+        getSystemSettings(),
         prisma.user.findUnique({
           where: { id: ownerId },
           select: { commissionRate: true }
@@ -2459,7 +2458,7 @@ class FieldController {
     try {
       // Get default platform commission rate and check for custom commission for this field owner
       const [systemSettings, ownerUser] = await Promise.all([
-        prisma.systemSettings.findFirst(),
+        getSystemSettings(),
         prisma.user.findUnique({
           where: { id: ownerId },
           select: { commissionRate: true }

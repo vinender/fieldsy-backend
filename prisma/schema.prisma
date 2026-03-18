@@ -426,6 +426,7 @@ model Notification {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, read])
+  @@index([userId, type, createdAt])
   @@index([createdAt])
   @@map("notifications")
 }
@@ -698,6 +699,7 @@ model Subscription {
 
   @@index([userId])
   @@index([fieldId])
+  @@index([fieldId, status, cancelAtPeriodEnd])
   @@index([status, nextRetryDate])
   @@map("subscriptions")
 }

@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { PaymentController } from '../controllers/payment.controller';
 import { protect } from '../middleware/auth.middleware';
+import { paymentLimiter } from '../middleware/rateLimiter.middleware';
 import express from 'express';
 
 const router = Router();
@@ -18,7 +19,7 @@ router.post(
 router.use(protect);
 
 // Create payment intent
-router.post('/create-payment-intent', paymentController.createPaymentIntent);
+router.post('/create-payment-intent', paymentLimiter, paymentController.createPaymentIntent);
 
 // Confirm payment
 router.post('/confirm-payment', paymentController.confirmPayment);

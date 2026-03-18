@@ -14,6 +14,7 @@ import { emailService } from '../services/email.service';
 import { transformAmenities } from '../utils/amenityHelper';
 import { resolveField } from '../utils/field.utils';
 import { getNowUK } from '../utils/ukTime';
+import { getSystemSettings } from '../config/settings-cache';
 
 class BookingController {
   // Create a new booking
@@ -277,7 +278,7 @@ class BookingController {
     const userRole = (req as any).user.role;
 
     // Get system settings for cancellation window
-    const systemSettings = await prisma.systemSettings.findFirst();
+    const systemSettings = await getSystemSettings();
     const cancellationWindowHours = systemSettings?.cancellationWindowHours || 24;
 
     const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
@@ -513,7 +514,7 @@ class BookingController {
     const skip = (pageNum - 1) * limitNum;
 
     // Get system settings for cancellation window
-    const systemSettings = await prisma.systemSettings.findFirst();
+    const systemSettings = await getSystemSettings();
     const cancellationWindowHours = systemSettings?.cancellationWindowHours || 24;
 
     let whereClause: any = {};
@@ -1121,9 +1122,7 @@ class BookingController {
 
           if (subscription && subscription.status === 'active') {
             // Get system settings for maxAdvanceBookingDays
-            const settings = await prisma.systemSettings.findFirst({
-              select: { maxAdvanceBookingDays: true }
-            });
+            const settings = await getSystemSettings({ maxAdvanceBookingDays: true });
             const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
 
             // Calculate next booking date based on interval
@@ -1254,7 +1253,7 @@ class BookingController {
     const userId = (req as any).user.id;
 
     // Get cancellation window from settings
-    const settings = await prisma.systemSettings.findFirst();
+    const settings = await getSystemSettings();
     const cancellationWindowHours = settings?.cancellationWindowHours || 24;
 
     const booking = await BookingModel.findById(id);
@@ -1317,7 +1316,7 @@ class BookingController {
     const { reason } = req.body;
 
     // Get cancellation window from settings
-    const settings = await prisma.systemSettings.findFirst();
+    const settings = await getSystemSettings();
     const cancellationWindowHours = settings?.cancellationWindowHours || 24;
 
     const booking = await BookingModel.findById(id);
@@ -1572,7 +1571,7 @@ class BookingController {
     const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     // Reschedule window is 12 hours (can be overridden by system settings)
-    const settings = await prisma.systemSettings.findFirst();
+    const settings = await getSystemSettings();
     const rescheduleWindowHours = settings?.cancellationWindowHours || 12;
 
     if (hoursUntilBooking < rescheduleWindowHours) {
@@ -1815,9 +1814,7 @@ class BookingController {
           createdAt: true
         }
       }),
-      prisma.systemSettings.findFirst({
-        select: { maxAdvanceBookingDays: true }
-      }),
+      getSystemSettings({ maxAdvanceBookingDays: true }),
     ]);
     const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
     const maxFutureDate = new Date(selectedDate);
@@ -2190,9 +2187,7 @@ class BookingController {
     console.log('[getMyRecurringBookings] Starting fetch for userId:', userId, 'status filter:', status);
 
     // Get system settings for maxAdvanceBookingDays
-    const settings = await prisma.systemSettings.findFirst({
-      select: { maxAdvanceBookingDays: true }
-    });
+    const settings = await getSystemSettings({ maxAdvanceBookingDays: true });
     const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
 
     // Calculate the max date for future bookings (UK time)
