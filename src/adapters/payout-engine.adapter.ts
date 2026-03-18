@@ -317,6 +317,9 @@ export class FieldsyPayoutAdapter implements DatabaseAdapter {
           { payoutStatus: 'PENDING' },
           { payoutStatus: 'HELD' },
         ],
+        // Exclude orphaned bookings (deleted field or user)
+        field: { id: { not: undefined } },
+        user: { id: { not: undefined } },
       },
       include: { field: { select: { ownerId: true } } },
     });
@@ -338,6 +341,8 @@ export class FieldsyPayoutAdapter implements DatabaseAdapter {
           { payoutStatus: 'PENDING' },
           { payoutStatus: 'PENDING_ACCOUNT' },
         ],
+        field: { id: { not: undefined } },
+        user: { id: { not: undefined } },
       },
       include: { field: { select: { ownerId: true } } },
     });
@@ -352,6 +357,9 @@ export class FieldsyPayoutAdapter implements DatabaseAdapter {
       payoutStatus: 'HELD',
       status: { in: ['CONFIRMED', 'COMPLETED'] },
       paymentStatus: 'PAID',
+      // Exclude orphaned bookings
+      field: { id: { not: undefined } },
+      user: { id: { not: undefined } },
     };
 
     if (filter?.merchantId) {
@@ -375,6 +383,8 @@ export class FieldsyPayoutAdapter implements DatabaseAdapter {
       where: {
         payoutStatus: 'PENDING',
         payoutHeldReason: { contains: reasonContains },
+        field: { id: { not: undefined } },
+        user: { id: { not: undefined } },
       },
       take: limit,
       include: { field: { select: { ownerId: true } } },
