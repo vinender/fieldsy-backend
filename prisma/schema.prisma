@@ -722,7 +722,8 @@ model SystemSettings {
   enableSmsNotifications     Boolean @default(false)
   bannerText                 String? @default("Find Safe, private dog walking fields") // Hero banner main text
   highlightedText            String? @default("near you") // Text to highlight in the banner
-  heroBackgroundImage        String? // Hero section background image URL (uploaded via admin)
+  heroBackgroundImage        String? // Currently selected hero background image URL
+  heroBackgroundImages       String[] @default([]) // Gallery of uploaded hero images (max 5)
   isLive                     Boolean @default(true) // Controls if the website is publicly accessible
 
   // About Section Settings
