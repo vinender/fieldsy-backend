@@ -7,16 +7,17 @@ import {
     bulkUpdatePrivacyPolicies
 } from '../controllers/privacy-policy.controller';
 import { authenticateAdmin } from '../middleware/admin.middleware';
+import { cacheMiddleware, invalidateCacheMiddleware } from '../middleware/cache.middleware';
 
 const router = Router();
 
-// Public route
-router.get('/', getPrivacyPolicies);
+// Public route (cached 5 min)
+router.get('/', cacheMiddleware(300), getPrivacyPolicies);
 
-// Admin routes
-router.post('/', authenticateAdmin, createPrivacyPolicy);
-router.put('/bulk', authenticateAdmin, bulkUpdatePrivacyPolicies);
-router.put('/:id', authenticateAdmin, updatePrivacyPolicy);
-router.delete('/:id', authenticateAdmin, deletePrivacyPolicy);
+// Admin routes (invalidate cache on write)
+router.post('/', authenticateAdmin, invalidateCacheMiddleware('/api/privacy-policy'), createPrivacyPolicy);
+router.put('/bulk', authenticateAdmin, invalidateCacheMiddleware('/api/privacy-policy'), bulkUpdatePrivacyPolicies);
+router.put('/:id', authenticateAdmin, invalidateCacheMiddleware('/api/privacy-policy'), updatePrivacyPolicy);
+router.delete('/:id', authenticateAdmin, invalidateCacheMiddleware('/api/privacy-policy'), deletePrivacyPolicy);
 
 export default router;
