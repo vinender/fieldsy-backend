@@ -13,9 +13,9 @@ import { cacheMiddleware, invalidateCacheMiddleware } from '../middleware/cache.
 
 const router = Router();
 
-// Public route - cached 5 min
-router.get('/public', cacheMiddleware(300), getPublicSettings);
-router.post('/verify-access', verifySiteAccess);
+// Public route — NOT cached because response includes per-user hasAccess field
+router.get('/public', getPublicSettings);
+router.post('/verify-access', invalidateCacheMiddleware('/api/settings'), verifySiteAccess);
 
 // Admin routes (invalidate public settings cache on update)
 router.get('/admin', authenticateAdmin, getSystemSettings);
