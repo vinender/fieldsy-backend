@@ -203,6 +203,9 @@ class Server {
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
     this.app.use(cookieParser());
 
+    // Prevent Chrome HTTP cache from serving stale authenticated responses
+    this.app.set('etag', false);
+
     // Compression middleware
     this.app.use(compression());
 
@@ -535,6 +538,14 @@ class Server {
           statusCode,
         }).catch(() => {});
       }
+
+      // Prevent Chrome from caching error responses (especially 401s after logout)
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      });
+      res.removeHeader('ETag');
 
       res.status(statusCode).json({
         success: false,
