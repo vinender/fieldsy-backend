@@ -98,7 +98,7 @@ try {
   console.log('   APPLE_CLIENT_SECRET=<paste-the-secret-here>');
   console.log('');
   console.log('3. Also update the APPLE_CLIENT_ID in frontend/.env.local:');
-  console.log(`   APPLE_CLIENT_ID=${APPLE_CLIENT_ID}`);
+  console.log(`APPLE_CLIENT_ID=${APPLE_CLIENT_ID}`);
   console.log('');
   console.log('4. Restart your frontend dev server:');
   console.log('   cd frontend && npm run dev');

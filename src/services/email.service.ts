@@ -119,7 +119,7 @@ const getOtpEmailTemplate = (otp: string, name?: string) => {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -201,7 +201,7 @@ const getEmailChangeOtpTemplate = (otp: string, newEmail: string, name?: string)
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find or Host secure fields for your furry friends 🐕</p>
+            <p>Find or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -427,7 +427,7 @@ const getFieldClaimStatusTemplate = (statusData: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -620,7 +620,7 @@ const getFieldClaimTemplate = (claimData: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
             <p>This is an automated confirmation email. Please do not reply directly to this message.</p>
           </div>
         </div>
@@ -703,7 +703,7 @@ const getPasswordResetTemplate = (otp: string, name?: string) => {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -818,16 +818,10 @@ const getBookingConfirmationTemplate = (bookingData: {
             <h1>Booking Confirmed!</h1>
             <div class="success-badge">✓ Payment Successful</div>
             <p>Dear ${bookingData.userName},</p>
-            <p>Your booking has been confirmed and paid for successfully! Get ready for a great time with your furry friend.</p>
+            <p>Your booking has been confirmed and paid for successfully! Get ready for a great time with your four legged friends.</p>
 
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
-              <div class="info-item">
-                <span class="info-label">Booking ID:</span> ${formatBookingDisplayId(bookingData.bookingId)}
-              </div>
-              ${bookingData.fieldId ? `<div class="info-item">
-                <span class="info-label">Field ID:</span> ${bookingData.fieldId}
-              </div>` : ''}
               <div class="info-item">
                 <span class="info-label">Field:</span> ${bookingData.fieldName}
               </div>
@@ -872,7 +866,7 @@ const getBookingConfirmationTemplate = (bookingData: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -1000,12 +994,6 @@ const getNewBookingNotificationTemplate = (bookingData: {
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
               <div class="info-item">
-                <span class="info-label">Booking ID:</span> ${formatBookingDisplayId(bookingData.bookingId)}
-              </div>
-              ${bookingData.fieldId ? `<div class="info-item">
-                <span class="info-label">Field ID:</span> ${bookingData.fieldId}
-              </div>` : ''}
-              <div class="info-item">
                 <span class="info-label">Field:</span> ${bookingData.fieldName}
               </div>
               <div class="info-item">
@@ -1056,7 +1044,7 @@ const getNewBookingNotificationTemplate = (bookingData: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -1210,7 +1198,7 @@ const getFieldSubmissionTemplate = (data: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -1382,7 +1370,7 @@ const getFieldApprovalTemplate = (data: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -1517,12 +1505,6 @@ const getBookingStatusChangeTemplate = (emailData: {
             <div class="info-box">
               <h3 style="margin-top: 0;">Booking Details</h3>
               <div class="info-item">
-                <span class="info-label">Booking ID:</span> ${formatBookingDisplayId(emailData.bookingId)}
-              </div>
-              ${emailData.fieldId ? `<div class="info-item">
-                <span class="info-label">Field ID:</span> ${emailData.fieldId}
-              </div>` : ''}
-              <div class="info-item">
                 <span class="info-label">Field:</span> ${emailData.fieldName}
               </div>
               <div class="info-item">
@@ -1545,7 +1527,7 @@ const getBookingStatusChangeTemplate = (emailData: {
             ` : ''}
 
             ${emailData.newStatus === 'COMPLETED' ? `
-              <p>We hope you and your furry friend had a wonderful time! If you enjoyed your experience, please consider leaving a review for the field owner.</p>
+              <p>We hope you and your four legged friend had a wonderful time! If you enjoyed your experience, please consider leaving a review for the field owner.</p>
             ` : ''}
 
             <p>If you have any questions, please don't hesitate to contact our support team.</p>
@@ -1554,7 +1536,7 @@ const getBookingStatusChangeTemplate = (emailData: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find  or Host secure fields for your furry friends 🐕</p>
+            <p>Find  or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -1727,7 +1709,7 @@ const getRecurringBookingCreatedTemplateDogOwner = (data: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find or Host secure fields for your furry friends 🐕</p>
+            <p>Find or Host secure fields for your four legged friends 🐕</p>
             <p style="font-size: 12px; margin-top: 10px;">
               You're receiving this email because you have an active recurring booking subscription.
             </p>
@@ -1921,7 +1903,7 @@ const getRecurringBookingCreatedTemplateFieldOwner = (data: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find or Host secure fields for your furry friends 🐕</p>
+            <p>Find or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -2047,7 +2029,7 @@ const getSubscriptionCancelledTemplate = (data: {
 
             ${!data.isFieldOwner ? `
               <p>All future recurring bookings for this time slot have been cancelled. Any bookings already scheduled within the cancellation window may still be active according to our policy.</p>
-              <p>We hope to see you and your furry friends back soon! 🐕</p>
+              <p>We hope to see you and your four legged friends back soon! 🐕</p>
             ` : `
               <p>The time slot has been released and is now available for other dog owners to book.</p>
               <p>Thank you for being a part of the Fieldsy community! 🏞️</p>
@@ -2055,7 +2037,7 @@ const getSubscriptionCancelledTemplate = (data: {
           </div>
           <div class="footer">
             <p>© 2025 Fieldsy. All rights reserved.</p>
-            <p>Find or Host secure fields for your furry friends 🐕</p>
+            <p>Find or Host secure fields for your four legged friends 🐕</p>
           </div>
         </div>
       </body>
@@ -2709,10 +2691,6 @@ const getBookingReminderTemplate = (data: {
             </div>
 
             <div class="booking-details">
-              ${data.bookingId ? `<div class="detail-row">
-                <span class="detail-label">🔖 Booking ID:</span>
-                <span class="detail-value">${formatBookingDisplayId(data.bookingId)}</span>
-              </div>` : ''}
               <div class="detail-row">
                 <span class="detail-label">🏟️ Field Name:</span>
                 <span class="detail-value">${data.fieldName}</span>
@@ -2738,7 +2716,7 @@ const getBookingReminderTemplate = (data: {
             <div class="tips">
               <strong>💡 Quick Tips:</strong>
               <ul style="margin: 10px 0; padding-left: 20px;">
-                <li>Bring water and treats for your dogs</li>
+                <li>Bring poo bags</li>
                 <li>Arrive 5-10 minutes early</li>
                 <li>Make sure your dogs are ready for playtime!</li>
                 <li>Check the field rules before arrival</li>
@@ -2752,7 +2730,7 @@ const getBookingReminderTemplate = (data: {
             </div>
 
             <p style="text-align: center; color: #666; margin-top: 30px;">
-              Have a great time with your furry friends! 🐾
+              Have a great time with your four legged friends! 🐾
             </p>
           </div>
 
@@ -3494,7 +3472,7 @@ const getEntryCodeUpdateTemplate = (data: {
           </div>
           <div class="footer">
             <p>© ${new Date().getFullYear()} Fieldsy. All rights reserved.</p>
-            <p>Happy walks with your furry friends! 🐾</p>
+            <p>Happy walks with your four legged friends! 🐾</p>
           </div>
         </div>
       </body>
