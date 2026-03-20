@@ -202,6 +202,11 @@ class AuthController {
       throw new AppError('User not found', 404);
     }
 
+    // Prevent browser from caching auth state — stale 304s cause ghost sessions after logout
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
     res.json({
       success: true,
       data: UserModel.stripInternalId(user),
