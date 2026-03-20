@@ -477,6 +477,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   const statusCode = err.statusCode || err.status || 500;
   const status = err.status || (statusCode >= 400 && statusCode < 500 ? 'fail' : 'error');
 
+  // Prevent Chrome from caching error responses (especially 401s after logout)
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.removeHeader('ETag');
+
   res.status(statusCode).json({
     success: false,
     status,
