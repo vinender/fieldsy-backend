@@ -2724,7 +2724,7 @@ const getBookingReminderTemplate = (data: {
             </div>
 
             <div style="text-align: center;">
-              <a href="${FRONTEND_URL}/user/my-bookings" class="cta-button">
+              <a href="${FRONTEND_URL}/user/my-bookings?bookingId=${data.bookingId}" class="cta-button" style="color: #ffffff; display: inline-block; background-color: #4CAF50; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 View Booking Details
               </a>
             </div>
