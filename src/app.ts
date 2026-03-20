@@ -107,18 +107,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Prevent Chrome HTTP cache from serving stale API responses (causes ghost sessions after logout)
-// Disable ETag to prevent 304 responses on authenticated endpoints
-app.disable('etag');
-app.use((req: any, res: any, next: any) => {
-  // Set no-cache headers on ALL /api/ responses
-  const originalJson = res.json.bind(res);
-  res.json = function(body: any) {
+// Disable ETag globally to prevent 304 "Not Modified" responses
+app.set('etag', false);
+app.use((req, res, next) => {
+  // Intercept writeHead to inject no-cache headers right before response is sent
+  const originalWriteHead = res.writeHead.bind(res);
+  res.writeHead = function(statusCode: number, ...args: any[]) {
     if (req.headers.authorization || req.path.startsWith('/api/auth')) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
     }
-    return originalJson(body);
+    // Remove ETag for authenticated requests
+    res.removeHeader('ETag');
+    return originalWriteHead(statusCode, ...args);
   };
   next();
 });
