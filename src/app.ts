@@ -106,14 +106,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Prevent Chrome HTTP cache from serving stale authenticated responses (causes ghost sessions after logout)
-// Only applies to authenticated requests (those with Authorization header)
-app.use((req, res, next) => {
-  if (req.headers.authorization) {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-  }
+// Prevent Chrome HTTP cache from serving stale API responses (causes ghost sessions after logout)
+// Disable ETag to prevent 304 responses on authenticated endpoints
+app.disable('etag');
+app.use((req: any, res: any, next: any) => {
+  // Set no-cache headers on ALL /api/ responses
+  const originalJson = res.json.bind(res);
+  res.json = function(body: any) {
+    if (req.headers.authorization || req.path.startsWith('/api/auth')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    return originalJson(body);
+  };
   next();
 });
 
