@@ -42,8 +42,8 @@ async function seedPlatformData() {
           enableNotifications: true,
           enableEmailNotifications: true,
           enableSmsNotifications: false,
-          bannerText: 'Find Safe, private dog walking fields',
-          highlightedText: 'near you',
+          bannerText: 'Find Safe, Private Dog Walking Fields',
+          highlightedText: 'Near You',
           aboutTitle: 'At Fieldsy, we believe every dog deserves the freedom to run, sniff, and play safely.',
           ...platformData
         }
