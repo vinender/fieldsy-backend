@@ -3288,7 +3288,7 @@ const getPayoutFailedTemplate = (data: {
           </div>
 
           <div class="footer">
-            <p>Need help? Contact us at support@fieldsy.co.uk</p>
+            <p>Need help? Contact us at info@fieldsy.co.uk</p>
             <p>&copy; ${new Date().getFullYear()} Fieldsy. All rights reserved.</p>
           </div>
         </div>

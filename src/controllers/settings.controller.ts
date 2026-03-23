@@ -24,7 +24,7 @@ export const getSystemSettings = async (req: Request, res: Response) => {
           payoutReleaseSchedule: 'after_cancellation_window',
           siteName: 'Fieldsy',
           siteUrl: 'https://fieldsy.com',
-          supportEmail: 'support@fieldsy.com',
+          supportEmail: 'info@fieldsy.co.uk',
           maintenanceMode: false,
           enableNotifications: true,
           enableEmailNotifications: true,
@@ -123,7 +123,7 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
           payoutReleaseSchedule: payoutReleaseSchedule || 'after_cancellation_window',
           siteName: siteName || 'Fieldsy',
           siteUrl: siteUrl || 'https://fieldsy.com',
-          supportEmail: supportEmail || 'support@fieldsy.com',
+          supportEmail: supportEmail || 'info@fieldsy.co.uk',
           maintenanceMode: maintenanceMode || false,
           enableNotifications: enableNotifications ?? true,
           enableEmailNotifications: enableEmailNotifications ?? true,
@@ -226,7 +226,7 @@ export const updatePlatformImages = async (req: Request, res: Response) => {
           maxBookingsPerUser: 10,
           siteName: 'Fieldsy',
           siteUrl: 'https://fieldsy.com',
-          supportEmail: 'support@fieldsy.com',
+          supportEmail: 'info@fieldsy.co.uk',
           maintenanceMode: false,
           enableNotifications: true,
           enableEmailNotifications: true,
@@ -236,12 +236,12 @@ export const updatePlatformImages = async (req: Request, res: Response) => {
           platformDogOwnersImage: platformDogOwnersImage || '',
           platformFieldOwnersImage: platformFieldOwnersImage || '',
           platformTitle: platformTitle || 'One Platform, Two Tail-Wagging Experiences',
-          platformDogOwnersSubtitle: platformDogOwnersSubtitle || 'For Dog Owners:',
+          platformDogOwnersSubtitle: platformDogOwnersSubtitle || 'For Dog Owners',
           platformDogOwnersTitle: platformDogOwnersTitle || 'Find & Book Private Dog Walking Fields in Seconds',
-          platformDogOwnersBullets: platformDogOwnersBullets || ["Stress-free walks for reactive or energetic dogs", "Fully fenced, secure spaces", "GPS-powered search", "Instant hourly bookings"],
-          platformFieldOwnersSubtitle: platformFieldOwnersSubtitle || 'For Field Owners:',
-          platformFieldOwnersTitle: platformFieldOwnersTitle || "Turn Your Land into a Dog's Dream & Earn",
-          platformFieldOwnersBullets: platformFieldOwnersBullets || ["Earn passive income while helping pets", "Host dog owners with full control", "Set your availability and pricing", "List your field for free"]
+          platformDogOwnersBullets: platformDogOwnersBullets || ["Stress-free walks for reactive or energetic dogs", "Fully fenced, secure spaces -- yours alone during your booking", "GPS-powered search to find fields near you", "Instant hourly bookings with no back-and-forth"],
+          platformFieldOwnersSubtitle: platformFieldOwnersSubtitle || 'For Field Owners',
+          platformFieldOwnersTitle: platformFieldOwnersTitle || "Turn Your Land into a Dog's Favourite Place -- and Earn",
+          platformFieldOwnersBullets: platformFieldOwnersBullets || ["Earn recurring income while helping dogs and their owners", "Host on your terms with full control over availability", "Set your own pricing -- adjust any time", "List your field for free, no upfront costs"]
         }
       });
     } else {
@@ -338,7 +338,7 @@ export const getPublicSettings = async (req: Request, res: Response) => {
         minimumFieldOperatingHours: 4,
         siteName: 'Fieldsy',
         siteUrl: 'https://fieldsy.com',
-        supportEmail: 'support@fieldsy.com',
+        supportEmail: 'info@fieldsy.co.uk',
         maintenanceMode: false,
         bannerText: 'Find Safe, Private Dog Walking Fields',
         highlightedText: 'Near You',
