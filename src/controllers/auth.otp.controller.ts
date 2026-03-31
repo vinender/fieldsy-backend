@@ -8,6 +8,16 @@ import { AppError } from '../utils/AppError';
 import { otpService } from '../services/otp.service';
 import { JWT_SECRET, JWT_EXPIRES_IN } from '../config/constants';
 
+// Helper to generate unique userId (same logic as UserModel)
+const generateUserId = async (): Promise<string> => {
+  const counter = await prisma.counter.upsert({
+    where: { name: 'user' },
+    update: { value: { increment: 1 } },
+    create: { name: 'user', value: 7777 },
+  });
+  return counter.value.toString();
+};
+
 // Generate JWT token
 const generateToken = (userId: string) => {
   return jwt.sign({ id: userId }, JWT_SECRET, {
@@ -57,6 +67,9 @@ export const registerWithOtp = asyncHandler(async (req: Request, res: Response) 
   // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  // Generate userId for new users
+  const userId = existingUser ? undefined : await generateUserId();
+
   // Create or update user (but not verified yet)
   const user = existingUser
     ? await prisma.user.update({
@@ -75,6 +88,7 @@ export const registerWithOtp = asyncHandler(async (req: Request, res: Response) 
           password: hashedPassword,
           role,
           phone,
+          userId,
           emailVerified: null,
         },
       });
@@ -131,14 +145,15 @@ export const verifySignupOtp = asyncHandler(async (req: Request, res: Response) 
   });
 
   // Generate token
-  const token = generateToken(user.id);
+  const token = generateToken(user.userId || user.id);
 
   res.json({
     success: true,
     message: 'Email verified successfully',
     data: {
       user: {
-        id: user.id,
+        id: user.userId || user.id,
+        userId: user.userId,
         name: user.name,
         email: user.email,
         role: user.role,

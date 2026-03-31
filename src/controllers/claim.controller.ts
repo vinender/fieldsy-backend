@@ -290,6 +290,14 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
         });
 
         if (!existingFieldOwner) {
+          // Generate human-readable userId
+          const userCounter = await prisma.counter.upsert({
+            where: { name: 'user' },
+            update: { value: { increment: 1 } },
+            create: { name: 'user', value: 7777 },
+          });
+          const userId = userCounter.value.toString();
+
           fieldOwner = await prisma.user.create({
             data: {
               email: claim.email,
@@ -299,6 +307,7 @@ export const updateClaimStatus = asyncHandler(async (req: Request, res: Response
               phone: claim.phoneCode && claim.phoneNumber ? `${claim.phoneCode}${claim.phoneNumber}` : null,
               provider: 'general',
               hasField: true,
+              userId,
               emailVerified: new Date() // DateTime field
             }
           });
