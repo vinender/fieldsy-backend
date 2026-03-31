@@ -802,7 +802,7 @@ class BookingModel {
       if (rest.field.owner) {
         const { id: oid, ...ownerRest } = rest.field.owner;
         rest.field.owner = {
-          id: rest.field.owner.userId || oid,
+          id: oid,
           ...ownerRest
         };
       }
@@ -811,7 +811,7 @@ class BookingModel {
     if (rest.user) {
       const { id: uid, ...userRest } = rest.user;
       rest.user = {
-        id: rest.user.userId || uid,
+        id: uid,
         ...userRest
       };
     }

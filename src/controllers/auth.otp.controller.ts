@@ -19,8 +19,8 @@ const generateUserId = async (): Promise<string> => {
 };
 
 // Generate JWT token
-const generateToken = (userId: string) => {
-  return jwt.sign({ id: userId }, JWT_SECRET, {
+const generateToken = (user: { id: string, email: string, role: string }) => {
+  return jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
 };
@@ -145,14 +145,14 @@ export const verifySignupOtp = asyncHandler(async (req: Request, res: Response) 
   });
 
   // Generate token
-  const token = generateToken(user.userId || user.id);
+  const token = generateToken(user);
 
   res.json({
     success: true,
     message: 'Email verified successfully',
     data: {
       user: {
-        id: user.userId || user.id,
+        id: user.id,
         userId: user.userId,
         name: user.name,
         email: user.email,
@@ -413,7 +413,7 @@ export const loginWithOtpCheck = asyncHandler(async (req: Request, res: Response
   }
 
   // Generate token
-  const token = generateToken(user.id);
+  const token = generateToken(user);
 
   res.json({
     success: true,

@@ -105,7 +105,7 @@ class AuthController {
     // Generate JWT token
     const token = jwt.sign(
       {
-        id: user.userId,
+        id: user.id,
         email: user.email,
         role: user.role
       },
@@ -166,7 +166,7 @@ class AuthController {
     // Generate JWT token
     const token = jwt.sign(
       {
-        id: user.userId,
+        id: user.id,
         email: user.email,
         role: user.role
       },
@@ -251,7 +251,7 @@ class AuthController {
       // Generate new access token with current user data (in case role changed)
       const newToken = jwt.sign(
         {
-          id: user.userId,
+          id: user.id,
           email: user.email,
           role: user.role
         },
@@ -432,7 +432,7 @@ class AuthController {
       console.log('✅ Role matches - logging in immediately');
       const token = jwt.sign(
         {
-          id: existingUser.userId,
+          id: existingUser.id,
           email: existingUser.email,
           role: existingUser.role,
           provider: existingUser.provider
@@ -488,7 +488,7 @@ class AuthController {
 
     const token = jwt.sign(
       {
-        id: user.userId,
+        id: user.id,
         email: user.email,
         role: user.role,
         provider: user.provider
@@ -547,7 +547,7 @@ class AuthController {
     // Generate new token with updated role
     const token = jwt.sign(
       {
-        id: updatedUser.userId,
+        id: updatedUser.id,
         email: updatedUser.email,
         role: updatedUser.role
       },
@@ -658,7 +658,7 @@ class AuthController {
         console.log('✅ Role matches - logging in immediately');
         const token = jwt.sign(
           {
-            id: existingUser.userId,
+            id: existingUser.id,
             email: existingUser.email,
             role: existingUser.role,
             provider: 'apple'
@@ -725,7 +725,7 @@ class AuthController {
 
       const token = jwt.sign(
         {
-          id: user.userId,
+          id: user.id,
           email: user.email,
           role: user.role,
           provider: 'apple'

@@ -796,7 +796,7 @@ class BookingController {
 
         return {
           id: booking.bookingId || booking.id,
-          userId: user?.userId || booking.userId,
+          userId: booking.userId,
           fieldId: field?.fieldId || booking.fieldId,
           date: booking.date,
           startTime: booking.startTime,
@@ -849,7 +849,7 @@ class BookingController {
             amenities: transformedAmenities,
             // Owner information
             owner: owner ? {
-              id: owner.userId || owner.id,
+              id: owner.id,
               name: owner.name,
               email: owner.email,
               emailVerified: owner.emailVerified,
