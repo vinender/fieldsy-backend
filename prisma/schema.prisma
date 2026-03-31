@@ -73,6 +73,7 @@ model User {
   blocksReceived   UserBlock[]     @relation("BlockedRelation")
   subscriptions    Subscription[]
   deviceTokens     DeviceToken[]
+  slotCredits      SlotCredit[]
 
   // Compound unique constraint: same email can exist with different roles
   @@unique([email, role])
@@ -162,6 +163,7 @@ model Field {
   fieldDetailsCompleted        Boolean @default(false)
   uploadImagesCompleted        Boolean @default(false)
   pricingAvailabilityCompleted Boolean @default(false)
+  offersDiscountsCompleted     Boolean @default(false)
   bookingRulesCompleted        Boolean @default(false)
 
   // Submission status
@@ -204,6 +206,8 @@ model Field {
   claims        FieldClaim[]
   subscriptions Subscription[]
   googleReviews GoogleReview[]
+  offers        Offer[]
+  discounts     Discount[]
 
   @@index([isActive, isSubmitted, isApproved, isBlocked])
   @@index([city, state])
@@ -969,4 +973,66 @@ model GoogleReview {
 
   @@index([fieldId])
   @@map("google_reviews")
+}
+
+model Offer {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  fieldId        String   @db.ObjectId
+  purchaseSlots  Int      // Number of slots user needs to buy
+  freeSlots      Int      // Number of bonus free slots
+  validity       String   // "1 Week" or "1 Month"
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  field       Field        @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  slotCredits SlotCredit[]
+
+  @@index([fieldId])
+  @@map("offers")
+}
+
+model Discount {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  fieldId   String   @db.ObjectId
+  value     Int      // Discount percentage (1-100)
+  startDate DateTime
+  startTime String   // e.g. "10:00"
+  endDate   DateTime
+  endTime   String   // e.g. "14:30"
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  field Field @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([fieldId])
+  @@index([fieldId, enabled, startDate, endDate])
+  @@map("discounts")
+}
+
+model SlotCredit {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  fieldId        String   @db.ObjectId
+  offerId        String   @db.ObjectId
+  totalSlots     Int      // purchaseSlots + freeSlots
+  usedSlots      Int      @default(0)
+  remainingSlots Int      // totalSlots - usedSlots
+  expiresAt      DateTime // When the credit expires based on offer validity
+  paymentIntentId String? // Stripe payment intent
+  status         String   @default("active") // active, expired, exhausted
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, fieldId, status])
+  @@index([status, expiresAt])
+  @@map("slot_credits")
 }

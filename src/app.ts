@@ -34,6 +34,8 @@ import settingsRoutes from "./routes/settings.routes"
 import termsRoutes from "./routes/terms.routes"
 import privacyPolicyRoutes from "./routes/privacy-policy.routes"
 import aboutPageRoutes from "./routes/about-page.routes"
+import offerRoutes from "./routes/offer.routes"
+import discountRoutes from "./routes/discount.routes"
 // Note: Slot lock cleanup is initialized in server.ts (the main entry point)
 // Load environment variables
 
@@ -462,6 +464,8 @@ console.log('Registering terms routes...');
 app.use('/api/terms', termsRoutes)
 app.use('/api/privacy-policy', privacyPolicyRoutes)
 app.use('/api/about-page', aboutPageRoutes)
+app.use('/api/offers', offerRoutes)
+app.use('/api/discounts', discountRoutes)
 
 
 // Health check endpoint

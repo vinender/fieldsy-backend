@@ -1375,11 +1375,42 @@ class BookingController {
 
     const cancelledBooking = await BookingModel.cancel(id, reason);
 
-    // Process immediate refund if eligible
+    // Process refund — either credit refund or Stripe refund
     let refundResult = null;
-    if (isRefundEligible && isDogOwner) {
+
+    if (isDogOwner && (booking as any).paymentStatus === 'CREDIT') {
+      // Credit-based booking — restore slot to the user's active credit balance
       try {
-        // Use booking.id (ObjectId) instead of id (which may be an orderNumber like "5316")
+        const activeCredit = await prisma.slotCredit.findFirst({
+          where: {
+            userId: booking.userId,
+            fieldId: booking.fieldId,
+            status: { in: ['active', 'exhausted'] },
+            expiresAt: { gt: new Date() } // Only restore to non-expired credits
+          },
+          orderBy: { expiresAt: 'asc' }
+        });
+
+        if (activeCredit) {
+          await prisma.slotCredit.update({
+            where: { id: activeCredit.id },
+            data: {
+              remainingSlots: activeCredit.remainingSlots + 1,
+              usedSlots: Math.max(0, activeCredit.usedSlots - 1),
+              status: 'active' // Reactivate if it was exhausted
+            }
+          });
+          console.log(`[CancelBooking] Restored 1 slot credit to ${activeCredit.id} (${activeCredit.remainingSlots + 1} remaining)`);
+          refundResult = { success: true, message: '1 slot credit restored to your balance' };
+        } else {
+          console.log('[CancelBooking] No active/non-expired credit found to restore slot to');
+        }
+      } catch (creditError: any) {
+        console.error('Credit restore error:', creditError);
+      }
+    } else if (isRefundEligible && isDogOwner) {
+      // Stripe-paid booking — process Stripe refund
+      try {
         const bookingObjectId = booking.id;
         if (booking.subscriptionId) {
           const { getSubscriptionService: getSub } = await import('../config/payout-services');
@@ -1389,11 +1420,8 @@ class BookingController {
         }
       } catch (refundError: any) {
         console.error('Refund processing error:', refundError);
-        // Continue with cancellation even if refund fails
       }
     } else if (!isRefundEligible && isDogOwner) {
-      // If not eligible for refund, transfer full amount to field owner after cancellation period
-      // Run in background - don't block response
       refundService.processFieldOwnerPayout(booking, 0).catch((payoutError: any) => {
         console.error('Payout processing error:', payoutError);
       });

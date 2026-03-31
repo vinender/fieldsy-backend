@@ -63,6 +63,8 @@ import contactQueryRoutes from './routes/contact-query.routes';
 import deviceTokenRoutes from './routes/device-token.routes';
 import termsRoutes from './routes/terms.routes';
 import privacyPolicyRoutes from './routes/privacy-policy.routes';
+import offerRoutes from './routes/offer.routes';
+import discountRoutes from './routes/discount.routes';
 
 // Import Firebase for push notifications
 import { initializeFirebase } from './config/firebase.config';
@@ -79,6 +81,7 @@ import { generateApiDocsHTML } from './utils/api-docs-template';
 import { initRecurringBookingJobs } from './jobs/recurring-booking.job';
 import { initBookingReminderJobs } from './jobs/booking-reminder.job';
 import { initBookingStatusJob } from './jobs/booking-status.job';
+import { startSlotCreditExpiryJob } from './jobs/slot-credit-expiry.job';
 import { startSlotLockCleanup, stopSlotLockCleanup } from './utils/slot-lock.utils';
 
 // Payout service provider — conditionally uses engine or built-in services
@@ -440,6 +443,10 @@ class Server {
     // General routes
     this.app.use('/api/favorites', favoriteRoutes);
 
+    // Offer and discount routes
+    this.app.use('/api/offers', offerRoutes);
+    this.app.use('/api/discounts', discountRoutes);
+
     // Chat routes - 30 messages per minute
     this.app.use('/api/chat', bypassInDevelopment(messageLimiter), chatRoutes);
 
@@ -593,6 +600,7 @@ class Server {
     initBookingReminderJobs();
     initBookingStatusJob();
     startSlotLockCleanup(); // Cleanup expired slot locks every 5 minutes
+    startSlotCreditExpiryJob(); // Expire slot credits past validity
     console.log('✅ Scheduled jobs initialized');
 
     // Enhanced error handling for port conflicts

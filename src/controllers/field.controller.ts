@@ -452,6 +452,38 @@ class FieldController {
       return optimizedField;
     });
 
+    // Batch fetch active discounts for all fields in one query
+    const now = new Date();
+    const fieldObjectIds = result.fields.map((f: any) => f.id);
+    try {
+      const activeDiscounts = await prisma.discount.findMany({
+        where: {
+          fieldId: { in: fieldObjectIds },
+          enabled: true,
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+        select: { fieldId: true, value: true },
+      });
+
+      // Build map of fieldId -> highest discount %
+      const discountMap: Record<string, number> = {};
+      for (const d of activeDiscounts) {
+        discountMap[d.fieldId] = Math.max(discountMap[d.fieldId] || 0, d.value);
+      }
+
+      // Attach discount to each transformed field
+      for (const tf of transformedFields) {
+        const objId = result.fields.find((f: any) => f.fieldId === tf.id)?.id;
+        if (objId && discountMap[objId]) {
+          tf.activeDiscount = discountMap[objId];
+        }
+      }
+    } catch (err) {
+      // Don't fail the whole request if discounts fail
+      console.error('[getActiveFields] Discount fetch error:', err);
+    }
+
     // Run amenity enrichment and favorites query in parallel
     const userId = (req as any).user?.id;
     const [enrichedFields, userLikedFieldIds] = await Promise.all([
@@ -1716,6 +1748,14 @@ class FieldController {
             pricingAvailabilityCompleted: true
           };
         }
+        break;
+
+      case 'offers-discounts':
+        // Offers and discounts are saved via their own API endpoints
+        // This step just marks completion and passes through
+        updateData = {
+          offersDiscountsCompleted: true
+        };
         break;
 
       case 'booking-rules':
