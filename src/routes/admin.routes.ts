@@ -693,14 +693,6 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
         take: parseInt(limit as string),
         orderBy: { createdAt: 'desc' },
         include: {
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true
-            }
-          },
           _count: {
             select: {
               bookings: true
@@ -717,14 +709,26 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
       prisma.field.count({ where: finalSearchFilter })
     ]);
 
-    // Batch-fetch all data needed for earnings calculation (3 queries instead of 30)
+    // Separately fetch owners for fields that have them (avoid null owner issues)
     const fieldIds = fields.map(f => f.id);
-    const ownerIds = [...new Set(fields.map(f => f.ownerId))];
+    const ownerIds = fields.map(f => f.ownerId).filter((id): id is string => id !== null);
 
-    // 1. Batch-fetch stripe accounts for all owners on this page
-    const stripeAccounts = await prisma.stripeAccount.findMany({
-      where: { userId: { in: ownerIds } }
-    });
+    // Fetch owners separately
+    const owners = ownerIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: ownerIds } },
+          select: { id: true, name: true, email: true, phone: true }
+        })
+      : [];
+
+    const ownerMap = new Map(owners.map(o => [o.id, o]));
+
+    // 1. Batch-fetch stripe accounts for owners (only those that exist)
+    const stripeAccounts = ownerIds.length > 0
+      ? await prisma.stripeAccount.findMany({
+          where: { userId: { in: ownerIds } }
+        })
+      : [];
     const stripeAccountByOwnerId = new Map(stripeAccounts.map(sa => [sa.userId, sa]));
 
     // 2. Batch-fetch all paid booking IDs for fields on this page
@@ -801,6 +805,7 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
 
       return {
         ...field,
+        owner: field.ownerId ? ownerMap.get(field.ownerId) || null : null,
         totalEarnings: totalPayouts
       };
     });
