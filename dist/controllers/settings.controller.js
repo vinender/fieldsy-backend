@@ -54,7 +54,7 @@ exports.getSystemSettings = getSystemSettings;
 // Update system settings (Admin only)
 const updateSystemSettings = async (req, res) => {
     try {
-        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, heroBackgroundImage, heroBackgroundImages, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, bypassUsername, bypassPassword, howItWorksTitle, howItWorksSteps, landownersSectionTitle, landownersSectionDescription, landownersSectionImage, } = req.body;
+        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, heroBackgroundImage, heroBackgroundImages, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, aboutSectionTitle, aboutSectionSubtitle, aboutSectionMainText, aboutSectionSecondaryText, aboutSectionTrustedTitle, aboutSectionTrustedSubtitle, bypassUsername, bypassPassword, howItWorksTitle, howItWorksSteps, landownersSectionTitle, landownersSectionDescription, landownersSectionImage, } = req.body;
         // Validate maxAdvanceBookingDays is between 30 and 60
         if (maxAdvanceBookingDays !== undefined) {
             if (maxAdvanceBookingDays < 30 || maxAdvanceBookingDays > 60) {
@@ -135,6 +135,12 @@ const updateSystemSettings = async (req, res) => {
                     ...(aboutDogImage !== undefined && { aboutDogImage }),
                     ...(aboutFamilyImage !== undefined && { aboutFamilyImage }),
                     ...(aboutDogIcons !== undefined && { aboutDogIcons }),
+                    ...(aboutSectionTitle !== undefined && { aboutSectionTitle }),
+                    ...(aboutSectionSubtitle !== undefined && { aboutSectionSubtitle }),
+                    ...(aboutSectionMainText !== undefined && { aboutSectionMainText }),
+                    ...(aboutSectionSecondaryText !== undefined && { aboutSectionSecondaryText }),
+                    ...(aboutSectionTrustedTitle !== undefined && { aboutSectionTrustedTitle }),
+                    ...(aboutSectionTrustedSubtitle !== undefined && { aboutSectionTrustedSubtitle }),
                     ...(req.body.platformDogOwnersImage !== undefined && { platformDogOwnersImage: req.body.platformDogOwnersImage }),
                     ...(req.body.platformFieldOwnersImage !== undefined && { platformFieldOwnersImage: req.body.platformFieldOwnersImage }),
                     ...(req.body.platformWaveImage !== undefined && { platformWaveImage: req.body.platformWaveImage }),
@@ -262,6 +268,12 @@ const getPublicSettings = async (req, res) => {
                 aboutDogImage: true,
                 aboutFamilyImage: true,
                 aboutDogIcons: true,
+                aboutSectionTitle: true,
+                aboutSectionSubtitle: true,
+                aboutSectionMainText: true,
+                aboutSectionSecondaryText: true,
+                aboutSectionTrustedTitle: true,
+                aboutSectionTrustedSubtitle: true,
                 platformDogOwnersImage: true,
                 platformFieldOwnersImage: true,
                 platformTitle: true,

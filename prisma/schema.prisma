@@ -736,6 +736,14 @@ model SystemSettings {
   aboutFamilyImage String? // Family/trusted section image URL
   aboutDogIcons    String[] @default([]) // Array of small dog icon URLs
 
+  // About Section Content (Static text below hero)
+  aboutSectionTitle         String? @default("Fieldsy helps dog owners find and book private dog walking fields for safer, calmer, and more enjoyable off-lead time.")
+  aboutSectionSubtitle      String? @default("Whether your dog needs space for training, confidence, or simply a good run, we make it easier to find the right field.")
+  aboutSectionMainText      String? // Additional main text
+  aboutSectionSecondaryText String? // Additional secondary text
+  aboutSectionTrustedTitle  String? @default("Trusted by dog owners across the UK")
+  aboutSectionTrustedSubtitle String? @default("Powered by real reviews, easy booking, and a growing network of secure private dog fields across the UK.")
+
   // Platform Section Settings
   platformDogOwnersImage      String? // Dog owners card image
   platformFieldOwnersImage    String? // Field owners card image

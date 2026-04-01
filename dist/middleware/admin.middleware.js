@@ -17,7 +17,7 @@ const authenticateAdmin = async (req, res, next) => {
         // SECURITY FIX: Use consistent JWT_SECRET from constants
         const decoded = jsonwebtoken_1.default.verify(token, constants_1.JWT_SECRET);
         const admin = await prisma.user.findUnique({
-            where: { id: decoded.id }
+            where: { id: decoded.userId }
         });
         if (!admin || admin.role !== 'ADMIN') {
             return res.status(403).json({ error: 'Admin access required' });

@@ -638,41 +638,90 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
         const { page = '1', limit = '10', search = '' } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
         // Build search filter
-        const searchFilter = search && search.trim() !== '' ? {
-            OR: [
+        const finalSearchFilter = {};
+        // Add search conditions if provided
+        if (search && search.trim() !== '') {
+            finalSearchFilter.OR = [
                 { fieldId: { contains: search, mode: 'insensitive' } },
                 { name: { contains: search, mode: 'insensitive' } },
                 { address: { contains: search, mode: 'insensitive' } },
                 { city: { contains: search, mode: 'insensitive' } },
                 { state: { contains: search, mode: 'insensitive' } },
                 { owner: { name: { contains: search, mode: 'insensitive' } } }
-            ]
-        } : {};
-        // Fetch fields with owner details
+            ];
+        }
         const [fields, total] = await Promise.all([
             database_1.default.field.findMany({
-                where: searchFilter,
+                where: finalSearchFilter,
                 skip,
                 take: parseInt(limit),
                 orderBy: { createdAt: 'desc' },
-                include: {
-                    owner: true,
+                select: {
+                    id: true,
+                    fieldId: true,
+                    name: true,
+                    description: true,
+                    address: true,
+                    city: true,
+                    state: true,
+                    zipCode: true,
+                    latitude: true,
+                    longitude: true,
+                    price: true,
+                    price30min: true,
+                    price1hr: true,
+                    pricePerDay: true,
+                    pricePerHour: true,
+                    size: true,
+                    type: true,
+                    amenities: true,
+                    images: true,
+                    availability: true,
+                    isActive: true,
+                    isBlocked: true,
+                    isApproved: true,
+                    isSubmitted: true,
+                    isClaimed: true, // Explicitly include isClaimed
+                    entryCode: true,
+                    lastEditedBy: true,
+                    lastEditedByRole: true,
+                    lastEditedAt: true,
+                    ownerId: true,
+                    createdAt: true,
+                    bookingDuration: true,
+                    maxDogs: true,
                     _count: {
                         select: {
                             bookings: true
                         }
                     }
                 }
+            }).catch((error) => {
+                console.error('Field findMany error:', {
+                    filter: finalSearchFilter,
+                    message: error.message
+                });
+                throw error;
             }),
-            database_1.default.field.count({ where: searchFilter })
+            database_1.default.field.count({ where: finalSearchFilter })
         ]);
-        // Batch-fetch all data needed for earnings calculation (3 queries instead of 30)
+        // Separately fetch owners for fields that have them (avoid null owner issues)
         const fieldIds = fields.map(f => f.id);
-        const ownerIds = [...new Set(fields.map(f => f.ownerId))];
-        // 1. Batch-fetch stripe accounts for all owners on this page
-        const stripeAccounts = await database_1.default.stripeAccount.findMany({
-            where: { userId: { in: ownerIds } }
-        });
+        const ownerIds = fields.map(f => f.ownerId).filter((id) => id !== null);
+        // Fetch owners separately
+        const owners = ownerIds.length > 0
+            ? await database_1.default.user.findMany({
+                where: { id: { in: ownerIds } },
+                select: { id: true, name: true, email: true, phone: true }
+            })
+            : [];
+        const ownerMap = new Map(owners.map(o => [o.id, o]));
+        // 1. Batch-fetch stripe accounts for owners (only those that exist)
+        const stripeAccounts = ownerIds.length > 0
+            ? await database_1.default.stripeAccount.findMany({
+                where: { userId: { in: ownerIds } }
+            })
+            : [];
         const stripeAccountByOwnerId = new Map(stripeAccounts.map(sa => [sa.userId, sa]));
         // 2. Batch-fetch all paid booking IDs for fields on this page
         const allFieldBookings = await database_1.default.booking.findMany({
@@ -720,19 +769,22 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
                 if (fieldBookingIdSet && fieldBookingIdSet.size > 0) {
                     const payouts = payoutsByStripeAccountId.get(stripeAccount.id) || [];
                     totalPayouts = payouts.reduce((sum, payout) => {
+                        // Safety check: ensure bookingIds is an array
+                        if (!Array.isArray(payout.bookingIds) || payout.bookingIds.length === 0) {
+                            return sum;
+                        }
                         // Count how many bookings in this payout belong to this field
                         const payoutFieldBookings = payout.bookingIds.filter(id => fieldBookingIdSet.has(id));
                         // Calculate proportional amount
                         // If payout has 3 bookings and 2 are from this field, this field gets 2/3 of the payout
-                        const proportion = payout.bookingIds.length > 0
-                            ? payoutFieldBookings.length / payout.bookingIds.length
-                            : 0;
+                        const proportion = payoutFieldBookings.length / payout.bookingIds.length;
                         return sum + (payout.amount * proportion);
                     }, 0);
                 }
             }
             return {
                 ...field,
+                owner: field.ownerId ? ownerMap.get(field.ownerId) || null : null,
                 totalEarnings: totalPayouts
             };
         });
@@ -744,8 +796,16 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
         });
     }
     catch (error) {
-        console.error('Get fields error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Get fields error:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack,
+            fullError: error
+        });
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
     }
 });
 // Get field details for admin (with owner and booking data)
