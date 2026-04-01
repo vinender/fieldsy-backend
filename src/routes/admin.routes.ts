@@ -683,15 +683,27 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
       ]
     } : {};
 
-    // Fetch fields with owner details
+    // Fetch fields with owner details - only include fields that have an owner
+    const finalSearchFilter = {
+      ...searchFilter,
+      ownerId: { not: null }  // Exclude orphaned fields without owners
+    };
+
     const [fields, total] = await Promise.all([
       prisma.field.findMany({
-        where: searchFilter,
+        where: finalSearchFilter,
         skip,
         take: parseInt(limit as string),
         orderBy: { createdAt: 'desc' },
         include: {
-          owner: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true
+            }
+          },
           _count: {
             select: {
               bookings: true
@@ -699,7 +711,7 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
           }
         }
       }),
-      prisma.field.count({ where: searchFilter })
+      prisma.field.count({ where: finalSearchFilter })
     ]);
 
     // Batch-fetch all data needed for earnings calculation (3 queries instead of 30)
@@ -765,6 +777,11 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
           const payouts = payoutsByStripeAccountId.get(stripeAccount.id) || [];
 
           totalPayouts = payouts.reduce((sum, payout) => {
+            // Safety check: ensure bookingIds is an array
+            if (!Array.isArray(payout.bookingIds) || payout.bookingIds.length === 0) {
+              return sum;
+            }
+
             // Count how many bookings in this payout belong to this field
             const payoutFieldBookings = payout.bookingIds.filter(id =>
               fieldBookingIdSet.has(id)
@@ -772,9 +789,7 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
 
             // Calculate proportional amount
             // If payout has 3 bookings and 2 are from this field, this field gets 2/3 of the payout
-            const proportion = payout.bookingIds.length > 0
-              ? payoutFieldBookings.length / payout.bookingIds.length
-              : 0;
+            const proportion = payoutFieldBookings.length / payout.bookingIds.length;
 
             return sum + (payout.amount * proportion);
           }, 0);
@@ -794,9 +809,17 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
       pages: Math.ceil(total / parseInt(limit as string))
     });
 
-  } catch (error) {
-    console.error('Get fields error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Get fields error:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      fullError: error
+    });
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
+    });
   }
 });
 
