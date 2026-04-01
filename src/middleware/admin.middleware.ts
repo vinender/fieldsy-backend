@@ -17,7 +17,7 @@ export const authenticateAdmin = async (req: Request, res: Response, next: NextF
     // SECURITY FIX: Use consistent JWT_SECRET from constants
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     const admin = await prisma.user.findUnique({
-      where: { id: decoded.id }
+      where: { id: decoded.userId }
     });
     
     if (!admin || admin.role !== 'ADMIN') {
