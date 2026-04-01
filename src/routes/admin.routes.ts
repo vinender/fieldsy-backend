@@ -672,22 +672,19 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
     // Build search filter
-    const searchFilter = search && (search as string).trim() !== '' ? {
-      OR: [
+    const finalSearchFilter: any = {};
+
+    // Add search conditions if provided
+    if (search && (search as string).trim() !== '') {
+      finalSearchFilter.OR = [
         { fieldId: { contains: search as string, mode: 'insensitive' as const } },
         { name: { contains: search as string, mode: 'insensitive' as const } },
         { address: { contains: search as string, mode: 'insensitive' as const } },
         { city: { contains: search as string, mode: 'insensitive' as const } },
         { state: { contains: search as string, mode: 'insensitive' as const } },
         { owner: { name: { contains: search as string, mode: 'insensitive' as const } } }
-      ]
-    } : {};
-
-    // Fetch fields with owner details - only include fields that have an owner
-    const finalSearchFilter = {
-      ...searchFilter,
-      ownerId: { not: null }  // Exclude orphaned fields without owners
-    };
+      ];
+    }
 
     const [fields, total] = await Promise.all([
       prisma.field.findMany({
@@ -710,6 +707,12 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
             }
           }
         }
+      }).catch((error: any) => {
+        console.error('Field findMany error:', {
+          filter: finalSearchFilter,
+          message: error.message
+        });
+        throw error;
       }),
       prisma.field.count({ where: finalSearchFilter })
     ]);
