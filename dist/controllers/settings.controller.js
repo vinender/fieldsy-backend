@@ -229,6 +229,8 @@ const updatePlatformImages = async (req, res) => {
                 }
             });
         }
+        // Invalidate cache so clients get fresh data
+        (0, settings_cache_1.invalidateSettingsCache)();
         res.json({
             success: true,
             data: {
