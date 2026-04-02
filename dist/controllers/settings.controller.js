@@ -54,7 +54,7 @@ exports.getSystemSettings = getSystemSettings;
 // Update system settings (Admin only)
 const updateSystemSettings = async (req, res) => {
     try {
-        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, heroBackgroundImage, heroBackgroundImages, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, aboutSectionTitle, aboutSectionSubtitle, aboutSectionMainText, aboutSectionSecondaryText, aboutSectionTrustedTitle, aboutSectionTrustedSubtitle, bypassUsername, bypassPassword, howItWorksTitle, howItWorksSteps, landownersSectionTitle, landownersSectionDescription, landownersSectionImage, } = req.body;
+        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, heroBackgroundImage, heroBackgroundImages, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, aboutSectionTitle, aboutSectionSubtitle, aboutSectionMainText, aboutSectionSecondaryText, aboutSectionTrustedTitle, aboutSectionTrustedSubtitle, bypassUsername, bypassPassword, howItWorksTitle, howItWorksSteps, howItWorksHeroTitle, howItWorksHeroHeading, howItWorksHeroDescription, forDogOwnersSectionTitle, forDogOwnersSteps, landownersSectionTitle, landownersSectionDescription, landownersSectionImage, landownersOptionCard1Title, landownersOptionCard1Description, landownersOptionCard2Title, landownersOptionCard2Description, } = req.body;
         // Validate maxAdvanceBookingDays is between 30 and 60
         if (maxAdvanceBookingDays !== undefined) {
             if (maxAdvanceBookingDays < 30 || maxAdvanceBookingDays > 60) {
@@ -147,9 +147,18 @@ const updateSystemSettings = async (req, res) => {
                     ...(req.body.platformHoverImage !== undefined && { platformHoverImage: req.body.platformHoverImage }),
                     ...(howItWorksTitle !== undefined && { howItWorksTitle }),
                     ...(howItWorksSteps !== undefined && { howItWorksSteps }),
+                    ...(howItWorksHeroTitle !== undefined && { howItWorksHeroTitle }),
+                    ...(howItWorksHeroHeading !== undefined && { howItWorksHeroHeading }),
+                    ...(howItWorksHeroDescription !== undefined && { howItWorksHeroDescription }),
+                    ...(forDogOwnersSectionTitle !== undefined && { forDogOwnersSectionTitle }),
+                    ...(forDogOwnersSteps !== undefined && { forDogOwnersSteps }),
                     ...(landownersSectionTitle !== undefined && { landownersSectionTitle }),
                     ...(landownersSectionDescription !== undefined && { landownersSectionDescription }),
                     ...(landownersSectionImage !== undefined && { landownersSectionImage }),
+                    ...(landownersOptionCard1Title !== undefined && { landownersOptionCard1Title }),
+                    ...(landownersOptionCard1Description !== undefined && { landownersOptionCard1Description }),
+                    ...(landownersOptionCard2Title !== undefined && { landownersOptionCard2Title }),
+                    ...(landownersOptionCard2Description !== undefined && { landownersOptionCard2Description }),
                 }
             });
         }
@@ -285,9 +294,18 @@ const getPublicSettings = async (req, res) => {
                 platformFieldOwnersBullets: true,
                 howItWorksTitle: true,
                 howItWorksSteps: true,
+                howItWorksHeroTitle: true,
+                howItWorksHeroHeading: true,
+                howItWorksHeroDescription: true,
+                forDogOwnersSectionTitle: true,
+                forDogOwnersSteps: true,
                 landownersSectionTitle: true,
                 landownersSectionDescription: true,
                 landownersSectionImage: true,
+                landownersOptionCard1Title: true,
+                landownersOptionCard1Description: true,
+                landownersOptionCard2Title: true,
+                landownersOptionCard2Description: true,
             }
         });
         if (!settings) {

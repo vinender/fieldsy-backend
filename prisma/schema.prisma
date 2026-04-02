@@ -759,10 +759,23 @@ model SystemSettings {
   howItWorksTitle String? @default("How Fieldsy Works") // Section title
   howItWorksSteps Json?   // Array of steps: [{icon, title, description, image, thumbnail, order}]
 
+  // How It Works Page — Hero Section
+  howItWorksHeroTitle       String? @default("How It Works")
+  howItWorksHeroHeading     String? @default("Getting Started with Fieldsy")
+  howItWorksHeroDescription String? @default("Find, book, and enjoy secure dog walking fields or list your land and start earning. It takes just a few simple steps.")
+
+  // How It Works Page — For Dog Owners Section
+  forDogOwnersSectionTitle String? @default("For Dog Owners")
+  forDogOwnersSteps        Json?   // Array of steps: [{icon, title, description, order}]
+
   // How It Works Page — For Landowners Section
-  landownersSectionTitle       String? @default("How Fieldsy Works for Landowners")
-  landownersSectionDescription String? @default("List or claim your field, set your schedule, and start earning—it's simple, secure, and flexible.")
-  landownersSectionImage       String? // Image URL
+  landownersSectionTitle           String? @default("How Fieldsy Works for Landowners")
+  landownersSectionDescription     String? @default("List or claim your field, set your schedule, and start earning—it's simple, secure, and flexible.")
+  landownersSectionImage           String? // Image URL
+  landownersOptionCard1Title       String? @default("Claim Your Existing Listing")
+  landownersOptionCard1Description String? @default("If your land is already listed on Fieldsy, claim it to access your host dashboard. From there you can manage availability, update field details, respond to dog owners, and start earning.")
+  landownersOptionCard2Title       String? @default("List Your Land for Free")
+  landownersOptionCard2Description String? @default("Sign up, add your field details and photos, set your pricing and availability, and start receiving bookings. Everything is managed from your easy-to-use host dashboard.")
 
   // Bypass Authentication Settings
   bypassUsername             String? @default("admin") // Username to bypass coming soon page
