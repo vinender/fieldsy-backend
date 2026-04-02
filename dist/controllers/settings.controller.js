@@ -54,7 +54,7 @@ exports.getSystemSettings = getSystemSettings;
 // Update system settings (Admin only)
 const updateSystemSettings = async (req, res) => {
     try {
-        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, heroBackgroundImage, heroBackgroundImages, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, aboutSectionTitle, aboutSectionSubtitle, aboutSectionMainText, aboutSectionSecondaryText, aboutSectionTrustedTitle, aboutSectionTrustedSubtitle, bypassUsername, bypassPassword, howItWorksTitle, howItWorksSteps, howItWorksHeroTitle, howItWorksHeroHeading, howItWorksHeroDescription, forDogOwnersSectionTitle, forDogOwnersSteps, landownersSectionTitle, landownersSectionDescription, landownersSectionImage, landownersOptionCard1Title, landownersOptionCard1Description, landownersOptionCard2Title, landownersOptionCard2Description, } = req.body;
+        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, heroBackgroundImage, heroBackgroundImages, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, aboutSectionTitle, aboutSectionSubtitle, aboutSectionMainText, aboutSectionSecondaryText, aboutSectionTrustedTitle, aboutSectionTrustedSubtitle, bypassUsername, bypassPassword, howItWorksTitle, howItWorksSteps, howItWorksHeroTitle, howItWorksHeroHeading, howItWorksHeroDescription, forDogOwnersSectionTitle, forDogOwnersSteps, landownersSectionTitle, landownersSectionDescription, landownersSectionImage, landownersOptionCard1Title, landownersOptionCard1Description, landownersOptionCard2Title, landownersOptionCard2Description, whyChooseFieldsyFeatures, } = req.body;
         // Validate maxAdvanceBookingDays is between 30 and 60
         if (maxAdvanceBookingDays !== undefined) {
             if (maxAdvanceBookingDays < 30 || maxAdvanceBookingDays > 60) {
@@ -159,6 +159,7 @@ const updateSystemSettings = async (req, res) => {
                     ...(landownersOptionCard1Description !== undefined && { landownersOptionCard1Description }),
                     ...(landownersOptionCard2Title !== undefined && { landownersOptionCard2Title }),
                     ...(landownersOptionCard2Description !== undefined && { landownersOptionCard2Description }),
+                    ...(whyChooseFieldsyFeatures !== undefined && { whyChooseFieldsyFeatures }),
                 }
             });
         }
@@ -308,6 +309,7 @@ const getPublicSettings = async (req, res) => {
                 landownersOptionCard1Description: true,
                 landownersOptionCard2Title: true,
                 landownersOptionCard2Description: true,
+                whyChooseFieldsyFeatures: true,
             }
         });
         if (!settings) {

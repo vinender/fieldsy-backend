@@ -777,6 +777,9 @@ model SystemSettings {
   landownersOptionCard2Title       String? @default("List Your Land for Free")
   landownersOptionCard2Description String? @default("Sign up, add your field details and photos, set your pricing and availability, and start receiving bookings. Everything is managed from your easy-to-use host dashboard.")
 
+  // Why Choose Fieldsy Section Settings (Features on homepage)
+  whyChooseFieldsyFeatures Json? // Array of features: [{title, description}]
+
   // Bypass Authentication Settings
   bypassUsername             String? @default("admin") // Username to bypass coming soon page
   bypassPassword             String? @default("fieldsy123") // Password to bypass coming soon page

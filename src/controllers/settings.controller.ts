@@ -99,6 +99,7 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
       landownersOptionCard1Description,
       landownersOptionCard2Title,
       landownersOptionCard2Description,
+      whyChooseFieldsyFeatures,
 
     } = req.body;
 
@@ -208,6 +209,7 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
           ...(landownersOptionCard1Description !== undefined && { landownersOptionCard1Description }),
           ...(landownersOptionCard2Title !== undefined && { landownersOptionCard2Title }),
           ...(landownersOptionCard2Description !== undefined && { landownersOptionCard2Description }),
+          ...(whyChooseFieldsyFeatures !== undefined && { whyChooseFieldsyFeatures }),
 
         }
       });
@@ -372,6 +374,7 @@ export const getPublicSettings = async (req: Request, res: Response) => {
         landownersOptionCard1Description: true,
         landownersOptionCard2Title: true,
         landownersOptionCard2Description: true,
+        whyChooseFieldsyFeatures: true,
 
       }
     });
