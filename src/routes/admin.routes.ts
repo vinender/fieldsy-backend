@@ -707,7 +707,6 @@ router.get('/fields', authenticateAdmin, async (req, res) => {
           price30min: true,
           price1hr: true,
           pricePerDay: true,
-          pricePerHour: true,
           size: true,
           type: true,
           amenities: true,
