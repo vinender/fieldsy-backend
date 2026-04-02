@@ -675,7 +675,6 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
                     type: true,
                     amenities: true,
                     images: true,
-                    availability: true,
                     isActive: true,
                     isBlocked: true,
                     isApproved: true,
