@@ -1371,6 +1371,8 @@ class FieldController {
                         // Extract lat/lng from location object if available
                         latitude: data.location?.lat || null,
                         longitude: data.location?.lng || null,
+                        // Entry code (optional, 4-10 alphanumeric uppercase)
+                        ...(data.entryCode ? { entryCode: data.entryCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) } : {}),
                         fieldDetailsCompleted: true
                     };
                 }
@@ -1436,6 +1438,8 @@ class FieldController {
                     // Extract lat/lng from location object if available
                     latitude: data.location?.lat || null,
                     longitude: data.location?.lng || null,
+                    // Entry code (optional, 4-10 alphanumeric uppercase)
+                    ...(data.entryCode ? { entryCode: data.entryCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) } : {}),
                     fieldDetailsCompleted: true
                 };
                 break;
