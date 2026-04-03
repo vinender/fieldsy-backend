@@ -35,6 +35,30 @@ class DiscountController {
         if (parsedEndDate < parsedStartDate) {
             throw new AppError_1.AppError('End date must be after start date', 400);
         }
+        // Build full start/end timestamps for overlap check
+        const newStart = new Date(`${startDate}T${startTime}`);
+        const newEnd = new Date(`${endDate}T${endTime}`);
+        if (newEnd <= newStart) {
+            throw new AppError_1.AppError('End date/time must be after start date/time', 400);
+        }
+        if (newStart < new Date()) {
+            throw new AppError_1.AppError('Start date/time cannot be in the past', 400);
+        }
+        // Check for overlapping enabled discounts on the same field
+        const existingDiscounts = await database_1.default.discount.findMany({
+            where: {
+                fieldId,
+                enabled: true,
+            },
+        });
+        for (const existing of existingDiscounts) {
+            const exStart = new Date(`${existing.startDate.toISOString().split('T')[0]}T${existing.startTime}`);
+            const exEnd = new Date(`${existing.endDate.toISOString().split('T')[0]}T${existing.endTime}`);
+            // Two ranges overlap if one starts before the other ends AND vice versa
+            if (newStart < exEnd && newEnd > exStart) {
+                throw new AppError_1.AppError(`This discount overlaps with an existing ${existing.value}% discount (${existing.startDate.toISOString().split('T')[0]} ${existing.startTime} - ${existing.endDate.toISOString().split('T')[0]} ${existing.endTime}). Please choose a different date/time range.`, 409);
+            }
+        }
         const discount = await database_1.default.discount.create({
             data: {
                 fieldId,
