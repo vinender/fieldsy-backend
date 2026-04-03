@@ -1372,7 +1372,7 @@ class FieldController {
                         latitude: data.location?.lat || null,
                         longitude: data.location?.lng || null,
                         // Entry code (optional, 4-10 alphanumeric uppercase)
-                        ...(data.entryCode ? { entryCode: data.entryCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) } : {}),
+                        ...(data.entryCode ? { entryCode: data.entryCode.replace(/[^0-9]/g, '').slice(0, 10) } : {}),
                         fieldDetailsCompleted: true
                     };
                 }
