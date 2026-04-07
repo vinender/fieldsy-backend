@@ -10,12 +10,23 @@ class DiscountController {
     const userId = (req as any).user.id;
     const { fieldId, value, startDate, startTime, endDate, endTime } = req.body;
 
-    if (!fieldId || !value || !startDate || !startTime || !endDate || !endTime) {
-      throw new AppError('fieldId, value, startDate, startTime, endDate, and endTime are required', 400);
+    // Required fields (note: 'value' is checked separately below since 0 is falsy)
+    if (!fieldId || !startDate || !startTime || !endDate || !endTime) {
+      throw new AppError('fieldId, startDate, startTime, endDate, and endTime are required', 400);
     }
 
-    if (value < 1 || value > 100) {
-      throw new AppError('Discount value must be between 1 and 100', 400);
+    // Validate discount value: must be a positive integer between 1 and 100
+    const numericValue = Number(value);
+    if (
+      value === undefined ||
+      value === null ||
+      value === '' ||
+      !Number.isFinite(numericValue) ||
+      !Number.isInteger(numericValue) ||
+      numericValue <= 0 ||
+      numericValue > 100
+    ) {
+      throw new AppError('Discount value must be a whole number between 1 and 100. Zero is not allowed.', 400);
     }
 
     // Verify field exists and user is the owner
@@ -54,6 +65,30 @@ class DiscountController {
       throw new AppError('Start date/time cannot be in the past', 400);
     }
 
+    // Discount time window must fall within the field's operating hours
+    if (field.openingTime && field.closingTime) {
+      const toMinutes = (t: string) => {
+        const parts = t.split(':');
+        const h = parseInt(parts[0], 10);
+        const m = parseInt(parts[1] || '0', 10);
+        return h * 60 + (isNaN(m) ? 0 : m);
+      };
+      const fStart = toMinutes(field.openingTime);
+      const fEnd = toMinutes(field.closingTime);
+      const dStart = toMinutes(startTime);
+      const dEnd = toMinutes(endTime);
+
+      if (isNaN(dStart) || isNaN(dEnd)) {
+        throw new AppError('Invalid time format', 400);
+      }
+      if (dStart < fStart || dEnd > fEnd) {
+        throw new AppError(
+          `Discount time must fall within the field's operating hours (${field.openingTime} - ${field.closingTime}).`,
+          400
+        );
+      }
+    }
+
     // Check for overlapping enabled discounts on the same field
     const existingDiscounts = await prisma.discount.findMany({
       where: {
@@ -78,7 +113,7 @@ class DiscountController {
     const discount = await prisma.discount.create({
       data: {
         fieldId,
-        value,
+        value: numericValue,
         startDate: parsedStartDate,
         startTime,
         endDate: parsedEndDate,
