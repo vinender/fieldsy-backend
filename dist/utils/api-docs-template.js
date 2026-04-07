@@ -1,8 +1,15 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateApiDocsHTML = void 0;
 //@ts-nocheck
-const generateApiDocsHTML = (docs) => {
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "generateApiDocsHTML", {
+    enumerable: true,
+    get: function() {
+        return generateApiDocsHTML;
+    }
+});
+const generateApiDocsHTML = (docs)=>{
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -304,7 +311,7 @@ const generateApiDocsHTML = (docs) => {
         
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showSection('overview')">Overview</button>
-            ${(docs.categories || docs.sections || []).map((section) => `<button class="nav-tab" onclick="showSection('${section.name.toLowerCase().replace(/\s+/g, '-')}')">${section.name}</button>`).join('')}
+            ${(docs.categories || docs.sections || []).map((section)=>`<button class="nav-tab" onclick="showSection('${section.name.toLowerCase().replace(/\s+/g, '-')}')">${section.name}</button>`).join('')}
         </div>
         
         <!-- Overview Section -->
@@ -321,10 +328,10 @@ const generateApiDocsHTML = (docs) => {
                 </div>
                 
                 <h3>Rate Limiting</h3>
-                <p>${docs.rateLimiting ? docs.rateLimiting.description : (docs.rateLimit ? docs.rateLimit.description : 'API rate limiting is enforced')}</p>
+                <p>${docs.rateLimiting ? docs.rateLimiting.description : docs.rateLimit ? docs.rateLimit.description : 'API rate limiting is enforced'}</p>
                 <ul style="margin-left: 20px; margin-top: 10px;">
-                    <li>Development: ${docs.rateLimiting ? docs.rateLimiting.limits.development : (docs.rateLimit ? docs.rateLimit.limits.development : '10000 requests per 15 minutes')}</li>
-                    <li>Production: ${docs.rateLimiting ? docs.rateLimiting.limits.production : (docs.rateLimit ? docs.rateLimit.limits.production : '100 requests per 15 minutes')}</li>
+                    <li>Development: ${docs.rateLimiting ? docs.rateLimiting.limits.development : docs.rateLimit ? docs.rateLimit.limits.development : '10000 requests per 15 minutes'}</li>
+                    <li>Production: ${docs.rateLimiting ? docs.rateLimiting.limits.production : docs.rateLimit ? docs.rateLimit.limits.production : '100 requests per 15 minutes'}</li>
                 </ul>
                 
                 <h3>Error Codes</h3>
@@ -336,7 +343,7 @@ const generateApiDocsHTML = (docs) => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${Object.entries(docs.errorCodes).map(([code, desc]) => `
+                        ${Object.entries(docs.errorCodes).map(([code, desc])=>`
                             <tr>
                                 <td><code>${code}</code></td>
                                 <td>${desc}</td>
@@ -355,7 +362,7 @@ const generateApiDocsHTML = (docs) => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${Object.entries(docs.websocket.events).map(([event, desc]) => `
+                        ${Object.entries(docs.websocket.events).map(([event, desc])=>`
                             <tr>
                                 <td><code>${event}</code></td>
                                 <td>${desc}</td>
@@ -367,14 +374,14 @@ const generateApiDocsHTML = (docs) => {
         </div>
         
         <!-- API Sections -->
-        ${(docs.categories || docs.sections || []).map((section) => `
+        ${(docs.categories || docs.sections || []).map((section)=>`
             <div id="${section.name.toLowerCase().replace(/\s+/g, '-')}" class="section">
                 <div class="endpoint-card">
                     <h2>${section.name}</h2>
                     <p style="margin-top: 10px; color: #718096;">${section.description}</p>
                 </div>
                 
-                ${(section.endpoints || []).map((endpoint) => `
+                ${(section.endpoints || []).map((endpoint)=>`
                     <div class="endpoint-card searchable-endpoint">
                         <div style="display: flex; align-items: center; margin-bottom: 10px;">
                             <span class="method ${endpoint.method}">${endpoint.method}</span>
@@ -498,4 +505,5 @@ const generateApiDocsHTML = (docs) => {
 </html>
   `;
 };
-exports.generateApiDocsHTML = generateApiDocsHTML;
+
+//# sourceMappingURL=api-docs-template.js.map

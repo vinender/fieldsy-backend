@@ -1,17 +1,37 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const database_1 = __importDefault(require("../config/database"));
-const date_fns_1 = require("date-fns");
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _datefns = require("date-fns");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 class BookingModel {
     // Helper to generate public booking ID
     async generateBookingId() {
-        const counter = await database_1.default.counter.upsert({
-            where: { name: 'booking' },
-            update: { value: { increment: 1 } },
-            create: { name: 'booking', value: 1111 },
+        const counter = await _database.default.counter.upsert({
+            where: {
+                name: 'booking'
+            },
+            update: {
+                value: {
+                    increment: 1
+                }
+            },
+            create: {
+                name: 'booking',
+                value: 1111
+            }
         });
         return counter.value.toString();
     }
@@ -19,24 +39,26 @@ class BookingModel {
     async create(data) {
         const { dogOwnerId, ...rest } = data;
         // Get field data for snapshot
-        const field = await database_1.default.field.findUnique({
-            where: { id: data.fieldId },
+        const field = await _database.default.field.findUnique({
+            where: {
+                id: data.fieldId
+            },
             include: {
                 owner: {
                     select: {
                         id: true,
                         name: true,
-                        email: true,
-                    },
-                },
-            },
+                        email: true
+                    }
+                }
+            }
         });
         if (!field) {
             throw new Error('Field not found');
         }
         // Generate human-friendly booking ID
         const bookingId = await this.generateBookingId();
-        return database_1.default.booking.create({
+        return _database.default.booking.create({
             data: {
                 ...rest,
                 userId: dogOwnerId,
@@ -50,27 +72,31 @@ class BookingModel {
                             select: {
                                 id: true,
                                 name: true,
-                                email: true,
-                            },
-                        },
-                    },
+                                email: true
+                            }
+                        }
+                    }
                 },
                 user: {
                     select: {
                         id: true,
                         name: true,
                         email: true,
-                        phone: true,
-                    },
-                },
-            },
+                        phone: true
+                    }
+                }
+            }
         });
     }
     // Find booking by ID
     async findById(id) {
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-        const where = isObjectId ? { id } : { bookingId: id };
-        return database_1.default.booking.findFirst({
+        const where = isObjectId ? {
+            id
+        } : {
+            bookingId: id
+        };
+        return _database.default.booking.findFirst({
             where,
             include: {
                 field: {
@@ -79,20 +105,20 @@ class BookingModel {
                             select: {
                                 id: true,
                                 name: true,
-                                email: true,
-                            },
-                        },
-                    },
+                                email: true
+                            }
+                        }
+                    }
                 },
                 user: {
                     select: {
                         id: true,
                         name: true,
                         email: true,
-                        phone: true,
-                    },
-                },
-            },
+                        phone: true
+                    }
+                }
+            }
         });
     }
     // Find all bookings with filters
@@ -114,21 +140,21 @@ class BookingModel {
             endOfDay.setHours(23, 59, 59, 999);
             where.date = {
                 gte: startOfDay,
-                lte: endOfDay,
+                lte: endOfDay
             };
         }
         if (filters.startDate && filters.endDate) {
             where.date = {
                 gte: filters.startDate,
-                lte: filters.endDate,
+                lte: filters.endDate
             };
         }
-        return database_1.default.booking.findMany({
+        return _database.default.booking.findMany({
             where,
             skip: filters.skip,
             take: filters.take,
             orderBy: {
-                date: 'desc',
+                date: 'desc'
             },
             include: {
                 field: {
@@ -137,40 +163,44 @@ class BookingModel {
                             select: {
                                 id: true,
                                 name: true,
-                                email: true,
-                            },
-                        },
-                    },
+                                email: true
+                            }
+                        }
+                    }
                 },
                 user: {
                     select: {
                         id: true,
                         name: true,
                         email: true,
-                        phone: true,
-                    },
-                },
-            },
+                        phone: true
+                    }
+                }
+            }
         });
     }
     // Find bookings by dog owner
     async findByDogOwner(dogOwnerId) {
-        return this.findAll({ dogOwnerId });
+        return this.findAll({
+            dogOwnerId
+        });
     }
     // Find bookings by field
     async findByField(fieldId) {
-        return this.findAll({ fieldId });
+        return this.findAll({
+            fieldId
+        });
     }
     // Find bookings by field owner
     async findByFieldOwner(ownerId) {
-        return database_1.default.booking.findMany({
+        return _database.default.booking.findMany({
             where: {
                 field: {
-                    ownerId,
-                },
+                    ownerId
+                }
             },
             orderBy: {
-                date: 'desc',
+                date: 'desc'
             },
             include: {
                 field: true,
@@ -179,10 +209,10 @@ class BookingModel {
                         id: true,
                         name: true,
                         email: true,
-                        phone: true,
-                    },
-                },
-            },
+                        phone: true
+                    }
+                }
+            }
         });
     }
     // Update booking status
@@ -191,22 +221,30 @@ class BookingModel {
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
         let bookingInternalId = id;
         if (!isObjectId) {
-            const booking = await database_1.default.booking.findFirst({
-                where: { bookingId: id },
-                select: { id: true },
+            const booking = await _database.default.booking.findFirst({
+                where: {
+                    bookingId: id
+                },
+                select: {
+                    id: true
+                }
             });
             if (!booking) {
                 throw new Error('Booking not found');
             }
             bookingInternalId = booking.id;
         }
-        return database_1.default.booking.update({
-            where: { id: bookingInternalId },
-            data: { status },
+        return _database.default.booking.update({
+            where: {
+                id: bookingInternalId
+            },
+            data: {
+                status
+            },
             include: {
                 field: true,
-                user: true,
-            },
+                user: true
+            }
         });
     }
     // Update booking
@@ -214,31 +252,38 @@ class BookingModel {
         // Support both ObjectId and human-readable bookingId
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
         if (isObjectId) {
-            return database_1.default.booking.update({
-                where: { id },
+            return _database.default.booking.update({
+                where: {
+                    id
+                },
                 data,
                 include: {
                     field: true,
-                    user: true,
-                },
+                    user: true
+                }
             });
-        }
-        else {
+        } else {
             // Find by bookingId first, then update by id
-            const booking = await database_1.default.booking.findFirst({
-                where: { bookingId: id },
-                select: { id: true },
+            const booking = await _database.default.booking.findFirst({
+                where: {
+                    bookingId: id
+                },
+                select: {
+                    id: true
+                }
             });
             if (!booking) {
                 throw new Error('Booking not found');
             }
-            return database_1.default.booking.update({
-                where: { id: booking.id },
+            return _database.default.booking.update({
+                where: {
+                    id: booking.id
+                },
                 data,
                 include: {
                     field: true,
-                    user: true,
-                },
+                    user: true
+                }
             });
         }
     }
@@ -248,21 +293,27 @@ class BookingModel {
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
         let bookingInternalId = id;
         if (!isObjectId) {
-            const booking = await database_1.default.booking.findFirst({
-                where: { bookingId: id },
-                select: { id: true },
+            const booking = await _database.default.booking.findFirst({
+                where: {
+                    bookingId: id
+                },
+                select: {
+                    id: true
+                }
             });
             if (!booking) {
                 throw new Error('Booking not found');
             }
             bookingInternalId = booking.id;
         }
-        return database_1.default.booking.update({
-            where: { id: bookingInternalId },
+        return _database.default.booking.update({
+            where: {
+                id: bookingInternalId
+            },
             data: {
                 status: 'CANCELLED',
                 cancellationReason: reason,
-                cancelledAt: new Date(),
+                cancelledAt: new Date()
             },
             include: {
                 field: {
@@ -271,20 +322,20 @@ class BookingModel {
                             select: {
                                 id: true,
                                 name: true,
-                                email: true,
-                            },
-                        },
-                    },
+                                email: true
+                            }
+                        }
+                    }
                 },
                 user: {
                     select: {
                         id: true,
                         name: true,
                         email: true,
-                        phone: true,
-                    },
-                },
-            },
+                        phone: true
+                    }
+                }
+            }
         });
     }
     // Complete booking
@@ -297,17 +348,23 @@ class BookingModel {
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
         let bookingInternalId = id;
         if (!isObjectId) {
-            const booking = await database_1.default.booking.findFirst({
-                where: { bookingId: id },
-                select: { id: true },
+            const booking = await _database.default.booking.findFirst({
+                where: {
+                    bookingId: id
+                },
+                select: {
+                    id: true
+                }
             });
             if (!booking) {
                 throw new Error('Booking not found');
             }
             bookingInternalId = booking.id;
         }
-        await database_1.default.booking.delete({
-            where: { id: bookingInternalId },
+        await _database.default.booking.delete({
+            where: {
+                id: bookingInternalId
+            }
         });
     }
     // Check availability for a field on a specific date and time
@@ -316,36 +373,36 @@ class BookingModel {
             fieldId,
             date,
             status: {
-                notIn: ['CANCELLED', 'COMPLETED'],
-            },
+                notIn: [
+                    'CANCELLED',
+                    'COMPLETED'
+                ]
+            }
         };
         if (excludeBookingId) {
             // Support both ObjectId and human-readable bookingId
             const isObjectId = excludeBookingId.length === 24 && /^[0-9a-fA-F]+$/.test(excludeBookingId);
             if (isObjectId) {
                 where.id = {
-                    not: excludeBookingId,
+                    not: excludeBookingId
                 };
-            }
-            else {
+            } else {
                 where.bookingId = {
-                    not: excludeBookingId,
+                    not: excludeBookingId
                 };
             }
         }
-        const conflictingBookings = await database_1.default.booking.findMany({
-            where,
+        const conflictingBookings = await _database.default.booking.findMany({
+            where
         });
         // Check for time conflicts
-        for (const booking of conflictingBookings) {
+        for (const booking of conflictingBookings){
             const bookingStart = this.timeToMinutes(booking.startTime);
             const bookingEnd = this.timeToMinutes(booking.endTime);
             const requestedStart = this.timeToMinutes(startTime);
             const requestedEnd = this.timeToMinutes(endTime);
             // Check if times overlap
-            if ((requestedStart >= bookingStart && requestedStart < bookingEnd) ||
-                (requestedEnd > bookingStart && requestedEnd <= bookingEnd) ||
-                (requestedStart <= bookingStart && requestedEnd >= bookingEnd)) {
+            if (requestedStart >= bookingStart && requestedStart < bookingEnd || requestedEnd > bookingStart && requestedEnd <= bookingEnd || requestedStart <= bookingStart && requestedEnd >= bookingEnd) {
                 return false; // Time conflict found
             }
         }
@@ -360,10 +417,8 @@ class BookingModel {
                 let hours = parseInt(match[1]);
                 const minutes = parseInt(match[2]);
                 const period = match[3].toUpperCase();
-                if (period === 'PM' && hours !== 12)
-                    hours += 12;
-                if (period === 'AM' && hours === 12)
-                    hours = 0;
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
                 return hours * 60 + minutes;
             }
         }
@@ -371,17 +426,20 @@ class BookingModel {
         return hours * 60 + (minutes || 0);
     }
     /**
-     * Check if a date falls on a recurring subscription's scheduled day
-     * Returns the subscription if there's a conflict, null otherwise
-     */
-    async checkRecurringSlotConflict(fieldId, date, startTime, endTime, excludeSubscriptionId) {
+   * Check if a date falls on a recurring subscription's scheduled day
+   * Returns the subscription if there's a conflict, null otherwise
+   */ async checkRecurringSlotConflict(fieldId, date, startTime, endTime, excludeSubscriptionId) {
         // Get all active subscriptions for this field
-        const activeSubscriptions = await database_1.default.subscription.findMany({
+        const activeSubscriptions = await _database.default.subscription.findMany({
             where: {
                 fieldId,
                 status: 'active',
                 cancelAtPeriodEnd: false,
-                ...(excludeSubscriptionId ? { id: { not: excludeSubscriptionId } } : {})
+                ...excludeSubscriptionId ? {
+                    id: {
+                        not: excludeSubscriptionId
+                    }
+                } : {}
             },
             include: {
                 user: {
@@ -394,26 +452,34 @@ class BookingModel {
             }
         });
         if (activeSubscriptions.length === 0) {
-            return { hasConflict: false };
+            return {
+                hasConflict: false
+            };
         }
         const requestedDate = new Date(date);
         requestedDate.setHours(0, 0, 0, 0);
         const requestedDayOfWeek = requestedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
         const requestedDayOfMonth = requestedDate.getDate();
         // Day name mapping
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayNames = [
+            'Sunday',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday'
+        ];
         const requestedDayName = dayNames[requestedDayOfWeek];
-        for (const subscription of activeSubscriptions) {
+        for (const subscription of activeSubscriptions){
             let isDateMatch = false;
             if (subscription.interval === 'everyday') {
                 // Everyday subscription - every day matches
                 isDateMatch = true;
-            }
-            else if (subscription.interval === 'weekly') {
+            } else if (subscription.interval === 'weekly') {
                 // Weekly subscription - check if day of week matches
                 isDateMatch = subscription.dayOfWeek === requestedDayName;
-            }
-            else if (subscription.interval === 'monthly') {
+            } else if (subscription.interval === 'monthly') {
                 // Monthly subscription - check if day of month matches
                 isDateMatch = subscription.dayOfMonth === requestedDayOfMonth;
             }
@@ -424,9 +490,7 @@ class BookingModel {
                 const reqStart = this.timeToMinutes(startTime);
                 const reqEnd = this.timeToMinutes(endTime);
                 // Check if times overlap
-                const hasTimeOverlap = (reqStart >= subStart && reqStart < subEnd) ||
-                    (reqEnd > subStart && reqEnd <= subEnd) ||
-                    (reqStart <= subStart && reqEnd >= subEnd);
+                const hasTimeOverlap = reqStart >= subStart && reqStart < subEnd || reqEnd > subStart && reqEnd <= subEnd || reqStart <= subStart && reqEnd >= subEnd;
                 if (hasTimeOverlap) {
                     return {
                         hasConflict: true,
@@ -436,14 +500,15 @@ class BookingModel {
                 }
             }
         }
-        return { hasConflict: false };
+        return {
+            hasConflict: false
+        };
     }
     /**
-     * Get all future dates reserved by recurring subscriptions for a field
-     * Used to show reserved slots in the calendar UI
-     */
-    async getRecurringReservedDates(fieldId, startDate, endDate) {
-        const activeSubscriptions = await database_1.default.subscription.findMany({
+   * Get all future dates reserved by recurring subscriptions for a field
+   * Used to show reserved slots in the calendar UI
+   */ async getRecurringReservedDates(fieldId, startDate, endDate) {
+        const activeSubscriptions = await _database.default.subscription.findMany({
             where: {
                 fieldId,
                 status: 'active',
@@ -451,29 +516,39 @@ class BookingModel {
             }
         });
         const reservedDates = [];
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        for (const subscription of activeSubscriptions) {
+        const dayNames = [
+            'Sunday',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday'
+        ];
+        for (const subscription of activeSubscriptions){
             let currentDate = new Date(startDate);
             currentDate.setHours(0, 0, 0, 0);
-            while (currentDate <= endDate) {
+            while(currentDate <= endDate){
                 let shouldAdd = false;
                 if (subscription.interval === 'everyday') {
                     shouldAdd = true;
-                }
-                else if (subscription.interval === 'weekly') {
+                } else if (subscription.interval === 'weekly') {
                     const currentDayName = dayNames[currentDate.getDay()];
                     shouldAdd = subscription.dayOfWeek === currentDayName;
-                }
-                else if (subscription.interval === 'monthly') {
+                } else if (subscription.interval === 'monthly') {
                     shouldAdd = subscription.dayOfMonth === currentDate.getDate();
                 }
                 if (shouldAdd) {
                     // Check if there's already a booking for this subscription on this date
-                    const existingBooking = await database_1.default.booking.findFirst({
+                    const existingBooking = await _database.default.booking.findFirst({
                         where: {
                             subscriptionId: subscription.id,
                             date: currentDate,
-                            status: { notIn: ['CANCELLED'] }
+                            status: {
+                                notIn: [
+                                    'CANCELLED'
+                                ]
+                            }
                         }
                     });
                     // Only add to reserved if no booking exists yet (booking will show in regular availability)
@@ -486,27 +561,34 @@ class BookingModel {
                         });
                     }
                 }
-                currentDate = (0, date_fns_1.addDays)(currentDate, 1);
+                currentDate = (0, _datefns.addDays)(currentDate, 1);
             }
         }
         return reservedDates;
     }
     /**
-     * Check if creating a recurring subscription would conflict with existing bookings
-     * This checks all future dates that the recurring subscription would occupy
-     */
-    async checkRecurringSubscriptionConflicts(fieldId, startDate, startTime, endTime, interval, maxDaysToCheck = 60 // Check up to 60 days ahead by default
+   * Check if creating a recurring subscription would conflict with existing bookings
+   * This checks all future dates that the recurring subscription would occupy
+   */ async checkRecurringSubscriptionConflicts(fieldId, startDate, startTime, endTime, interval, maxDaysToCheck = 60 // Check up to 60 days ahead by default
     ) {
         const conflictingDates = [];
         // Get the day of week and day of month from start date
         const dayOfWeek = startDate.getDay(); // 0-6
         const dayOfMonth = startDate.getDate(); // 1-31
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayNames = [
+            'Sunday',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday'
+        ];
         // Calculate end date for checking
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + maxDaysToCheck);
         // Get all existing non-cancelled bookings for this field in the date range
-        const existingBookings = await database_1.default.booking.findMany({
+        const existingBookings = await _database.default.booking.findMany({
             where: {
                 fieldId,
                 date: {
@@ -514,7 +596,9 @@ class BookingModel {
                     lte: endDate
                 },
                 status: {
-                    notIn: ['CANCELLED']
+                    notIn: [
+                        'CANCELLED'
+                    ]
                 }
             },
             include: {
@@ -530,19 +614,17 @@ class BookingModel {
         const reqStart = this.timeToMinutes(startTime);
         const reqEnd = this.timeToMinutes(endTime);
         // Check each existing booking to see if it would conflict
-        for (const booking of existingBookings) {
+        for (const booking of existingBookings){
             const bookingDate = new Date(booking.date);
             bookingDate.setHours(0, 0, 0, 0);
             let wouldConflict = false;
             if (interval === 'everyday') {
                 // Every day conflicts
                 wouldConflict = true;
-            }
-            else if (interval === 'weekly') {
+            } else if (interval === 'weekly') {
                 // Check if booking is on the same day of week
                 wouldConflict = bookingDate.getDay() === dayOfWeek;
-            }
-            else if (interval === 'monthly') {
+            } else if (interval === 'monthly') {
                 // Check if booking is on the same day of month
                 wouldConflict = bookingDate.getDate() === dayOfMonth;
             }
@@ -550,9 +632,7 @@ class BookingModel {
                 // Check time overlap
                 const bookingStart = this.timeToMinutes(booking.startTime);
                 const bookingEnd = this.timeToMinutes(booking.endTime);
-                const hasTimeOverlap = (reqStart >= bookingStart && reqStart < bookingEnd) ||
-                    (reqEnd > bookingStart && reqEnd <= bookingEnd) ||
-                    (reqStart <= bookingStart && reqEnd >= bookingEnd);
+                const hasTimeOverlap = reqStart >= bookingStart && reqStart < bookingEnd || reqEnd > bookingStart && reqEnd <= bookingEnd || reqStart <= bookingStart && reqEnd >= bookingEnd;
                 if (hasTimeOverlap) {
                     conflictingDates.push({
                         date: bookingDate,
@@ -567,9 +647,8 @@ class BookingModel {
         };
     }
     /**
-     * Enhanced availability check that includes both existing bookings AND recurring reservations
-     */
-    async checkFullAvailability(fieldId, date, startTime, endTime, excludeBookingId, excludeSubscriptionId) {
+   * Enhanced availability check that includes both existing bookings AND recurring reservations
+   */ async checkFullAvailability(fieldId, date, startTime, endTime, excludeBookingId, excludeSubscriptionId) {
         // First check existing bookings
         const bookingAvailable = await this.checkAvailability(fieldId, date, startTime, endTime, excludeBookingId);
         if (!bookingAvailable) {
@@ -588,25 +667,38 @@ class BookingModel {
                 conflictType: 'recurring'
             };
         }
-        return { available: true };
+        return {
+            available: true
+        };
     }
     // Get booking statistics for a field owner (using aggregation queries)
     async getFieldOwnerStats(ownerId) {
-        const ownerWhere = { field: { ownerId } };
+        const ownerWhere = {
+            field: {
+                ownerId
+            }
+        };
         const [statusCounts, revenueResult] = await Promise.all([
-            database_1.default.booking.groupBy({
-                by: ['status'],
+            _database.default.booking.groupBy({
+                by: [
+                    'status'
+                ],
                 where: ownerWhere,
-                _count: true,
+                _count: true
             }),
-            database_1.default.booking.aggregate({
-                where: { ...ownerWhere, status: 'COMPLETED' },
-                _sum: { totalPrice: true },
-            }),
+            _database.default.booking.aggregate({
+                where: {
+                    ...ownerWhere,
+                    status: 'COMPLETED'
+                },
+                _sum: {
+                    totalPrice: true
+                }
+            })
         ]);
         const countByStatus = {};
         let total = 0;
-        for (const entry of statusCounts) {
+        for (const entry of statusCounts){
             countByStatus[entry.status] = entry._count;
             total += entry._count;
         }
@@ -616,33 +708,44 @@ class BookingModel {
             confirmed: countByStatus['CONFIRMED'] || 0,
             completed: countByStatus['COMPLETED'] || 0,
             cancelled: countByStatus['CANCELLED'] || 0,
-            totalRevenue: revenueResult._sum.totalPrice || 0,
+            totalRevenue: revenueResult._sum.totalPrice || 0
         };
     }
     // Get booking statistics for a dog owner (using aggregation queries)
     async getDogOwnerStats(dogOwnerId) {
-        const ownerWhere = { userId: dogOwnerId };
+        const ownerWhere = {
+            userId: dogOwnerId
+        };
         const [statusCounts, upcomingCount, spentResult] = await Promise.all([
-            database_1.default.booking.groupBy({
-                by: ['status'],
+            _database.default.booking.groupBy({
+                by: [
+                    'status'
+                ],
                 where: ownerWhere,
-                _count: true,
+                _count: true
             }),
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
                     ...ownerWhere,
                     status: 'CONFIRMED',
-                    date: { gte: new Date() },
+                    date: {
+                        gte: new Date()
+                    }
+                }
+            }),
+            _database.default.booking.aggregate({
+                where: {
+                    ...ownerWhere,
+                    status: 'COMPLETED'
                 },
-            }),
-            database_1.default.booking.aggregate({
-                where: { ...ownerWhere, status: 'COMPLETED' },
-                _sum: { totalPrice: true },
-            }),
+                _sum: {
+                    totalPrice: true
+                }
+            })
         ]);
         const countByStatus = {};
         let total = 0;
-        for (const entry of statusCounts) {
+        for (const entry of statusCounts){
             countByStatus[entry.status] = entry._count;
             total += entry._count;
         }
@@ -651,13 +754,12 @@ class BookingModel {
             upcoming: upcomingCount,
             completed: countByStatus['COMPLETED'] || 0,
             cancelled: countByStatus['CANCELLED'] || 0,
-            totalSpent: spentResult._sum.totalPrice || 0,
+            totalSpent: spentResult._sum.totalPrice || 0
         };
     }
     // Sanitize booking object for API responses
     sanitize(booking) {
-        if (!booking)
-            return null;
+        if (!booking) return null;
         const { id, userId, fieldId, bookingId, ...rest } = booking;
         // Handle nested field and user if they exist
         if (rest.field) {
@@ -688,4 +790,6 @@ class BookingModel {
         };
     }
 }
-exports.default = new BookingModel();
+const _default = new BookingModel();
+
+//# sourceMappingURL=booking.model.js.map

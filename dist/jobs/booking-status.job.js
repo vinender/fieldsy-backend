@@ -1,22 +1,27 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.initBookingStatusJob = void 0;
-const node_cron_1 = __importDefault(require("node-cron"));
-const database_1 = __importDefault(require("../config/database"));
-const ukTime_1 = require("../utils/ukTime");
-/**
- * Job to automatically mark past CONFIRMED bookings as COMPLETED
- * Runs every 15 minutes
- */
-const initBookingStatusJob = () => {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "initBookingStatusJob", {
+    enumerable: true,
+    get: function() {
+        return initBookingStatusJob;
+    }
+});
+const _nodecron = /*#__PURE__*/ _interop_require_default(require("node-cron"));
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _ukTime = require("../utils/ukTime");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const initBookingStatusJob = ()=>{
     // Schedule task to run every 15 minutes
-    node_cron_1.default.schedule('*/15 * * * *', async () => {
+    _nodecron.default.schedule('*/15 * * * *', async ()=>{
         console.log('Running booking status update job...');
         try {
-            const now = (0, ukTime_1.getNowUK)();
+            const now = (0, _ukTime.getNowUK)();
             // Find all CONFIRMED bookings that have ended
             // We need to check both the date and the end time
             // Since end time is a string (e.g., "14:00"), we'll fetch potential candidates first
@@ -24,7 +29,7 @@ const initBookingStatusJob = () => {
             // For simplicity and safety, we'll fetch confirmed bookings from the past few days up to today.
             // 1. Find bookings with date < today (strictly past dates)
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const pastDateBookings = await database_1.default.booking.updateMany({
+            const pastDateBookings = await _database.default.booking.updateMany({
                 where: {
                     status: 'CONFIRMED',
                     date: {
@@ -41,7 +46,7 @@ const initBookingStatusJob = () => {
             // 2. Find bookings for TODAY that have ended
             // This requires checking the endTime string
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const todayBookings = await database_1.default.booking.findMany({
+            const todayBookings = await _database.default.booking.findMany({
                 where: {
                     status: 'CONFIRMED',
                     date: {
@@ -55,9 +60,8 @@ const initBookingStatusJob = () => {
             });
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
-            const bookingsToComplete = todayBookings.filter(booking => {
-                if (!booking.endTime)
-                    return false;
+            const bookingsToComplete = todayBookings.filter((booking)=>{
+                if (!booking.endTime) return false;
                 // Parse time format (handles both "14:30" and "2:30PM" formats)
                 let endHour = 0;
                 let endMinute = 0;
@@ -70,22 +74,21 @@ const initBookingStatusJob = () => {
                     // Convert to 24-hour format if AM/PM is present
                     if (period === 'PM' && endHour !== 12) {
                         endHour += 12;
-                    }
-                    else if (period === 'AM' && endHour === 12) {
+                    } else if (period === 'AM' && endHour === 12) {
                         endHour = 0;
                     }
                 }
                 // Check if booking end time has passed
-                if (currentHour > endHour || (currentHour === endHour && currentMinute >= endMinute)) {
+                if (currentHour > endHour || currentHour === endHour && currentMinute >= endMinute) {
                     return true;
                 }
                 return false;
             });
             if (bookingsToComplete.length > 0) {
-                await database_1.default.booking.updateMany({
+                await _database.default.booking.updateMany({
                     where: {
                         id: {
-                            in: bookingsToComplete.map(b => b.id)
+                            in: bookingsToComplete.map((b)=>b.id)
                         }
                     },
                     data: {
@@ -94,11 +97,11 @@ const initBookingStatusJob = () => {
                 });
                 console.log(`Updated ${bookingsToComplete.length} today's bookings to COMPLETED`);
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error in booking status job:', error);
         }
     });
     console.log('✅ Booking status job initialized');
 };
-exports.initBookingStatusJob = initBookingStatusJob;
+
+//# sourceMappingURL=booking-status.job.js.map

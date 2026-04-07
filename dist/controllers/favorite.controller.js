@@ -1,28 +1,43 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const database_1 = __importDefault(require("../config/database"));
-const asyncHandler_1 = require("../utils/asyncHandler");
-const AppError_1 = require("../utils/AppError");
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _asyncHandler = require("../utils/asyncHandler");
+const _AppError = require("../utils/AppError");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 class FavoriteController {
     // Toggle favorite (save/unsave field)
-    toggleFavorite = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    toggleFavorite = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { fieldId: providedFieldId } = req.params;
         const userId = req.user.id;
         // Support both internal ID and human-readable fieldId
         const isObjectId = providedFieldId.length === 24 && /^[0-9a-fA-F]+$/.test(providedFieldId);
-        const where = isObjectId ? { id: providedFieldId } : { fieldId: providedFieldId };
+        const where = isObjectId ? {
+            id: providedFieldId
+        } : {
+            fieldId: providedFieldId
+        };
         // Check if field exists
-        const field = await database_1.default.field.findUnique({
+        const field = await _database.default.field.findUnique({
             where
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         // Check if already favorited
-        const existingFavorite = await database_1.default.favorite.findUnique({
+        const existingFavorite = await _database.default.favorite.findUnique({
             where: {
                 userId_fieldId: {
                     userId,
@@ -32,7 +47,7 @@ class FavoriteController {
         });
         if (existingFavorite) {
             // Remove from favorites
-            await database_1.default.favorite.delete({
+            await _database.default.favorite.delete({
                 where: {
                     id: existingFavorite.id
                 }
@@ -43,10 +58,9 @@ class FavoriteController {
                 isLiked: false,
                 isFavorited: false // Keep for backwards compatibility
             });
-        }
-        else {
+        } else {
             // Add to favorites
-            const favorite = await database_1.default.favorite.create({
+            const favorite = await _database.default.favorite.create({
                 data: {
                     userId,
                     fieldId: field.id
@@ -56,32 +70,32 @@ class FavoriteController {
                 success: true,
                 message: 'Field added to favorites',
                 isLiked: true,
-                isFavorited: true, // Keep for backwards compatibility
+                isFavorited: true,
                 data: favorite
             });
         }
     });
     // Get user's saved fields
-    getSavedFields = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getSavedFields = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         // First, clean up any orphaned favorites (where field no longer exists)
         // Get all favorites for the user
-        const allFavorites = await database_1.default.favorite.findMany({
-            where: { userId },
+        const allFavorites = await _database.default.favorite.findMany({
+            where: {
+                userId
+            },
             include: {
                 field: true
             }
         });
         // Find orphaned favorites (where field is null)
-        const orphanedFavoriteIds = allFavorites
-            .filter(fav => fav.field === null)
-            .map(fav => fav.id);
+        const orphanedFavoriteIds = allFavorites.filter((fav)=>fav.field === null).map((fav)=>fav.id);
         // Delete orphaned favorites if any exist
         if (orphanedFavoriteIds.length > 0) {
-            await database_1.default.favorite.deleteMany({
+            await _database.default.favorite.deleteMany({
                 where: {
                     id: {
                         in: orphanedFavoriteIds
@@ -90,7 +104,7 @@ class FavoriteController {
             });
         }
         // Now get the valid favorites with pagination (only active fields)
-        const favorites = await database_1.default.favorite.findMany({
+        const favorites = await _database.default.favorite.findMany({
             where: {
                 userId,
                 field: {
@@ -129,12 +143,10 @@ class FavoriteController {
             }
         });
         // Additional safety check to filter out any null or inactive fields
-        const validFavorites = favorites.filter(fav => fav.field !== null && fav.field.isActive);
+        const validFavorites = favorites.filter((fav)=>fav.field !== null && fav.field.isActive);
         // Calculate average rating for each field
-        const fieldsWithRating = validFavorites.map(fav => {
-            const avgRating = fav.field.fieldReviews.length > 0
-                ? fav.field.fieldReviews.reduce((sum, review) => sum + review.rating, 0) / fav.field.fieldReviews.length
-                : 0;
+        const fieldsWithRating = validFavorites.map((fav)=>{
+            const avgRating = fav.field.fieldReviews.length > 0 ? fav.field.fieldReviews.reduce((sum, review)=>sum + review.rating, 0) / fav.field.fieldReviews.length : 0;
             return {
                 ...fav.field,
                 averageRating: avgRating,
@@ -145,7 +157,7 @@ class FavoriteController {
             };
         });
         // Get total count only for valid favorites with active fields (after cleanup)
-        const total = await database_1.default.favorite.count({
+        const total = await _database.default.favorite.count({
             where: {
                 userId,
                 field: {
@@ -165,16 +177,20 @@ class FavoriteController {
         });
     });
     // Check if field is favorited by user
-    checkFavorite = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    checkFavorite = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { fieldId: providedFieldId } = req.params;
         const userId = req.user.id;
         // Support both internal ID and human-readable fieldId
         const isObjectId = providedFieldId.length === 24 && /^[0-9a-fA-F]+$/.test(providedFieldId);
         let fieldIdToCheck = providedFieldId;
         if (!isObjectId) {
-            const field = await database_1.default.field.findUnique({
-                where: { fieldId: providedFieldId },
-                select: { id: true }
+            const field = await _database.default.field.findUnique({
+                where: {
+                    fieldId: providedFieldId
+                },
+                select: {
+                    id: true
+                }
             });
             if (!field) {
                 return res.json({
@@ -185,7 +201,7 @@ class FavoriteController {
             }
             fieldIdToCheck = field.id;
         }
-        const favorite = await database_1.default.favorite.findUnique({
+        const favorite = await _database.default.favorite.findUnique({
             where: {
                 userId_fieldId: {
                     userId,
@@ -200,23 +216,27 @@ class FavoriteController {
         });
     });
     // Remove from favorites
-    removeFavorite = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    removeFavorite = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { fieldId: providedFieldId } = req.params;
         const userId = req.user.id;
         // Support both internal ID and human-readable fieldId
         const isObjectId = providedFieldId.length === 24 && /^[0-9a-fA-F]+$/.test(providedFieldId);
         let fieldIdToCheck = providedFieldId;
         if (!isObjectId) {
-            const field = await database_1.default.field.findUnique({
-                where: { fieldId: providedFieldId },
-                select: { id: true }
+            const field = await _database.default.field.findUnique({
+                where: {
+                    fieldId: providedFieldId
+                },
+                select: {
+                    id: true
+                }
             });
             if (!field) {
-                throw new AppError_1.AppError('Field not found', 404);
+                throw new _AppError.AppError('Field not found', 404);
             }
             fieldIdToCheck = field.id;
         }
-        const favorite = await database_1.default.favorite.findUnique({
+        const favorite = await _database.default.favorite.findUnique({
             where: {
                 userId_fieldId: {
                     userId,
@@ -225,9 +245,9 @@ class FavoriteController {
             }
         });
         if (!favorite) {
-            throw new AppError_1.AppError('Field not in favorites', 404);
+            throw new _AppError.AppError('Field not in favorites', 404);
         }
-        await database_1.default.favorite.delete({
+        await _database.default.favorite.delete({
             where: {
                 id: favorite.id
             }
@@ -238,4 +258,6 @@ class FavoriteController {
         });
     });
 }
-exports.default = new FavoriteController();
+const _default = new FavoriteController();
+
+//# sourceMappingURL=favorite.controller.js.map

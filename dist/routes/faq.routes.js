@@ -1,20 +1,30 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const faq_controller_1 = require("../controllers/faq.controller");
-const admin_middleware_1 = require("../middleware/admin.middleware");
-const cache_middleware_1 = require("../middleware/cache.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _faqcontroller = require("../controllers/faq.controller");
+const _adminmiddleware = require("../middleware/admin.middleware");
+const _cachemiddleware = require("../middleware/cache.middleware");
+const router = (0, _express.Router)();
 // Public routes (cached 5 min)
-router.get('/', (0, cache_middleware_1.cacheMiddleware)(300), faq_controller_1.getFAQs);
-router.get('/public', (0, cache_middleware_1.cacheMiddleware)(300), faq_controller_1.getFAQs);
+router.get('/', (0, _cachemiddleware.cacheMiddleware)(300), _faqcontroller.getFAQs);
+router.get('/public', (0, _cachemiddleware.cacheMiddleware)(300), _faqcontroller.getFAQs);
 // Admin routes (invalidate cache on write)
-router.get('/admin', admin_middleware_1.authenticateAdmin, faq_controller_1.getAllFAQs);
-router.get('/admin/:id', admin_middleware_1.authenticateAdmin, faq_controller_1.getFAQ);
-router.post('/admin', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/faqs'), faq_controller_1.createFAQ);
-router.put('/admin/:id', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/faqs'), faq_controller_1.updateFAQ);
-router.delete('/admin/:id', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/faqs'), faq_controller_1.deleteFAQ);
-router.post('/admin/bulk', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/faqs'), faq_controller_1.bulkUpsertFAQs);
-router.put('/admin/reorder', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/faqs'), faq_controller_1.reorderFAQs);
-exports.default = router;
+router.get('/admin', _adminmiddleware.authenticateAdmin, _faqcontroller.getAllFAQs);
+router.get('/admin/:id', _adminmiddleware.authenticateAdmin, _faqcontroller.getFAQ);
+router.post('/admin', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/faqs'), _faqcontroller.createFAQ);
+router.put('/admin/:id', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/faqs'), _faqcontroller.updateFAQ);
+router.delete('/admin/:id', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/faqs'), _faqcontroller.deleteFAQ);
+router.post('/admin/bulk', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/faqs'), _faqcontroller.bulkUpsertFAQs);
+router.put('/admin/reorder', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/faqs'), _faqcontroller.reorderFAQs);
+const _default = router;
+
+//# sourceMappingURL=faq.routes.js.map

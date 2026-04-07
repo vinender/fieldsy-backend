@@ -1,22 +1,49 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.reorderAmenities = exports.deleteAmenity = exports.updateAmenity = exports.createAmenity = exports.getAmenityById = exports.getAmenities = void 0;
-const database_1 = __importDefault(require("../config/database"));
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get createAmenity () {
+        return createAmenity;
+    },
+    get deleteAmenity () {
+        return deleteAmenity;
+    },
+    get getAmenities () {
+        return getAmenities;
+    },
+    get getAmenityById () {
+        return getAmenityById;
+    },
+    get reorderAmenities () {
+        return reorderAmenities;
+    },
+    get updateAmenity () {
+        return updateAmenity;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 // Helper function to generate slug from name
-const generateSlug = (name) => {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-        .replace(/\s+/g, '-') // Replace spaces with hyphens
-        .replace(/-+/g, '-') // Replace multiple hyphens with single
-        .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+const generateSlug = (name)=>{
+    return name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
 };
 // Helper function to format amenity names to labels
-const formatAmenityLabel = (name) => {
+const formatAmenityLabel = (name)=>{
     const specialCases = {
         toilet: 'Toilet',
         dogAgility: 'Dog Agility',
@@ -28,41 +55,42 @@ const formatAmenityLabel = (name) => {
         seatingArea: 'Seating Area',
         wasteBins: 'Waste Bins',
         lighting: 'Lighting',
-        firstAid: 'First Aid',
+        firstAid: 'First Aid'
     };
     if (specialCases[name]) {
         return specialCases[name];
     }
     // Convert camelCase to Title Case
-    return name
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, (str) => str.toUpperCase())
-        .trim();
+    return name.replace(/([A-Z])/g, ' $1').replace(/^./, (str)=>str.toUpperCase()).trim();
 };
-// Get all amenities (with optional filter for active only)
-const getAmenities = async (req, res) => {
+const getAmenities = async (req, res)=>{
     try {
         const { activeOnly } = req.query;
-        const where = activeOnly === 'true' ? { isActive: true } : {};
-        const amenities = await database_1.default.amenity.findMany({
+        const where = activeOnly === 'true' ? {
+            isActive: true
+        } : {};
+        const amenities = await _database.default.amenity.findMany({
             where,
             orderBy: [
-                { order: 'asc' },
-                { name: 'asc' }
+                {
+                    order: 'asc'
+                },
+                {
+                    name: 'asc'
+                }
             ]
         });
         // Add formatted label to each amenity
-        const amenitiesWithLabels = amenities.map(amenity => ({
-            ...amenity,
-            label: formatAmenityLabel(amenity.name)
-        }));
+        const amenitiesWithLabels = amenities.map((amenity)=>({
+                ...amenity,
+                label: formatAmenityLabel(amenity.name)
+            }));
         return res.status(200).json({
             success: true,
             message: amenities.length === 0 ? 'No amenities found' : 'Amenities retrieved successfully',
             data: amenitiesWithLabels
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching amenities:', error);
         return res.status(500).json({
             success: false,
@@ -71,13 +99,13 @@ const getAmenities = async (req, res) => {
         });
     }
 };
-exports.getAmenities = getAmenities;
-// Get single amenity by ID
-const getAmenityById = async (req, res) => {
+const getAmenityById = async (req, res)=>{
     try {
         const { id } = req.params;
-        const amenity = await database_1.default.amenity.findUnique({
-            where: { id }
+        const amenity = await _database.default.amenity.findUnique({
+            where: {
+                id
+            }
         });
         if (!amenity) {
             return res.status(404).json({
@@ -89,8 +117,7 @@ const getAmenityById = async (req, res) => {
             success: true,
             data: amenity
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching amenity:', error);
         return res.status(500).json({
             success: false,
@@ -99,9 +126,7 @@ const getAmenityById = async (req, res) => {
         });
     }
 };
-exports.getAmenityById = getAmenityById;
-// Create new amenity (Admin only)
-const createAmenity = async (req, res) => {
+const createAmenity = async (req, res)=>{
     try {
         const { name, icon, order, isActive } = req.body;
         // Validate required fields
@@ -114,11 +139,15 @@ const createAmenity = async (req, res) => {
         // Generate slug from name
         const slug = generateSlug(name);
         // Check if amenity with same name or slug exists
-        const existingAmenity = await database_1.default.amenity.findFirst({
+        const existingAmenity = await _database.default.amenity.findFirst({
             where: {
                 OR: [
-                    { name },
-                    { slug }
+                    {
+                        name
+                    },
+                    {
+                        slug
+                    }
                 ]
             }
         });
@@ -128,7 +157,7 @@ const createAmenity = async (req, res) => {
                 message: 'An amenity with this name already exists'
             });
         }
-        const amenity = await database_1.default.amenity.create({
+        const amenity = await _database.default.amenity.create({
             data: {
                 name,
                 slug,
@@ -142,8 +171,7 @@ const createAmenity = async (req, res) => {
             message: 'Amenity created successfully',
             data: amenity
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error creating amenity:', error);
         return res.status(500).json({
             success: false,
@@ -152,15 +180,15 @@ const createAmenity = async (req, res) => {
         });
     }
 };
-exports.createAmenity = createAmenity;
-// Update amenity (Admin only)
-const updateAmenity = async (req, res) => {
+const updateAmenity = async (req, res)=>{
     try {
         const { id } = req.params;
         const { name, icon, order, isActive } = req.body;
         // Check if amenity exists
-        const existingAmenity = await database_1.default.amenity.findUnique({
-            where: { id }
+        const existingAmenity = await _database.default.amenity.findUnique({
+            where: {
+                id
+            }
         });
         if (!existingAmenity) {
             return res.status(404).json({
@@ -173,12 +201,18 @@ const updateAmenity = async (req, res) => {
         if (name && name !== existingAmenity.name) {
             newSlug = generateSlug(name);
             // Check for duplicates (name or slug)
-            const duplicateAmenity = await database_1.default.amenity.findFirst({
+            const duplicateAmenity = await _database.default.amenity.findFirst({
                 where: {
-                    id: { not: id },
+                    id: {
+                        not: id
+                    },
                     OR: [
-                        { name },
-                        { slug: newSlug }
+                        {
+                            name
+                        },
+                        {
+                            slug: newSlug
+                        }
                     ]
                 }
             });
@@ -189,14 +223,26 @@ const updateAmenity = async (req, res) => {
                 });
             }
         }
-        const amenity = await database_1.default.amenity.update({
-            where: { id },
+        const amenity = await _database.default.amenity.update({
+            where: {
+                id
+            },
             data: {
-                ...(name && { name }),
-                ...(newSlug && { slug: newSlug }),
-                ...(icon !== undefined && { icon }),
-                ...(order !== undefined && { order }),
-                ...(isActive !== undefined && { isActive })
+                ...name && {
+                    name
+                },
+                ...newSlug && {
+                    slug: newSlug
+                },
+                ...icon !== undefined && {
+                    icon
+                },
+                ...order !== undefined && {
+                    order
+                },
+                ...isActive !== undefined && {
+                    isActive
+                }
             }
         });
         return res.status(200).json({
@@ -204,8 +250,7 @@ const updateAmenity = async (req, res) => {
             message: 'Amenity updated successfully',
             data: amenity
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating amenity:', error);
         return res.status(500).json({
             success: false,
@@ -214,14 +259,14 @@ const updateAmenity = async (req, res) => {
         });
     }
 };
-exports.updateAmenity = updateAmenity;
-// Delete amenity (Admin only)
-const deleteAmenity = async (req, res) => {
+const deleteAmenity = async (req, res)=>{
     try {
         const { id } = req.params;
         // Check if amenity exists
-        const existingAmenity = await database_1.default.amenity.findUnique({
-            where: { id }
+        const existingAmenity = await _database.default.amenity.findUnique({
+            where: {
+                id
+            }
         });
         if (!existingAmenity) {
             return res.status(404).json({
@@ -229,15 +274,16 @@ const deleteAmenity = async (req, res) => {
                 message: 'Amenity not found'
             });
         }
-        await database_1.default.amenity.delete({
-            where: { id }
+        await _database.default.amenity.delete({
+            where: {
+                id
+            }
         });
         return res.status(200).json({
             success: true,
             message: 'Amenity deleted successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error deleting amenity:', error);
         return res.status(500).json({
             success: false,
@@ -246,9 +292,7 @@ const deleteAmenity = async (req, res) => {
         });
     }
 };
-exports.deleteAmenity = deleteAmenity;
-// Reorder amenities (Admin only)
-const reorderAmenities = async (req, res) => {
+const reorderAmenities = async (req, res)=>{
     try {
         const { amenityOrders } = req.body; // Array of { id, order }
         if (!Array.isArray(amenityOrders)) {
@@ -258,14 +302,22 @@ const reorderAmenities = async (req, res) => {
             });
         }
         // Update all amenities with new order
-        await Promise.all(amenityOrders.map(({ id, order }) => database_1.default.amenity.update({
-            where: { id },
-            data: { order }
-        })));
-        const updatedAmenities = await database_1.default.amenity.findMany({
+        await Promise.all(amenityOrders.map(({ id, order })=>_database.default.amenity.update({
+                where: {
+                    id
+                },
+                data: {
+                    order
+                }
+            })));
+        const updatedAmenities = await _database.default.amenity.findMany({
             orderBy: [
-                { order: 'asc' },
-                { name: 'asc' }
+                {
+                    order: 'asc'
+                },
+                {
+                    name: 'asc'
+                }
             ]
         });
         return res.status(200).json({
@@ -273,8 +325,7 @@ const reorderAmenities = async (req, res) => {
             message: 'Amenities reordered successfully',
             data: updatedAmenities
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error reordering amenities:', error);
         return res.status(500).json({
             success: false,
@@ -283,4 +334,5 @@ const reorderAmenities = async (req, res) => {
         });
     }
 };
-exports.reorderAmenities = reorderAmenities;
+
+//# sourceMappingURL=amenity.controller.js.map

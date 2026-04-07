@@ -1,10 +1,37 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.bulkUpdatePrivacyPolicies = exports.deletePrivacyPolicy = exports.updatePrivacyPolicy = exports.createPrivacyPolicy = exports.getPrivacyPolicies = void 0;
-const database_1 = __importDefault(require("../config/database"));
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get bulkUpdatePrivacyPolicies () {
+        return bulkUpdatePrivacyPolicies;
+    },
+    get createPrivacyPolicy () {
+        return createPrivacyPolicy;
+    },
+    get deletePrivacyPolicy () {
+        return deletePrivacyPolicy;
+    },
+    get getPrivacyPolicies () {
+        return getPrivacyPolicies;
+    },
+    get updatePrivacyPolicy () {
+        return updatePrivacyPolicy;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 const DEFAULT_PRIVACY_SECTIONS = [
     {
         title: "1. Who We Are",
@@ -83,105 +110,163 @@ const DEFAULT_PRIVACY_SECTIONS = [
         content: `For any questions, contact us at:\ninfo@fieldsy.co.uk`
     }
 ];
-// Get all privacy policy sections (public)
-const getPrivacyPolicies = async (req, res) => {
+const getPrivacyPolicies = async (req, res)=>{
     try {
-        const policies = await database_1.default.privacyPolicy.findMany({
-            orderBy: { order: 'asc' }
+        const policies = await _database.default.privacyPolicy.findMany({
+            orderBy: {
+                order: 'asc'
+            }
         });
         // If no sections exist, seed defaults
         if (policies.length === 0) {
-            const created = await Promise.all(DEFAULT_PRIVACY_SECTIONS.map((section, index) => database_1.default.privacyPolicy.create({
-                data: {
-                    ...section,
-                    order: index
-                }
-            })));
-            return res.json({ success: true, data: created });
+            const created = await Promise.all(DEFAULT_PRIVACY_SECTIONS.map((section, index)=>_database.default.privacyPolicy.create({
+                    data: {
+                        ...section,
+                        order: index
+                    }
+                })));
+            return res.json({
+                success: true,
+                data: created
+            });
         }
-        res.json({ success: true, data: policies });
-    }
-    catch (error) {
-        console.error('Error fetching privacy policies:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch privacy policy' });
-    }
-};
-exports.getPrivacyPolicies = getPrivacyPolicies;
-// Create section (Admin)
-const createPrivacyPolicy = async (req, res) => {
-    try {
-        const { title, content, isList, order } = req.body;
-        const policy = await database_1.default.privacyPolicy.create({
-            data: { title, content, isList: isList || false, order: order || 0 }
+        res.json({
+            success: true,
+            data: policies
         });
-        res.status(201).json({ success: true, data: policy, message: 'Privacy policy section created' });
-    }
-    catch (error) {
-        console.error('Error creating privacy policy:', error);
-        res.status(500).json({ success: false, message: 'Failed to create privacy policy section' });
+    } catch (error) {
+        console.error('Error fetching privacy policies:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch privacy policy'
+        });
     }
 };
-exports.createPrivacyPolicy = createPrivacyPolicy;
-// Update section (Admin)
-const updatePrivacyPolicy = async (req, res) => {
+const createPrivacyPolicy = async (req, res)=>{
     try {
-        const { id } = req.params;
         const { title, content, isList, order } = req.body;
-        const policy = await database_1.default.privacyPolicy.update({
-            where: { id },
+        const policy = await _database.default.privacyPolicy.create({
             data: {
-                ...(title && { title }),
-                ...(content !== undefined && { content }),
-                ...(isList !== undefined && { isList }),
-                ...(order !== undefined && { order })
+                title,
+                content,
+                isList: isList || false,
+                order: order || 0
             }
         });
-        res.json({ success: true, data: policy, message: 'Privacy policy section updated' });
-    }
-    catch (error) {
-        console.error('Error updating privacy policy:', error);
-        res.status(500).json({ success: false, message: 'Failed to update privacy policy section' });
+        res.status(201).json({
+            success: true,
+            data: policy,
+            message: 'Privacy policy section created'
+        });
+    } catch (error) {
+        console.error('Error creating privacy policy:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create privacy policy section'
+        });
     }
 };
-exports.updatePrivacyPolicy = updatePrivacyPolicy;
-// Delete section (Admin)
-const deletePrivacyPolicy = async (req, res) => {
+const updatePrivacyPolicy = async (req, res)=>{
     try {
         const { id } = req.params;
-        await database_1.default.privacyPolicy.delete({ where: { id } });
-        res.json({ success: true, message: 'Privacy policy section deleted' });
-    }
-    catch (error) {
-        console.error('Error deleting privacy policy:', error);
-        res.status(500).json({ success: false, message: 'Failed to delete privacy policy section' });
+        const { title, content, isList, order } = req.body;
+        const policy = await _database.default.privacyPolicy.update({
+            where: {
+                id
+            },
+            data: {
+                ...title && {
+                    title
+                },
+                ...content !== undefined && {
+                    content
+                },
+                ...isList !== undefined && {
+                    isList
+                },
+                ...order !== undefined && {
+                    order
+                }
+            }
+        });
+        res.json({
+            success: true,
+            data: policy,
+            message: 'Privacy policy section updated'
+        });
+    } catch (error) {
+        console.error('Error updating privacy policy:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update privacy policy section'
+        });
     }
 };
-exports.deletePrivacyPolicy = deletePrivacyPolicy;
-// Bulk update (Admin)
-const bulkUpdatePrivacyPolicies = async (req, res) => {
+const deletePrivacyPolicy = async (req, res)=>{
+    try {
+        const { id } = req.params;
+        await _database.default.privacyPolicy.delete({
+            where: {
+                id
+            }
+        });
+        res.json({
+            success: true,
+            message: 'Privacy policy section deleted'
+        });
+    } catch (error) {
+        console.error('Error deleting privacy policy:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete privacy policy section'
+        });
+    }
+};
+const bulkUpdatePrivacyPolicies = async (req, res)=>{
     try {
         const { policies } = req.body;
         if (!Array.isArray(policies)) {
-            return res.status(400).json({ success: false, message: 'Policies must be an array' });
+            return res.status(400).json({
+                success: false,
+                message: 'Policies must be an array'
+            });
         }
-        const results = await Promise.all(policies.map(async (policy, index) => {
+        const results = await Promise.all(policies.map(async (policy, index)=>{
             if (policy.id) {
-                return database_1.default.privacyPolicy.update({
-                    where: { id: policy.id },
-                    data: { title: policy.title, content: policy.content, isList: policy.isList, order: index }
+                return _database.default.privacyPolicy.update({
+                    where: {
+                        id: policy.id
+                    },
+                    data: {
+                        title: policy.title,
+                        content: policy.content,
+                        isList: policy.isList,
+                        order: index
+                    }
                 });
-            }
-            else {
-                return database_1.default.privacyPolicy.create({
-                    data: { title: policy.title, content: policy.content, isList: policy.isList, order: index }
+            } else {
+                return _database.default.privacyPolicy.create({
+                    data: {
+                        title: policy.title,
+                        content: policy.content,
+                        isList: policy.isList,
+                        order: index
+                    }
                 });
             }
         }));
-        res.json({ success: true, data: results, message: 'Privacy policy updated' });
-    }
-    catch (error) {
+        res.json({
+            success: true,
+            data: results,
+            message: 'Privacy policy updated'
+        });
+    } catch (error) {
         console.error('Error bulk updating privacy policies:', error);
-        res.status(500).json({ success: false, message: 'Failed to update privacy policy' });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update privacy policy'
+        });
     }
 };
-exports.bulkUpdatePrivacyPolicies = bulkUpdatePrivacyPolicies;
+
+//# sourceMappingURL=privacy-policy.controller.js.map

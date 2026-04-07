@@ -1,23 +1,35 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = __importDefault(require("express"));
-const auth_otp_controller_1 = require("../controllers/auth.otp.controller");
-const router = express_1.default.Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = /*#__PURE__*/ _interop_require_default(require("express"));
+const _authotpcontroller = require("../controllers/auth.otp.controller");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = _express.default.Router();
 // Registration with OTP
-router.post('/register', auth_otp_controller_1.registerWithOtp);
-router.post('/verify-signup', auth_otp_controller_1.verifySignupOtp);
+router.post('/register', _authotpcontroller.registerWithOtp);
+router.post('/verify-signup', _authotpcontroller.verifySignupOtp);
 // OTP operations
-router.post('/resend-otp', auth_otp_controller_1.resendOtp);
+router.post('/resend-otp', _authotpcontroller.resendOtp);
 // Password reset with OTP
-router.post('/forgot-password', auth_otp_controller_1.requestPasswordReset);
-router.post('/verify-reset-otp', auth_otp_controller_1.verifyPasswordResetOtp);
-router.post('/reset-password', auth_otp_controller_1.resetPasswordWithOtp);
+router.post('/forgot-password', _authotpcontroller.requestPasswordReset);
+router.post('/verify-reset-otp', _authotpcontroller.verifyPasswordResetOtp);
+router.post('/reset-password', _authotpcontroller.resetPasswordWithOtp);
 // Login with email verification check
-router.post('/login', auth_otp_controller_1.loginWithOtpCheck);
+router.post('/login', _authotpcontroller.loginWithOtpCheck);
 // Social login OTP verification
-router.post('/verify-social-login', auth_otp_controller_1.verifySocialLoginOtp);
-exports.default = router;
+router.post('/verify-social-login', _authotpcontroller.verifySocialLoginOtp);
+const _default = router;
+
+//# sourceMappingURL=auth.otp.routes.js.map

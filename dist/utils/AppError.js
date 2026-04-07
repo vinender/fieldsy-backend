@@ -1,15 +1,21 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AppError = void 0;
 //@ts-nocheck
 /**
  * Custom error class for application errors
- */
+ */ "use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "AppError", {
+    enumerable: true,
+    get: function() {
+        return AppError;
+    }
+});
 class AppError extends Error {
     statusCode;
     status;
     isOperational;
-    constructor(message, statusCode) {
+    constructor(message, statusCode){
         super(message);
         this.statusCode = statusCode;
         this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
@@ -17,4 +23,5 @@ class AppError extends Error {
         Error.captureStackTrace(this, this.constructor);
     }
 }
-exports.AppError = AppError;
+
+//# sourceMappingURL=AppError.js.map

@@ -1,55 +1,78 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.otpService = exports.OtpService = void 0;
 //@ts-nocheck
-const client_1 = require("@prisma/client");
-const otpGenerator = __importStar(require("otp-generator"));
-const email_service_1 = require("./email.service");
-const prisma = new client_1.PrismaClient();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get OtpService () {
+        return OtpService;
+    },
+    get otpService () {
+        return otpService;
+    }
+});
+const _client = require("@prisma/client");
+const _otpgenerator = /*#__PURE__*/ _interop_require_wildcard(require("otp-generator"));
+const _emailservice = require("./email.service");
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
+const prisma = new _client.PrismaClient();
 class OtpService {
     OTP_LENGTH = 6;
     OTP_EXPIRY_MINUTES = 10;
     MAX_OTP_ATTEMPTS = 3;
     // Generate a 6-digit OTP
     generateOtp() {
-        return otpGenerator.generate(this.OTP_LENGTH, {
+        return _otpgenerator.generate(this.OTP_LENGTH, {
             digits: true,
             lowerCaseAlphabets: false,
             upperCaseAlphabets: false,
-            specialChars: false,
+            specialChars: false
         });
     }
     // Create and save OTP to database
@@ -60,8 +83,8 @@ class OtpService {
                 where: {
                     email,
                     type,
-                    verified: false,
-                },
+                    verified: false
+                }
             });
             // Generate new OTP
             const otp = this.generateOtp();
@@ -74,12 +97,11 @@ class OtpService {
                     email,
                     otp,
                     type,
-                    expiresAt,
-                },
+                    expiresAt
+                }
             });
             return otp;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error creating OTP:', error);
             throw new Error('Failed to create OTP');
         }
@@ -94,13 +116,12 @@ class OtpService {
                     type,
                     verified: false,
                     expiresAt: {
-                        gt: new Date(), // Not expired
-                    },
-                },
+                        gt: new Date()
+                    }
+                }
             });
             return !!otpRecord;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error checking OTP:', error);
             return false;
         }
@@ -116,9 +137,9 @@ class OtpService {
                     type,
                     verified: false,
                     expiresAt: {
-                        gt: new Date(), // Not expired
-                    },
-                },
+                        gt: new Date()
+                    }
+                }
             });
             if (!otpRecord) {
                 return false;
@@ -126,15 +147,14 @@ class OtpService {
             // Mark OTP as verified
             await prisma.otpVerification.update({
                 where: {
-                    id: otpRecord.id,
+                    id: otpRecord.id
                 },
                 data: {
-                    verified: true,
-                },
+                    verified: true
+                }
             });
             return true;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error verifying OTP:', error);
             return false;
         }
@@ -145,9 +165,8 @@ class OtpService {
             // Create OTP
             const otp = await this.createOtp(email, type);
             // Send email with OTP
-            await email_service_1.emailService.sendOtpEmail(email, otp, type, name);
-        }
-        catch (error) {
+            await _emailservice.emailService.sendOtpEmail(email, otp, type, name);
+        } catch (error) {
             console.error('Error sending OTP:', error);
             throw new Error('Failed to send OTP');
         }
@@ -162,17 +181,16 @@ class OtpService {
                     type,
                     verified: false,
                     createdAt: {
-                        gt: new Date(Date.now() - 60 * 1000), // Within last minute
-                    },
-                },
+                        gt: new Date(Date.now() - 60 * 1000)
+                    }
+                }
             });
             if (recentOtp) {
                 throw new Error('Please wait a minute before requesting a new OTP');
             }
             // Send new OTP
             await this.sendOtp(email, type, name);
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error resending OTP:', error);
             throw error;
         }
@@ -185,20 +203,19 @@ class OtpService {
                     OR: [
                         {
                             expiresAt: {
-                                lt: new Date(),
-                            },
+                                lt: new Date()
+                            }
                         },
                         {
                             verified: true,
                             updatedAt: {
-                                lt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 hours old
-                            },
-                        },
-                    ],
-                },
+                                lt: new Date(Date.now() - 24 * 60 * 60 * 1000)
+                            }
+                        }
+                    ]
+                }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error cleaning up expired OTPs:', error);
         }
     }
@@ -210,12 +227,13 @@ class OtpService {
                 type,
                 verified: false,
                 expiresAt: {
-                    gt: new Date(),
-                },
-            },
+                    gt: new Date()
+                }
+            }
         });
         return !!otpRecord;
     }
 }
-exports.OtpService = OtpService;
-exports.otpService = new OtpService();
+const otpService = new OtpService();
+
+//# sourceMappingURL=otp.service.js.map

@@ -1,20 +1,32 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const discount_controller_1 = __importDefault(require("../controllers/discount.controller"));
-const auth_middleware_1 = require("../middleware/auth.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _discountcontroller = /*#__PURE__*/ _interop_require_default(require("../controllers/discount.controller"));
+const _authmiddleware = require("../middleware/auth.middleware");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = (0, _express.Router)();
 // Public routes
-router.get('/:fieldId/discounts', discount_controller_1.default.getFieldDiscounts);
-router.get('/:fieldId/active-discounts', discount_controller_1.default.getActiveDiscounts);
+router.get('/:fieldId/discounts', _discountcontroller.default.getFieldDiscounts);
+router.get('/:fieldId/active-discounts', _discountcontroller.default.getActiveDiscounts);
 // Protected routes - require authentication
-router.use(auth_middleware_1.protect);
+router.use(_authmiddleware.protect);
 // Field owner routes
-router.post('/', (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), discount_controller_1.default.createDiscount);
-router.patch('/:discountId/toggle', (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), discount_controller_1.default.toggleDiscount);
-router.delete('/:discountId', (0, auth_middleware_1.restrictTo)('FIELD_OWNER'), discount_controller_1.default.deleteDiscount);
-exports.default = router;
+router.post('/', (0, _authmiddleware.restrictTo)('FIELD_OWNER'), _discountcontroller.default.createDiscount);
+router.patch('/:discountId/toggle', (0, _authmiddleware.restrictTo)('FIELD_OWNER'), _discountcontroller.default.toggleDiscount);
+router.delete('/:discountId', (0, _authmiddleware.restrictTo)('FIELD_OWNER'), _discountcontroller.default.deleteDiscount);
+const _default = router;
+
+//# sourceMappingURL=discount.routes.js.map

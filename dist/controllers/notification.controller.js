@@ -1,15 +1,32 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.notificationController = void 0;
-exports.createNotification = createNotification;
-const database_1 = __importDefault(require("../config/database"));
-const push_notification_service_1 = __importDefault(require("../services/push-notification.service"));
-exports.notificationController = {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get createNotification () {
+        return createNotification;
+    },
+    get notificationController () {
+        return notificationController;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _pushnotificationservice = /*#__PURE__*/ _interop_require_default(require("../services/push-notification.service"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const notificationController = {
     // Get all notifications for a user
-    async getUserNotifications(req, res) {
+    async getUserNotifications (req, res) {
         try {
             // Get userId from req.user (set by auth middleware) or req.userId
             const userId = req.user?.id;
@@ -17,44 +34,55 @@ exports.notificationController = {
             if (!userId) {
                 return res.status(401).json({
                     success: false,
-                    message: 'User not authenticated',
+                    message: 'User not authenticated'
                 });
             }
             const { page = 1, limit = 20, unreadOnly = false, markAsRead = 'false' } = req.query;
             const skip = (Number(page) - 1) * Number(limit);
-            const where = { userId };
+            const where = {
+                userId
+            };
             if (unreadOnly === 'true') {
                 where.read = false;
             }
             const [notifications, total, unreadCount] = await Promise.all([
-                database_1.default.notification.findMany({
+                _database.default.notification.findMany({
                     where,
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
                     skip,
-                    take: Number(limit),
+                    take: Number(limit)
                 }),
-                database_1.default.notification.count({ where }),
-                database_1.default.notification.count({ where: { userId, read: false } }),
+                _database.default.notification.count({
+                    where
+                }),
+                _database.default.notification.count({
+                    where: {
+                        userId,
+                        read: false
+                    }
+                })
             ]);
             // If markAsRead query param is true, mark all fetched notifications as read
             if (markAsRead === 'true' && notifications.length > 0) {
-                const notificationIds = notifications
-                    .filter(n => !n.read)
-                    .map(n => n.id);
+                const notificationIds = notifications.filter((n)=>!n.read).map((n)=>n.id);
                 if (notificationIds.length > 0) {
-                    await database_1.default.notification.updateMany({
+                    await _database.default.notification.updateMany({
                         where: {
-                            id: { in: notificationIds },
-                            userId, // Ensure user owns these notifications
+                            id: {
+                                in: notificationIds
+                            },
+                            userId
                         },
                         data: {
                             read: true,
-                            readAt: new Date(),
-                        },
+                            readAt: new Date()
+                        }
                     });
                     console.log(`Marked ${notificationIds.length} notifications as read for user ${userId}`);
                     // Update the notifications array to reflect the changes
-                    notifications.forEach(notification => {
+                    notifications.forEach((notification)=>{
                         if (notificationIds.includes(notification.id)) {
                             notification.read = true;
                             notification.readAt = new Date();
@@ -69,160 +97,168 @@ exports.notificationController = {
                     page: Number(page),
                     limit: Number(limit),
                     total,
-                    totalPages: Math.ceil(total / Number(limit)),
+                    totalPages: Math.ceil(total / Number(limit))
                 },
-                unreadCount: markAsRead === 'true' ? 0 : unreadCount, // If we just marked all as read, unread count is 0
+                unreadCount: markAsRead === 'true' ? 0 : unreadCount
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching notifications:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to fetch notifications',
+                message: 'Failed to fetch notifications'
             });
         }
     },
     // Mark notification as read
-    async markAsRead(req, res) {
+    async markAsRead (req, res) {
         try {
             const userId = req.user?.id;
             const { id } = req.params;
-            const notification = await database_1.default.notification.findFirst({
-                where: { id, userId },
+            const notification = await _database.default.notification.findFirst({
+                where: {
+                    id,
+                    userId
+                }
             });
             if (!notification) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Notification not found',
+                    message: 'Notification not found'
                 });
             }
-            const updated = await database_1.default.notification.update({
-                where: { id },
+            const updated = await _database.default.notification.update({
+                where: {
+                    id
+                },
                 data: {
                     read: true,
-                    readAt: new Date(),
-                },
+                    readAt: new Date()
+                }
             });
             res.json({
                 success: true,
-                data: updated,
+                data: updated
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error marking notification as read:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to mark notification as read',
+                message: 'Failed to mark notification as read'
             });
         }
     },
     // Mark all notifications as read
-    async markAllAsRead(req, res) {
+    async markAllAsRead (req, res) {
         try {
             const userId = req.user?.id;
-            await database_1.default.notification.updateMany({
-                where: { userId, read: false },
+            await _database.default.notification.updateMany({
+                where: {
+                    userId,
+                    read: false
+                },
                 data: {
                     read: true,
-                    readAt: new Date(),
-                },
+                    readAt: new Date()
+                }
             });
             res.json({
                 success: true,
-                message: 'All notifications marked as read',
+                message: 'All notifications marked as read'
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error marking all notifications as read:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to mark all notifications as read',
+                message: 'Failed to mark all notifications as read'
             });
         }
     },
     // Delete a notification
-    async deleteNotification(req, res) {
+    async deleteNotification (req, res) {
         try {
             const userId = req.user?.id;
             const { id } = req.params;
-            const notification = await database_1.default.notification.findFirst({
-                where: { id, userId },
+            const notification = await _database.default.notification.findFirst({
+                where: {
+                    id,
+                    userId
+                }
             });
             if (!notification) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Notification not found',
+                    message: 'Notification not found'
                 });
             }
-            await database_1.default.notification.delete({
-                where: { id },
+            await _database.default.notification.delete({
+                where: {
+                    id
+                }
             });
             res.json({
                 success: true,
-                message: 'Notification deleted',
+                message: 'Notification deleted'
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error deleting notification:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to delete notification',
+                message: 'Failed to delete notification'
             });
         }
     },
     // Clear all notifications
-    async clearAllNotifications(req, res) {
+    async clearAllNotifications (req, res) {
         try {
             const userId = req.user?.id;
-            await database_1.default.notification.deleteMany({
-                where: { userId },
+            await _database.default.notification.deleteMany({
+                where: {
+                    userId
+                }
             });
             res.json({
                 success: true,
-                message: 'All notifications cleared',
+                message: 'All notifications cleared'
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error clearing notifications:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to clear notifications',
+                message: 'Failed to clear notifications'
             });
         }
     },
     // Get unread notification count
-    async getUnreadCount(req, res) {
+    async getUnreadCount (req, res) {
         try {
             const userId = req.user?.id;
             console.log('Getting unread count for user:', userId);
             if (!userId) {
                 return res.status(401).json({
                     success: false,
-                    message: 'User not authenticated',
+                    message: 'User not authenticated'
                 });
             }
-            const unreadCount = await database_1.default.notification.count({
+            const unreadCount = await _database.default.notification.count({
                 where: {
                     userId,
-                    read: false,
-                },
+                    read: false
+                }
             });
             res.json({
                 success: true,
-                count: unreadCount,
+                count: unreadCount
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching unread count:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to fetch unread notification count',
+                message: 'Failed to fetch unread notification count'
             });
         }
-    },
+    }
 };
-// Notification creation helper (to be used in other controllers)
-async function createNotification({ userId, type, title, message, data, }) {
+async function createNotification({ userId, type, title, message, data }) {
     try {
         console.log('=== Creating Notification ===');
         console.log('Target User ID (ObjectId):', userId);
@@ -244,7 +280,7 @@ async function createNotification({ userId, type, title, message, data, }) {
             'earnings_update'
         ];
         if (deduplicationTypes.includes(type) && data?.bookingId) {
-            const recentDuplicate = await database_1.default.notification.findFirst({
+            const recentDuplicate = await _database.default.notification.findFirst({
                 where: {
                     userId,
                     type,
@@ -252,7 +288,9 @@ async function createNotification({ userId, type, title, message, data, }) {
                         gte: new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
                     }
                 },
-                orderBy: { createdAt: 'desc' }
+                orderBy: {
+                    createdAt: 'desc'
+                }
             });
             if (recentDuplicate) {
                 // Check if the data contains the same bookingId
@@ -263,14 +301,14 @@ async function createNotification({ userId, type, title, message, data, }) {
                 }
             }
         }
-        const notification = await database_1.default.notification.create({
+        const notification = await _database.default.notification.create({
             data: {
                 userId,
                 type,
                 title,
                 message,
-                data,
-            },
+                data
+            }
         });
         console.log('Notification created in DB with ID:', notification.id);
         console.log('Notification userId:', notification.userId);
@@ -285,29 +323,30 @@ async function createNotification({ userId, type, title, message, data, }) {
             if (sockets.length > 0) {
                 io.to(roomName).emit('notification', notification);
                 console.log('Notification emitted successfully to room:', roomName);
-            }
-            else {
+            } else {
                 console.log('No active sockets in room, user might be offline');
             }
-        }
-        else {
+        } else {
             console.log('WebSocket server not available, notification saved to DB only');
         }
         // Send Push Notification
         try {
             console.log('Attempting to send push notification...');
-            const pushData = { ...data, message }; // Include message in data for push payload if needed by FE
-            await push_notification_service_1.default.sendNotificationByType(userId, type, notification.id, pushData);
+            const pushData = {
+                ...data,
+                message
+            }; // Include message in data for push payload if needed by FE
+            await _pushnotificationservice.default.sendNotificationByType(userId, type, notification.id, pushData);
             console.log('Push notification sent call completed');
-        }
-        catch (pushError) {
+        } catch (pushError) {
             console.error('Failed to send push notification:', pushError);
-            // We don't return null here because the notification IS created in DB
+        // We don't return null here because the notification IS created in DB
         }
         return notification;
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error creating notification:', error);
         return null;
     }
 }
+
+//# sourceMappingURL=notification.controller.js.map

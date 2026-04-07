@@ -1,19 +1,35 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.heldPayoutService = exports.HeldPayoutService = void 0;
 //@ts-nocheck
-const client_1 = require("@prisma/client");
-const notification_controller_1 = require("../controllers/notification.controller");
-const prisma = new client_1.PrismaClient();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get HeldPayoutService () {
+        return HeldPayoutService;
+    },
+    get heldPayoutService () {
+        return heldPayoutService;
+    }
+});
+const _client = require("@prisma/client");
+const _notificationcontroller = require("../controllers/notification.controller");
+const prisma = new _client.PrismaClient();
 class HeldPayoutService {
     /**
-     * Release held payouts for a field owner who just connected their Stripe account
-     */
-    async releaseHeldPayouts(userId) {
+   * Release held payouts for a field owner who just connected their Stripe account
+   */ async releaseHeldPayouts(userId) {
         try {
             // Check if user has a properly connected Stripe account
             const stripeAccount = await prisma.stripeAccount.findUnique({
-                where: { userId }
+                where: {
+                    userId
+                }
             });
             if (!stripeAccount || !stripeAccount.chargesEnabled || !stripeAccount.payoutsEnabled) {
                 console.log(`User ${userId} does not have a fully connected Stripe account yet`);
@@ -21,21 +37,33 @@ class HeldPayoutService {
             }
             // Find all fields owned by this user
             const fields = await prisma.field.findMany({
-                where: { ownerId: userId },
-                select: { id: true, name: true }
+                where: {
+                    ownerId: userId
+                },
+                select: {
+                    id: true,
+                    name: true
+                }
             });
             if (fields.length === 0) {
                 console.log(`User ${userId} has no fields`);
                 return;
             }
-            const fieldIds = fields.map(f => f.id);
+            const fieldIds = fields.map((f)=>f.id);
             // Find all held bookings for these fields
             const heldBookings = await prisma.booking.findMany({
                 where: {
-                    fieldId: { in: fieldIds },
+                    fieldId: {
+                        in: fieldIds
+                    },
                     payoutStatus: 'HELD',
                     payoutHeldReason: 'NO_STRIPE_ACCOUNT',
-                    status: { in: ['CONFIRMED', 'COMPLETED'] },
+                    status: {
+                        in: [
+                            'CONFIRMED',
+                            'COMPLETED'
+                        ]
+                    },
                     paymentStatus: 'PAID'
                 }
             });
@@ -48,14 +76,13 @@ class HeldPayoutService {
             const systemSettings = await prisma.systemSettings.findFirst();
             const payoutReleaseSchedule = systemSettings?.payoutReleaseSchedule || 'after_cancellation_window';
             // Update bookings based on payout release schedule
-            for (const booking of heldBookings) {
+            for (const booking of heldBookings){
                 let newPayoutStatus = 'PENDING';
                 // Check payout release schedule
                 if (payoutReleaseSchedule === 'on_weekend') {
                     // Will be processed on weekend
                     newPayoutStatus = 'PENDING';
-                }
-                else if (payoutReleaseSchedule === 'after_cancellation_window') {
+                } else if (payoutReleaseSchedule === 'after_cancellation_window') {
                     // Check if cancellation window has expired
                     const cancellationWindowHours = systemSettings?.cancellationWindowHours || 24;
                     const bookingDateTime = new Date(booking.date);
@@ -65,8 +92,7 @@ class HeldPayoutService {
                     if (hoursUntilBooking < cancellationWindowHours) {
                         // Cancellation window has passed, can release
                         newPayoutStatus = 'PENDING';
-                    }
-                    else {
+                    } else {
                         // Still within cancellation window, keep held but update reason
                         console.log(`Booking ${booking.id} still within cancellation window`);
                         continue;
@@ -74,7 +100,9 @@ class HeldPayoutService {
                 }
                 // Update booking payout status
                 await prisma.booking.update({
-                    where: { id: booking.id },
+                    where: {
+                        id: booking.id
+                    },
                     data: {
                         payoutStatus: newPayoutStatus,
                         payoutHeldReason: null,
@@ -84,9 +112,8 @@ class HeldPayoutService {
                 console.log(`Released held payout for booking ${booking.id}`);
             }
             // Notify field owner about released payouts
-            const releasedCount = heldBookings.filter(b => {
-                if (payoutReleaseSchedule !== 'after_cancellation_window')
-                    return true;
+            const releasedCount = heldBookings.filter((b)=>{
+                if (payoutReleaseSchedule !== 'after_cancellation_window') return true;
                 const cancellationWindowHours = systemSettings?.cancellationWindowHours || 24;
                 const bookingDateTime = new Date(b.date);
                 const [startHourStr] = b.startTime.split(':');
@@ -95,25 +122,25 @@ class HeldPayoutService {
                 return hoursUntilBooking < cancellationWindowHours;
             }).length;
             if (releasedCount > 0) {
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId,
                     type: 'PAYOUT_RELEASED',
                     title: 'Held Payments Released',
                     message: `Great news! ${releasedCount} held payment(s) have been released now that your Stripe account is connected. They will be processed according to your payout schedule.`,
-                    data: { count: releasedCount }
+                    data: {
+                        count: releasedCount
+                    }
                 });
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error releasing held payouts:', error);
             throw error;
         }
     }
     /**
-     * Check and release held payouts that have passed their hold period
-     * This should be run periodically (e.g., daily)
-     */
-    async processScheduledReleases() {
+   * Check and release held payouts that have passed their hold period
+   * This should be run periodically (e.g., daily)
+   */ async processScheduledReleases() {
         try {
             const systemSettings = await prisma.systemSettings.findFirst();
             const payoutReleaseSchedule = systemSettings?.payoutReleaseSchedule || 'after_cancellation_window';
@@ -122,10 +149,23 @@ class HeldPayoutService {
             const heldBookings = await prisma.booking.findMany({
                 where: {
                     payoutStatus: 'HELD',
-                    status: { in: ['CONFIRMED', 'COMPLETED'] },
+                    status: {
+                        in: [
+                            'CONFIRMED',
+                            'COMPLETED'
+                        ]
+                    },
                     paymentStatus: 'PAID',
-                    field: { id: { not: undefined } },
-                    user: { id: { not: undefined } }
+                    field: {
+                        id: {
+                            not: undefined
+                        }
+                    },
+                    user: {
+                        id: {
+                            not: undefined
+                        }
+                    }
                 },
                 include: {
                     field: {
@@ -135,25 +175,25 @@ class HeldPayoutService {
                     }
                 }
             });
-            for (const booking of heldBookings) {
+            for (const booking of heldBookings){
                 let shouldRelease = false;
                 // Check if field owner now has a Stripe account
                 const stripeAccount = await prisma.stripeAccount.findUnique({
-                    where: { userId: booking.field.ownerId }
+                    where: {
+                        userId: booking.field.ownerId
+                    }
                 });
                 if (!stripeAccount || !stripeAccount.chargesEnabled || !stripeAccount.payoutsEnabled) {
-                    // Still no Stripe account, keep held
                     continue;
                 }
                 // Field owner has Stripe account, check release schedule
                 if (payoutReleaseSchedule === 'on_weekend') {
                     // Check if today is Friday-Sunday
                     const today = new Date().getDay();
-                    if (today >= 5 || today === 0) { // Friday = 5, Saturday = 6, Sunday = 0
+                    if (today >= 5 || today === 0) {
                         shouldRelease = true;
                     }
-                }
-                else if (payoutReleaseSchedule === 'after_cancellation_window') {
+                } else if (payoutReleaseSchedule === 'after_cancellation_window') {
                     // Check if cancellation window has expired
                     const bookingDateTime = new Date(booking.date);
                     const [startHourStr] = booking.startTime.split(':');
@@ -166,7 +206,9 @@ class HeldPayoutService {
                 }
                 if (shouldRelease) {
                     await prisma.booking.update({
-                        where: { id: booking.id },
+                        where: {
+                            id: booking.id
+                        },
                         data: {
                             payoutStatus: 'PENDING',
                             payoutHeldReason: null,
@@ -175,11 +217,13 @@ class HeldPayoutService {
                     });
                     console.log(`Released held payout for booking ${booking.id}`);
                     // Notify field owner
-                    await (0, notification_controller_1.createNotification)({
+                    await (0, _notificationcontroller.createNotification)({
                         userId: booking.field.ownerId,
                         type: 'PAYOUT_RELEASED',
                         title: 'Payment Released',
-                        message: `A payment of $${booking.fieldOwnerAmount} for booking on ${booking.date.toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} has been released and will be processed soon.`,
+                        message: `A payment of $${booking.fieldOwnerAmount} for booking on ${booking.date.toLocaleDateString('en-GB', {
+                            timeZone: 'Europe/London'
+                        })} has been released and will be processed soon.`,
                         data: {
                             bookingId: booking.id,
                             amount: booking.fieldOwnerAmount
@@ -187,12 +231,12 @@ class HeldPayoutService {
                     });
                 }
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error processing scheduled payout releases:', error);
             throw error;
         }
     }
 }
-exports.HeldPayoutService = HeldPayoutService;
-exports.heldPayoutService = new HeldPayoutService();
+const heldPayoutService = new HeldPayoutService();
+
+//# sourceMappingURL=held-payout.service.js.map

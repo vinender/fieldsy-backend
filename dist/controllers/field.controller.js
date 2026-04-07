@@ -1,68 +1,83 @@
+//@ts-nocheck
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
+Object.defineProperty(exports, "__esModule", {
+    value: true
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _mongodb = require("mongodb");
+const _fieldmodel = /*#__PURE__*/ _interop_require_default(require("../models/field.model"));
+const _asyncHandler = require("../utils/asyncHandler");
+const _AppError = require("../utils/AppError");
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _amenityutils = require("../utils/amenity.utils");
+const _amenityconverter = require("../utils/amenity.converter");
+const _clients3 = require("@aws-sdk/client-s3");
+const _settingscache = require("../config/settings-cache");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
         };
-        return ownKeys(o);
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
     };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const mongodb_1 = require("mongodb");
-const field_model_1 = __importDefault(require("../models/field.model"));
-const asyncHandler_1 = require("../utils/asyncHandler");
-const AppError_1 = require("../utils/AppError");
-const database_1 = __importDefault(require("../config/database"));
-const amenity_utils_1 = require("../utils/amenity.utils");
-const amenity_converter_1 = require("../utils/amenity.converter");
-const client_s3_1 = require("@aws-sdk/client-s3");
-const settings_cache_1 = require("../config/settings-cache");
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
 // Initialize S3 client for image deletion
-const s3Client = new client_s3_1.S3Client({
+const s3Client = new _clients3.S3Client({
     region: process.env.AWS_REGION || 'eu-west-2',
     credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    }
 });
 // Helper function to check if an image URL is valid (not placeholder, not empty, not map image)
-const isValidImageUrl = (img) => {
-    if (!img)
-        return false;
+const isValidImageUrl = (img)=>{
+    if (!img) return false;
     const lowerImg = img.toLowerCase();
     // Skip placeholder images
-    if (lowerImg.includes('placeholder') ||
-        lowerImg.includes('/fields/field') ||
-        lowerImg === 'null' ||
-        lowerImg === '') {
+    if (lowerImg.includes('placeholder') || lowerImg.includes('/fields/field') || lowerImg === 'null' || lowerImg === '') {
         return false;
     }
     // Must be a proper URL (starts with http)
@@ -70,64 +85,56 @@ const isValidImageUrl = (img) => {
         return false;
     }
     // Filter out Google Maps images
-    if (lowerImg.includes('maps.google') ||
-        lowerImg.includes('google.com/maps') ||
-        lowerImg.includes('maps.googleapis.com') ||
-        lowerImg.includes('staticmap') ||
-        lowerImg.includes('street_view') ||
-        lowerImg.includes('streetview')) {
+    if (lowerImg.includes('maps.google') || lowerImg.includes('google.com/maps') || lowerImg.includes('maps.googleapis.com') || lowerImg.includes('staticmap') || lowerImg.includes('street_view') || lowerImg.includes('streetview')) {
         return false;
     }
     // Filter out other map service images
-    if (lowerImg.includes('openstreetmap') ||
-        lowerImg.includes('mapbox') ||
-        lowerImg.includes('tile.openstreetmap') ||
-        lowerImg.includes('api.mapbox')) {
+    if (lowerImg.includes('openstreetmap') || lowerImg.includes('mapbox') || lowerImg.includes('tile.openstreetmap') || lowerImg.includes('api.mapbox')) {
         return false;
     }
     return true;
 };
 // Helper function to check if an image is a premium URL (S3, CDN, etc. - not WordPress)
-const isPremiumImageUrl = (img) => {
+const isPremiumImageUrl = (img)=>{
     const lowerImg = img.toLowerCase();
     // WordPress URLs are valid but not "premium"
-    if (lowerImg.includes('dogwalkingfields.co.uk/wp-content') ||
-        lowerImg.includes('/wp-content/uploads/')) {
+    if (lowerImg.includes('dogwalkingfields.co.uk/wp-content') || lowerImg.includes('/wp-content/uploads/')) {
         return false;
     }
     return true;
 };
 // Helper function to get the first valid image
 // Prioritizes non-WordPress URLs, but falls back to WordPress URLs if that's all available
-const getFirstValidImage = (images) => {
-    if (!images || images.length === 0)
-        return null;
+const getFirstValidImage = (images)=>{
+    if (!images || images.length === 0) return null;
     // First, try to find a premium image (S3, CDN, etc.)
-    const premiumImage = images.find((img) => {
-        if (!isValidImageUrl(img))
-            return false;
+    const premiumImage = images.find((img)=>{
+        if (!isValidImageUrl(img)) return false;
         return isPremiumImageUrl(img);
     });
-    if (premiumImage)
-        return premiumImage;
+    if (premiumImage) return premiumImage;
     // Fall back to any valid image (including WordPress)
-    const anyValidImage = images.find((img) => isValidImageUrl(img));
+    const anyValidImage = images.find((img)=>isValidImageUrl(img));
     return anyValidImage || null;
 };
 // Helper function to get location display string
 // Tries multiple sources: legacy city/state, location JSON object, legacy address
-const getLocationDisplay = (field) => {
+const getLocationDisplay = (field)=>{
     // 1. First try legacy city/state fields
-    const cityState = [field.city, field.state].filter(Boolean).join(', ');
-    if (cityState)
-        return cityState;
+    const cityState = [
+        field.city,
+        field.state
+    ].filter(Boolean).join(', ');
+    if (cityState) return cityState;
     // 2. Try location JSON object (used by scraped fields)
     if (field.location && typeof field.location === 'object') {
         const loc = field.location;
         // Try city/county from location object
-        const locCityState = [loc.city, loc.county || loc.state].filter(Boolean).join(', ');
-        if (locCityState)
-            return locCityState;
+        const locCityState = [
+            loc.city,
+            loc.county || loc.state
+        ].filter(Boolean).join(', ');
+        if (locCityState) return locCityState;
         // Try formatted_address (often contains full address)
         if (loc.formatted_address) {
             return loc.formatted_address;
@@ -139,9 +146,8 @@ const getLocationDisplay = (field) => {
     }
     return 'Location not available';
 };
-const formatRecurringFrequency = (repeatBooking) => {
-    if (!repeatBooking)
-        return 'NA';
+const formatRecurringFrequency = (repeatBooking)=>{
+    if (!repeatBooking) return 'NA';
     const normalized = repeatBooking.trim().toLowerCase();
     if (!normalized || normalized === 'none' || normalized === 'na' || normalized === 'no') {
         return 'NA';
@@ -154,14 +160,13 @@ const formatRecurringFrequency = (repeatBooking) => {
         weekdays: 'Weekdays',
         weekday: 'Weekdays',
         weekend: 'Weekends',
-        weekends: 'Weekends',
+        weekends: 'Weekends'
     };
     return labelMap[normalized] || repeatBooking.charAt(0).toUpperCase() + repeatBooking.slice(1);
 };
 /**
  * Generate a unique orderId
- */
-const generateOrderId = (booking) => {
+ */ const generateOrderId = (booking)=>{
     // If we already have the new human-readable bookingId, use it
     if (booking.bookingId) {
         return `#${booking.bookingId}`;
@@ -175,39 +180,35 @@ const generateOrderId = (booking) => {
 };
 class FieldController {
     // Create new field
-    createField = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    createField = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
         const userRole = req.user.role;
         // Only field owners can create fields
         if (userRole !== 'FIELD_OWNER' && userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only field owners can create fields', 403);
+            throw new _AppError.AppError('Only field owners can create fields', 403);
         }
         // Validate closing time is strictly after opening time (same day only)
         if (req.body.openingTime && req.body.closingTime) {
             const [oh, om] = req.body.openingTime.split(':').map(Number);
             const [ch, cm] = req.body.closingTime.split(':').map(Number);
-            if ((ch * 60 + cm) <= (oh * 60 + om)) {
-                throw new AppError_1.AppError('Closing time must be after opening time', 400);
+            if (ch * 60 + cm <= oh * 60 + om) {
+                throw new _AppError.AppError('Closing time must be after opening time', 400);
             }
         }
         // Convert amenity IDs to names if amenities contain ObjectIds, otherwise keep as-is (slugs/names)
         let amenityNames = req.body.amenities || [];
         if (amenityNames && amenityNames.length > 0) {
-            const hasObjectIds = amenityNames.some((id) => /^[0-9a-fA-F]{24}$/.test(id));
+            const hasObjectIds = amenityNames.some((id)=>/^[0-9a-fA-F]{24}$/.test(id));
             if (hasObjectIds) {
-                amenityNames = await (0, amenity_converter_1.convertAmenityIdsToNames)(amenityNames);
+                amenityNames = await (0, _amenityconverter.convertAmenityIdsToNames)(amenityNames);
             }
         }
         // Handle price fields - explicitly set to null if empty/0
         if (req.body.price30min !== undefined) {
-            req.body.price30min = req.body.price30min === '' || req.body.price30min === null || parseFloat(req.body.price30min) === 0
-                ? null
-                : parseFloat(req.body.price30min);
+            req.body.price30min = req.body.price30min === '' || req.body.price30min === null || parseFloat(req.body.price30min) === 0 ? null : parseFloat(req.body.price30min);
         }
         if (req.body.price1hr !== undefined) {
-            req.body.price1hr = req.body.price1hr === '' || req.body.price1hr === null || parseFloat(req.body.price1hr) === 0
-                ? null
-                : parseFloat(req.body.price1hr);
+            req.body.price1hr = req.body.price1hr === '' || req.body.price1hr === null || parseFloat(req.body.price1hr) === 0 ? null : parseFloat(req.body.price1hr);
         }
         const fieldData = {
             ...req.body,
@@ -215,32 +216,28 @@ class FieldController {
             ownerId,
             lastEditedBy: ownerId,
             lastEditedByRole: userRole,
-            lastEditedAt: new Date(),
+            lastEditedAt: new Date()
         };
-        const field = await field_model_1.default.create(fieldData);
+        const field = await _fieldmodel.default.create(fieldData);
         // Enrich field with full amenity objects
-        const enrichedField = await (0, amenity_utils_1.enrichFieldWithAmenities)(field);
+        const enrichedField = await (0, _amenityutils.enrichFieldWithAmenities)(field);
         res.status(201).json({
             success: true,
             message: 'Field created successfully',
-            data: enrichedField,
+            data: enrichedField
         });
     });
     // Get all fields with filters and pagination (admin - includes all fields)
-    getAllFields = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
-        const { search, zipCode, lat, lng, city, state, type, minPrice, maxPrice, amenities, minRating, maxDistance, date, startTime, endTime, numberOfDogs, size, terrainType, fenceType, instantBooking, availability, sortBy, sortOrder, page = 1, limit = 10, } = req.query;
+    getAllFields = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
+        const { search, zipCode, lat, lng, city, state, type, minPrice, maxPrice, amenities, minRating, maxDistance, date, startTime, endTime, numberOfDogs, size, terrainType, fenceType, instantBooking, availability, sortBy, sortOrder, page = 1, limit = 10 } = req.query;
         const pageNum = Number(page);
         const limitNum = Number(limit);
         const skip = (pageNum - 1) * limitNum;
         // Parse amenities if it's a comma-separated string
-        const amenitiesArray = amenities
-            ? amenities.split(',').map(a => a.trim())
-            : undefined;
+        const amenitiesArray = amenities ? amenities.split(',').map((a)=>a.trim()) : undefined;
         // Parse availability if it's a comma-separated string (e.g., "Morning,Afternoon")
-        const availabilityArray = availability
-            ? availability.split(',').map(a => a.trim())
-            : undefined;
-        const result = await field_model_1.default.findAll({
+        const availabilityArray = availability ? availability.split(',').map((a)=>a.trim()) : undefined;
+        const result = await _fieldmodel.default.findAll({
             search: search,
             zipCode: zipCode,
             lat: lat ? Number(lat) : undefined,
@@ -265,10 +262,10 @@ class FieldController {
             sortBy: sortBy,
             sortOrder: sortOrder,
             skip,
-            take: limitNum,
+            take: limitNum
         });
         // Enrich fields with full amenity objects
-        const enrichedFields = await (0, amenity_utils_1.enrichFieldsWithAmenities)(result.fields);
+        const enrichedFields = await (0, _amenityutils.enrichFieldsWithAmenities)(result.fields);
         const totalPages = Math.ceil(result.total / limitNum);
         res.json({
             success: true,
@@ -279,26 +276,22 @@ class FieldController {
                 total: result.total,
                 totalPages,
                 hasNextPage: pageNum < totalPages,
-                hasPrevPage: pageNum > 1,
-            },
+                hasPrevPage: pageNum > 1
+            }
         });
     });
     // Get active fields only (public - for field listing/search)
-    getActiveFields = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
-        const { search, zipCode, lat, lng, city, state, type, minPrice, maxPrice, amenities, minRating, maxDistance, date, startTime, endTime, numberOfDogs, size, terrainType, fenceType, instantBooking, availability, sortBy, sortOrder, page = 1, limit = 10, } = req.query;
+    getActiveFields = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
+        const { search, zipCode, lat, lng, city, state, type, minPrice, maxPrice, amenities, minRating, maxDistance, date, startTime, endTime, numberOfDogs, size, terrainType, fenceType, instantBooking, availability, sortBy, sortOrder, page = 1, limit = 10 } = req.query;
         const pageNum = Number(page);
         const limitNum = Number(limit);
         const skip = (pageNum - 1) * limitNum;
         // Parse amenities if it's a comma-separated string
-        const amenitiesArray = amenities
-            ? amenities.split(',').map(a => a.trim())
-            : undefined;
+        const amenitiesArray = amenities ? amenities.split(',').map((a)=>a.trim()) : undefined;
         // Parse availability if it's a comma-separated string (e.g., "Morning,Afternoon")
-        const availabilityArray = availability
-            ? availability.split(',').map(a => a.trim())
-            : undefined;
+        const availabilityArray = availability ? availability.split(',').map((a)=>a.trim()) : undefined;
         // This method already filters by isActive: true and isSubmitted: true
-        const result = await field_model_1.default.findAll({
+        const result = await _fieldmodel.default.findAll({
             search: search,
             zipCode: zipCode,
             lat: lat ? Number(lat) : undefined,
@@ -323,35 +316,33 @@ class FieldController {
             sortBy: sortBy,
             sortOrder: sortOrder,
             skip,
-            take: limitNum,
+            take: limitNum
         });
         // Transform and calculate distance for each field if user location is provided
         const userLat = lat ? Number(lat) : null;
         const userLng = lng ? Number(lng) : null;
-        const transformedFields = result.fields.map((field) => {
+        const transformedFields = result.fields.map((field)=>{
             // Get field coordinates from location JSON or legacy lat/lng fields
             // Handle both Prisma Json type and actual parsed object
-            const locationData = typeof field.location === 'string'
-                ? JSON.parse(field.location)
-                : field.location;
+            const locationData = typeof field.location === 'string' ? JSON.parse(field.location) : field.location;
             const fieldLat = locationData?.lat || field.latitude;
             const fieldLng = locationData?.lng || field.longitude;
             // Build optimized response with only necessary fields
             const optimizedField = {
-                id: field.fieldId, // Use human-readable ID as primary ID for frontend
-                _objectId: field.id, // Store ObjectID temporarily for liking logic
+                id: field.fieldId,
+                _objectId: field.id,
                 name: field.name,
-                image: getFirstValidImage(field.images), // First valid image (not WordPress URL)
+                image: getFirstValidImage(field.images),
                 price: field.price,
-                price30min: field.price30min, // New price field for 30 min slots
-                price1hr: field.price1hr, // New price field for 1 hour slots
-                duration: field.bookingDuration || 'hour', // 'hour' or '30min'
+                price30min: field.price30min,
+                price1hr: field.price1hr,
+                duration: field.bookingDuration || 'hour',
                 rating: field.averageRating || 0,
                 reviewCount: field.totalReviews || 0,
-                amenities: field.amenities?.slice(0, 4) || [], // Only first 4 amenities for card
+                amenities: field.amenities?.slice(0, 4) || [],
                 isClaimed: field.isClaimed,
                 owner: field.ownerName || 'Field Owner',
-                maxDogs: field.maxDogs || 10, // Maximum dogs allowed per booking
+                maxDogs: field.maxDogs || 10,
                 // Location info
                 location: {
                     address: field.address,
@@ -359,10 +350,10 @@ class FieldController {
                     state: field.state,
                     zipCode: field.zipCode,
                     lat: fieldLat,
-                    lng: fieldLng,
+                    lng: fieldLng
                 },
                 // Formatted location string for display
-                locationDisplay: getLocationDisplay(field),
+                locationDisplay: getLocationDisplay(field)
             };
             // Calculate distance if user location is provided and field has coordinates
             if (userLat && userLng && fieldLat && fieldLng) {
@@ -370,64 +361,71 @@ class FieldController {
                 const R = 3959; // Earth's radius in miles
                 const dLat = (fieldLat - userLat) * Math.PI / 180;
                 const dLng = (fieldLng - userLng) * Math.PI / 180;
-                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(userLat * Math.PI / 180) * Math.cos(fieldLat * Math.PI / 180) *
-                        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(userLat * Math.PI / 180) * Math.cos(fieldLat * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 const distanceMiles = R * c;
                 optimizedField.distance = Number(distanceMiles.toFixed(1));
-                optimizedField.distanceDisplay = distanceMiles < 1
-                    ? `${(distanceMiles * 1760).toFixed(0)} yards`
-                    : `${distanceMiles.toFixed(1)} miles`;
+                optimizedField.distanceDisplay = distanceMiles < 1 ? `${(distanceMiles * 1760).toFixed(0)} yards` : `${distanceMiles.toFixed(1)} miles`;
             }
             return optimizedField;
         });
         // Batch fetch active discounts for all fields in one query
         const now = new Date();
-        const fieldObjectIds = result.fields.map((f) => f.id);
+        const fieldObjectIds = result.fields.map((f)=>f.id);
         try {
-            const activeDiscounts = await database_1.default.discount.findMany({
+            const activeDiscounts = await _database.default.discount.findMany({
                 where: {
-                    fieldId: { in: fieldObjectIds },
+                    fieldId: {
+                        in: fieldObjectIds
+                    },
                     enabled: true,
-                    startDate: { lte: now },
-                    endDate: { gte: now },
+                    startDate: {
+                        lte: now
+                    },
+                    endDate: {
+                        gte: now
+                    }
                 },
-                select: { fieldId: true, value: true },
+                select: {
+                    fieldId: true,
+                    value: true
+                }
             });
             // Build map of fieldId -> highest discount %
             const discountMap = {};
-            for (const d of activeDiscounts) {
+            for (const d of activeDiscounts){
                 discountMap[d.fieldId] = Math.max(discountMap[d.fieldId] || 0, d.value);
             }
             // Attach discount to each transformed field
-            for (const tf of transformedFields) {
-                const objId = result.fields.find((f) => f.fieldId === tf.id)?.id;
+            for (const tf of transformedFields){
+                const objId = result.fields.find((f)=>f.fieldId === tf.id)?.id;
                 if (objId && discountMap[objId]) {
                     tf.activeDiscount = discountMap[objId];
                 }
             }
-        }
-        catch (err) {
+        } catch (err) {
             // Don't fail the whole request if discounts fail
             console.error('[getActiveFields] Discount fetch error:', err);
         }
         // Run amenity enrichment and favorites query in parallel
         const userId = req.user?.id;
         const [enrichedFields, userLikedFieldIds] = await Promise.all([
-            (0, amenity_utils_1.enrichFieldsWithAmenities)(transformedFields),
-            (async () => {
-                if (!userId)
-                    return new Set();
-                const userFavorites = await database_1.default.favorite.findMany({
-                    where: { userId },
-                    select: { fieldId: true }
+            (0, _amenityutils.enrichFieldsWithAmenities)(transformedFields),
+            (async ()=>{
+                if (!userId) return new Set();
+                const userFavorites = await _database.default.favorite.findMany({
+                    where: {
+                        userId
+                    },
+                    select: {
+                        fieldId: true
+                    }
                 });
-                return new Set(userFavorites.map(f => f.fieldId));
-            })(),
+                return new Set(userFavorites.map((f)=>f.fieldId));
+            })()
         ]);
         // Add isLiked to each field and remove internal ID
-        const fieldsWithLikeStatus = enrichedFields.map((field) => {
+        const fieldsWithLikeStatus = enrichedFields.map((field)=>{
             const { _objectId, ...fieldData } = field;
             return {
                 ...fieldData,
@@ -444,32 +442,32 @@ class FieldController {
                 total: result.total,
                 totalPages,
                 hasNextPage: pageNum < totalPages,
-                hasPrevPage: pageNum > 1,
-            },
+                hasPrevPage: pageNum > 1
+            }
         });
     });
     // Get field suggestions for search
-    getFieldSuggestions = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getFieldSuggestions = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { query } = req.query;
         if (!query || query.length < 2) {
             return res.json({
                 success: true,
-                data: [],
+                data: []
             });
         }
-        const suggestions = await field_model_1.default.getSuggestions(query);
+        const suggestions = await _fieldmodel.default.getSuggestions(query);
         res.json({
             success: true,
-            data: suggestions,
+            data: suggestions
         });
     });
     // Get field by ID
-    getField = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getField = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
         const { lat, lng } = req.query;
-        const field = await field_model_1.default.findById(id);
+        const field = await _fieldmodel.default.findById(id);
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         // Calculate distance if user location (lat/lng) is provided
         if (lat && lng && field.latitude && field.longitude) {
@@ -479,85 +477,85 @@ class FieldController {
             const R = 3959; // Earth's radius in miles
             const dLat = (field.latitude - userLat) * Math.PI / 180;
             const dLng = (field.longitude - userLng) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(userLat * Math.PI / 180) * Math.cos(field.latitude * Math.PI / 180) *
-                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(userLat * Math.PI / 180) * Math.cos(field.latitude * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             const distanceMiles = R * c;
             // Add distanceMiles to field response
             field.distanceMiles = Number(distanceMiles.toFixed(1));
         }
-        const amenityObjects = await (0, amenity_utils_1.transformAmenitiesToObjects)(field.amenities || []);
-        const amenitiesWithIcons = amenityObjects.map((amenity) => ({
-            id: amenity.id,
-            label: amenity.label,
-            value: amenity.value,
-            iconUrl: amenity.iconUrl ?? null,
-            imageIconUrl: amenity.iconUrl ?? null,
-        }));
+        const amenityObjects = await (0, _amenityutils.transformAmenitiesToObjects)(field.amenities || []);
+        const amenitiesWithIcons = amenityObjects.map((amenity)=>({
+                id: amenity.id,
+                label: amenity.label,
+                value: amenity.value,
+                iconUrl: amenity.iconUrl ?? null,
+                imageIconUrl: amenity.iconUrl ?? null
+            }));
         const enrichedField = {
             ...field,
-            amenities: amenitiesWithIcons,
+            amenities: amenitiesWithIcons
         };
         res.json({
             success: true,
-            data: enrichedField,
+            data: enrichedField
         });
     });
     // Get field by ID with minimal data (optimized for SSG/ISR builds)
-    getFieldMinimal = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getFieldMinimal = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
-        const field = await field_model_1.default.findByIdMinimal(id);
+        const field = await _fieldmodel.default.findByIdMinimal(id);
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         // Transform amenities to objects
-        const amenityObjects = await (0, amenity_utils_1.transformAmenitiesToObjects)(field.amenities || []);
-        const amenitiesWithIcons = amenityObjects.map((amenity) => ({
-            id: amenity.id,
-            label: amenity.label,
-            value: amenity.value,
-            iconUrl: amenity.iconUrl ?? null,
-        }));
+        const amenityObjects = await (0, _amenityutils.transformAmenitiesToObjects)(field.amenities || []);
+        const amenitiesWithIcons = amenityObjects.map((amenity)=>({
+                id: amenity.id,
+                label: amenity.label,
+                value: amenity.value,
+                iconUrl: amenity.iconUrl ?? null
+            }));
         const enrichedField = {
             ...field,
-            amenities: amenitiesWithIcons,
+            amenities: amenitiesWithIcons
         };
         res.json({
             success: true,
-            data: enrichedField,
+            data: enrichedField
         });
     });
     // Get fields by owner
-    getMyFields = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getMyFields = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
-        const fields = await field_model_1.default.findByOwner(ownerId);
+        const fields = await _fieldmodel.default.findByOwner(ownerId);
         // Enrich fields with full amenity objects
-        const enrichedFields = await (0, amenity_utils_1.enrichFieldsWithAmenities)(fields);
+        const enrichedFields = await (0, _amenityutils.enrichFieldsWithAmenities)(fields);
         res.json({
             success: true,
             data: enrichedFields,
-            total: enrichedFields.length,
+            total: enrichedFields.length
         });
     });
     // Update field
-    updateField = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    updateField = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
         const userId = req.user.id;
         const userRole = req.user.role;
-        const formatAddress = (address, city, state, zipCode) => {
-            return [address, city, state, zipCode]
-                .map(part => (part && typeof part === 'string' ? part.trim() : part))
-                .filter(Boolean)
-                .join(', ') || 'Not provided';
+        const formatAddress = (address, city, state, zipCode)=>{
+            return [
+                address,
+                city,
+                state,
+                zipCode
+            ].map((part)=>part && typeof part === 'string' ? part.trim() : part).filter(Boolean).join(', ') || 'Not provided';
         };
         // Check ownership
-        const field = await field_model_1.default.findById(id);
+        const field = await _fieldmodel.default.findById(id);
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         if (field.ownerId !== userId && userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('You can only update your own fields', 403);
+            throw new _AppError.AppError('You can only update your own fields', 403);
         }
         // Prevent updating certain fields
         delete req.body.id;
@@ -582,10 +580,10 @@ class FieldController {
         console.log('   - state:', req.body.state !== undefined ? req.body.state : '(not in request)');
         console.log('   - zipCode:', req.body.zipCode !== undefined ? req.body.zipCode : '(not in request)');
         console.log('───────────────────────────────────────────────────────────────');
-        const addressChanged = (req.body.address !== undefined && req.body.address !== field.address);
-        const cityChanged = (req.body.city !== undefined && req.body.city !== field.city);
-        const stateChanged = (req.body.state !== undefined && req.body.state !== field.state);
-        const zipCodeChanged = (req.body.zipCode !== undefined && req.body.zipCode !== field.zipCode);
+        const addressChanged = req.body.address !== undefined && req.body.address !== field.address;
+        const cityChanged = req.body.city !== undefined && req.body.city !== field.city;
+        const stateChanged = req.body.state !== undefined && req.body.state !== field.state;
+        const zipCodeChanged = req.body.zipCode !== undefined && req.body.zipCode !== field.zipCode;
         console.log('🔄 Change Detection Results:');
         console.log('   - Address changed:', addressChanged);
         console.log('   - City changed:', cityChanged);
@@ -603,24 +601,22 @@ class FieldController {
         console.log('   - Should Notify Admin:', shouldNotifyAdmin);
         console.log('   - Entry Code Changed:', entryCodeChanged);
         console.log('═══════════════════════════════════════════════════════════════');
-        const previousAddressSnapshot = shouldNotifyAdmin
-            ? formatAddress(field.address, field.city, field.state, field.zipCode)
-            : null;
+        const previousAddressSnapshot = shouldNotifyAdmin ? formatAddress(field.address, field.city, field.state, field.zipCode) : null;
         // Validate closing time is strictly after opening time (same day only)
         const openingTime = req.body.openingTime || field.openingTime;
         const closingTime = req.body.closingTime || field.closingTime;
         if (openingTime && closingTime) {
             const [oh, om] = openingTime.split(':').map(Number);
             const [ch, cm] = closingTime.split(':').map(Number);
-            if ((ch * 60 + cm) <= (oh * 60 + om)) {
-                throw new AppError_1.AppError('Closing time must be after opening time', 400);
+            if (ch * 60 + cm <= oh * 60 + om) {
+                throw new _AppError.AppError('Closing time must be after opening time', 400);
             }
         }
         // Convert amenity IDs to names only if amenities contain ObjectIds, otherwise keep as-is (slugs/names)
         if (req.body.amenities && req.body.amenities.length > 0) {
-            const hasObjectIds = req.body.amenities.some((id) => /^[0-9a-fA-F]{24}$/.test(id));
+            const hasObjectIds = req.body.amenities.some((id)=>/^[0-9a-fA-F]{24}$/.test(id));
             if (hasObjectIds) {
-                req.body.amenities = await (0, amenity_converter_1.convertAmenityIdsToNames)(req.body.amenities);
+                req.body.amenities = await (0, _amenityconverter.convertAmenityIdsToNames)(req.body.amenities);
             }
         }
         // Track who made this edit
@@ -629,32 +625,28 @@ class FieldController {
         req.body.lastEditedAt = new Date();
         // Handle price fields - explicitly set to null if empty/0 to ensure proper removal
         if (req.body.price30min !== undefined) {
-            req.body.price30min = req.body.price30min === '' || req.body.price30min === null || parseFloat(req.body.price30min) === 0
-                ? null
-                : parseFloat(req.body.price30min);
+            req.body.price30min = req.body.price30min === '' || req.body.price30min === null || parseFloat(req.body.price30min) === 0 ? null : parseFloat(req.body.price30min);
         }
         if (req.body.price1hr !== undefined) {
-            req.body.price1hr = req.body.price1hr === '' || req.body.price1hr === null || parseFloat(req.body.price1hr) === 0
-                ? null
-                : parseFloat(req.body.price1hr);
+            req.body.price1hr = req.body.price1hr === '' || req.body.price1hr === null || parseFloat(req.body.price1hr) === 0 ? null : parseFloat(req.body.price1hr);
         }
         // Validate times if being updated (no minimum hours requirement, allow flexible hours)
         if (req.body.openingTime || req.body.closingTime) {
             const openingTime = req.body.openingTime || field.openingTime;
             const closingTime = req.body.closingTime || field.closingTime;
             if (openingTime && closingTime && openingTime === closingTime) {
-                throw new AppError_1.AppError('Opening and closing times must be different', 400);
+                throw new _AppError.AppError('Opening and closing times must be different', 400);
             }
-            // Note: We allow overnight operation (e.g., 10pm to 6am), so no "closing after opening" check
+        // Note: We allow overnight operation (e.g., 10pm to 6am), so no "closing after opening" check
         }
-        const updatedField = await field_model_1.default.update(id, req.body);
+        const updatedField = await _fieldmodel.default.update(id, req.body);
         // If isClaimed is being set to false, reset any approved claims for this field
         // This ensures the field can be claimed again
         if (req.body.isClaimed === false && field.isClaimed === true) {
             console.log(`📝 Field ${id} marked as unclaimed. Resetting approved claims...`);
             try {
                 // Update any APPROVED claims to REVOKED status
-                const revokedClaims = await database_1.default.fieldClaim.updateMany({
+                const revokedClaims = await _database.default.fieldClaim.updateMany({
                     where: {
                         fieldId: id,
                         status: 'APPROVED'
@@ -665,14 +657,13 @@ class FieldController {
                     }
                 });
                 console.log(`📝 Revoked ${revokedClaims.count} approved claim(s) for field ${id}`);
-            }
-            catch (claimError) {
+            } catch (claimError) {
                 console.error('Failed to revoke approved claims:', claimError);
-                // Don't fail the update, just log the error
+            // Don't fail the update, just log the error
             }
         }
         // Enrich field with full amenity objects
-        const enrichedField = await (0, amenity_utils_1.enrichFieldWithAmenities)(updatedField);
+        const enrichedField = await (0, _amenityutils.enrichFieldWithAmenities)(updatedField);
         if (shouldNotifyAdmin) {
             console.log('═══════════════════════════════════════════════════════════════');
             console.log('🔔 FIELD ADDRESS CHANGE DETECTED - INITIATING ADMIN NOTIFICATION');
@@ -683,8 +674,11 @@ class FieldController {
             console.log('📍 New Address:', formatAddress(updatedField.address, updatedField.city, updatedField.state, updatedField.zipCode));
             console.log('───────────────────────────────────────────────────────────────');
             try {
-                const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
-                const settings = await (0, settings_cache_1.getSystemSettings)({ adminEmail: true, supportEmail: true });
+                const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
+                const settings = await (0, _settingscache.getSystemSettings)({
+                    adminEmail: true,
+                    supportEmail: true
+                });
                 console.log('🔍 Settings Retrieved:');
                 console.log('   - Admin Email from settings:', settings?.adminEmail || 'NOT SET');
                 console.log('   - Support Email from settings:', settings?.supportEmail || 'NOT SET');
@@ -702,21 +696,19 @@ class FieldController {
                         ownerEmail: updatedField.owner?.email || field.owner?.email || null,
                         previousAddress: previousAddressSnapshot || 'Not provided',
                         newAddress: formatAddress(updatedField.address, updatedField.city, updatedField.state, updatedField.zipCode),
-                        changeDate: new Date(),
+                        changeDate: new Date()
                     });
                     console.log('📧 Email notification result:', emailResult ? 'SUCCESS' : 'FAILED');
-                }
-                else {
+                } else {
                     console.warn('⚠️ Admin email not configured in settings; skipping field address change notification.');
                     console.warn('   To enable notifications, set Admin Email in Admin Settings > General');
                 }
-            }
-            catch (notificationError) {
+            } catch (notificationError) {
                 console.error('❌ Failed to send field address change notification:', notificationError);
             }
             // Send in-app notification to all admins
             try {
-                const { NotificationService } = await Promise.resolve().then(() => __importStar(require('../services/notification.service')));
+                const { NotificationService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/notification.service")));
                 const ownerName = updatedField.owner?.name || field.owner?.name || 'Field Owner';
                 const newAddress = formatAddress(updatedField.address, updatedField.city, updatedField.state, updatedField.zipCode);
                 await NotificationService.notifyAdmins('Field Address Updated', `${ownerName} has updated the address for field "${updatedField.name || 'Field'}". Previous: ${previousAddressSnapshot}. New: ${newAddress}`, {
@@ -728,8 +720,7 @@ class FieldController {
                     newAddress: newAddress,
                     changeDate: new Date()
                 });
-            }
-            catch (notificationError) {
+            } catch (notificationError) {
                 console.error('Failed to send admin notification for field address change:', notificationError);
             }
         }
@@ -747,11 +738,18 @@ class FieldController {
                 // Get all upcoming bookings for this field
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const upcomingBookings = await database_1.default.booking.findMany({
+                const upcomingBookings = await _database.default.booking.findMany({
                     where: {
                         fieldId: updatedField.id,
-                        date: { gte: today },
-                        status: { in: ['CONFIRMED', 'PENDING'] }
+                        date: {
+                            gte: today
+                        },
+                        status: {
+                            in: [
+                                'CONFIRMED',
+                                'PENDING'
+                            ]
+                        }
                     },
                     include: {
                         user: {
@@ -765,25 +763,26 @@ class FieldController {
                 });
                 // Get unique users who have upcoming bookings
                 const usersToNotify = new Map();
-                for (const booking of upcomingBookings) {
+                for (const booking of upcomingBookings){
                     if (booking.user?.email) {
                         const existing = usersToNotify.get(booking.user.id);
                         if (existing) {
                             existing.bookingDates.push(booking.date);
-                        }
-                        else {
+                        } else {
                             usersToNotify.set(booking.user.id, {
                                 email: booking.user.email,
                                 name: booking.user.name || 'Valued Customer',
-                                bookingDates: [booking.date]
+                                bookingDates: [
+                                    booking.date
+                                ]
                             });
                         }
                     }
                 }
                 console.log(`📧 Found ${usersToNotify.size} user(s) with upcoming bookings to notify`);
                 // Send emails to all affected users
-                const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
-                for (const [userId, userData] of usersToNotify) {
+                const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
+                for (const [userId, userData] of usersToNotify){
                     try {
                         await emailService.sendEntryCodeUpdateNotification({
                             email: userData.email,
@@ -794,124 +793,126 @@ class FieldController {
                             upcomingBookingDates: userData.bookingDates
                         });
                         console.log(`✅ Entry code notification sent to ${userData.email}`);
-                    }
-                    catch (emailError) {
+                    } catch (emailError) {
                         console.error(`❌ Failed to send entry code update email to ${userData.email}:`, emailError);
                     }
                 }
                 console.log('═══════════════════════════════════════════════════════════════');
-            }
-            catch (notifyError) {
+            } catch (notifyError) {
                 console.error('Error notifying users about entry code change:', notifyError);
             }
         }
         res.json({
             success: true,
             message: 'Field updated successfully',
-            data: enrichedField,
+            data: enrichedField
         });
     });
     // Delete field
-    deleteField = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    deleteField = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
         const userId = req.user.id;
         const userRole = req.user.role;
         // Check ownership
-        const field = await field_model_1.default.findById(id);
+        const field = await _fieldmodel.default.findById(id);
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         if (field.ownerId !== userId && userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('You can only delete your own fields', 403);
+            throw new _AppError.AppError('You can only delete your own fields', 403);
         }
-        await field_model_1.default.delete(id);
+        await _fieldmodel.default.delete(id);
         res.status(204).json({
             success: true,
-            message: 'Field deleted successfully',
+            message: 'Field deleted successfully'
         });
     });
     // Toggle field active status
-    toggleFieldStatus = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    toggleFieldStatus = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
         const userId = req.user.id;
         const userRole = req.user.role;
         // Check ownership
-        const field = await field_model_1.default.findById(id);
+        const field = await _fieldmodel.default.findById(id);
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         if (field.ownerId !== userId && userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('You can only toggle your own fields', 403);
+            throw new _AppError.AppError('You can only toggle your own fields', 403);
         }
-        const updatedField = await field_model_1.default.toggleActive(id);
+        const updatedField = await _fieldmodel.default.toggleActive(id);
         // Enrich field with full amenity objects
-        const enrichedField = await (0, amenity_utils_1.enrichFieldWithAmenities)(updatedField);
+        const enrichedField = await (0, _amenityutils.enrichFieldWithAmenities)(updatedField);
         res.json({
             success: true,
             message: `Field ${updatedField.isActive ? 'activated' : 'deactivated'} successfully`,
-            data: enrichedField,
+            data: enrichedField
         });
     });
     // Toggle field blocked status (admin only)
-    toggleFieldBlocked = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    toggleFieldBlocked = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
         const userRole = req.user.role;
         // Only admin can block/unblock fields
         if (userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only admin can block or unblock fields', 403);
+            throw new _AppError.AppError('Only admin can block or unblock fields', 403);
         }
         // Check if field exists
-        const field = await field_model_1.default.findById(id);
+        const field = await _fieldmodel.default.findById(id);
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
-        const updatedField = await field_model_1.default.toggleBlocked(id);
+        const updatedField = await _fieldmodel.default.toggleBlocked(id);
         // Enrich field with full amenity objects
-        const enrichedField = await (0, amenity_utils_1.enrichFieldWithAmenities)(updatedField);
+        const enrichedField = await (0, _amenityutils.enrichFieldWithAmenities)(updatedField);
         res.json({
             success: true,
             message: `Field ${updatedField.isBlocked ? 'blocked' : 'unblocked'} successfully`,
-            data: enrichedField,
+            data: enrichedField
         });
     });
     // Toggle field approved status (admin only)
-    toggleFieldApproved = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    toggleFieldApproved = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
         const adminId = req.user.id;
         const userRole = req.user.role;
         // Only admin can approve/unapprove fields
         if (userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only admin can approve or unapprove fields', 403);
+            throw new _AppError.AppError('Only admin can approve or unapprove fields', 403);
         }
         // Check if field exists
-        const field = await database_1.default.field.findUnique({
-            where: { id },
-            include: { owner: true }
+        const field = await _database.default.field.findUnique({
+            where: {
+                id
+            },
+            include: {
+                owner: true
+            }
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         // Only allow approving fields that have been submitted
         if (!field.isSubmitted && !field.isApproved) {
-            throw new AppError_1.AppError('Cannot approve a field that has not been submitted for review', 400);
+            throw new _AppError.AppError('Cannot approve a field that has not been submitted for review', 400);
         }
         const newApprovedStatus = !field.isApproved;
         // Update the field - only change isApproved (isActive is field-owner controlled)
-        const updatedField = await database_1.default.field.update({
-            where: { id },
+        const updatedField = await _database.default.field.update({
+            where: {
+                id
+            },
             data: {
-                isApproved: newApprovedStatus,
+                isApproved: newApprovedStatus
             }
         });
         // Create notification for field owner
-        await database_1.default.notification.create({
+        await _database.default.notification.create({
             data: {
                 userId: field.ownerId,
                 type: newApprovedStatus ? 'field_approved' : 'field_unapproved',
                 title: newApprovedStatus ? 'Field Approved!' : 'Field Approval Revoked',
-                message: newApprovedStatus
-                    ? `Your field "${field.name}" has been approved and is now live on Fieldsy.`
-                    : `Your field "${field.name}" approval has been revoked and is no longer visible on Fieldsy.`,
+                message: newApprovedStatus ? `Your field "${field.name}" has been approved and is now live on Fieldsy.` : `Your field "${field.name}" approval has been revoked and is no longer visible on Fieldsy.`,
                 data: {
                     fieldId: field.id,
                     fieldName: field.name
@@ -921,13 +922,12 @@ class FieldController {
         // Send email notification if approved
         if (newApprovedStatus) {
             try {
-                const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
+                const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
                 let fieldAddress = '';
                 if (field.location && typeof field.location === 'object') {
                     const loc = field.location;
                     fieldAddress = loc.formatted_address || loc.streetAddress || field.address || '';
-                }
-                else {
+                } else {
                     fieldAddress = field.address || '';
                 }
                 await emailService.sendFieldApprovalEmail({
@@ -936,81 +936,76 @@ class FieldController {
                     fieldName: field.name || 'Your Field',
                     fieldAddress: fieldAddress
                 });
-            }
-            catch (emailError) {
+            } catch (emailError) {
                 console.error('Failed to send approval email:', emailError);
             }
         }
         // Enrich field with full amenity objects
-        const enrichedField = await (0, amenity_utils_1.enrichFieldWithAmenities)(updatedField);
+        const enrichedField = await (0, _amenityutils.enrichFieldWithAmenities)(updatedField);
         res.json({
             success: true,
             message: `Field ${newApprovedStatus ? 'approved' : 'unapproved'} successfully`,
-            data: enrichedField,
+            data: enrichedField
         });
     });
     // Search fields by location
-    searchByLocation = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    searchByLocation = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { lat, lng, radius = 10 } = req.query;
         if (!lat || !lng) {
-            throw new AppError_1.AppError('Latitude and longitude are required', 400);
+            throw new _AppError.AppError('Latitude and longitude are required', 400);
         }
-        const fields = await field_model_1.default.searchByLocation(Number(lat), Number(lng), Number(radius));
+        const fields = await _fieldmodel.default.searchByLocation(Number(lat), Number(lng), Number(radius));
         // Enrich fields with full amenity objects
-        const enrichedFields = await (0, amenity_utils_1.enrichFieldsWithAmenities)(fields);
+        const enrichedFields = await (0, _amenityutils.enrichFieldsWithAmenities)(fields);
         res.json({
             success: true,
             data: enrichedFields,
-            total: enrichedFields.length,
+            total: enrichedFields.length
         });
     });
     // Get nearby fields based on lat/lng
-    getNearbyFields = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getNearbyFields = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { lat, lng, radius = 10, page = 1, limit = 9, sortBy, sortOrder } = req.query;
         // Validate required parameters
         if (!lat || !lng) {
-            throw new AppError_1.AppError('Latitude and longitude are required', 400);
+            throw new _AppError.AppError('Latitude and longitude are required', 400);
         }
         // Validate lat/lng values
         const latitude = Number(lat);
         const longitude = Number(lng);
         if (isNaN(latitude) || isNaN(longitude)) {
-            throw new AppError_1.AppError('Invalid latitude or longitude values', 400);
+            throw new _AppError.AppError('Invalid latitude or longitude values', 400);
         }
         if (latitude < -90 || latitude > 90) {
-            throw new AppError_1.AppError('Latitude must be between -90 and 90', 400);
+            throw new _AppError.AppError('Latitude must be between -90 and 90', 400);
         }
         if (longitude < -180 || longitude > 180) {
-            throw new AppError_1.AppError('Longitude must be between -180 and 180', 400);
+            throw new _AppError.AppError('Longitude must be between -180 and 180', 400);
         }
         const radiusNum = Number(radius);
         const pageNum = Number(page);
         const limitNum = Number(limit);
         const skip = (pageNum - 1) * limitNum;
         // Get nearby fields within the requested radius
-        const nearbyFields = await field_model_1.default.searchByLocation(latitude, longitude, radiusNum);
+        const nearbyFields = await _fieldmodel.default.searchByLocation(latitude, longitude, radiusNum);
         // Use nearby fields directly (already sorted by distance from $near)
         let combinedFields = nearbyFields;
         // Apply sorting if specified
         if (sortBy && typeof sortBy === 'string') {
             const sortFields = sortBy.split(',');
-            const sortOrders = (sortOrder && typeof sortOrder === 'string')
-                ? sortOrder.split(',')
-                : sortFields.map(() => 'desc');
-            combinedFields.sort((a, b) => {
-                for (let i = 0; i < sortFields.length; i++) {
+            const sortOrders = sortOrder && typeof sortOrder === 'string' ? sortOrder.split(',') : sortFields.map(()=>'desc');
+            combinedFields.sort((a, b)=>{
+                for(let i = 0; i < sortFields.length; i++){
                     const field = sortFields[i].trim();
                     const order = sortOrders[i]?.trim() || 'desc';
                     let aValue, bValue;
                     if (field === 'rating') {
                         aValue = a.averageRating || 0;
                         bValue = b.averageRating || 0;
-                    }
-                    else if (field === 'price') {
+                    } else if (field === 'price') {
                         aValue = a.price || 0;
                         bValue = b.price || 0;
-                    }
-                    else {
+                    } else {
                         continue; // Skip unknown sort fields
                     }
                     if (aValue !== bValue) {
@@ -1025,11 +1020,9 @@ class FieldController {
         const paginatedFields = combinedFields.slice(skip, skip + limitNum);
         const totalPages = Math.ceil(total / limitNum);
         // Transform to optimized field card format
-        const transformedFields = paginatedFields.map((field) => {
+        const transformedFields = paginatedFields.map((field)=>{
             // Handle both Prisma Json type and actual parsed object
-            const locationData = typeof field.location === 'string'
-                ? JSON.parse(field.location)
-                : field.location;
+            const locationData = typeof field.location === 'string' ? JSON.parse(field.location) : field.location;
             const fieldLat = locationData?.lat || field.latitude;
             const fieldLng = locationData?.lng || field.longitude;
             return {
@@ -1051,36 +1044,35 @@ class FieldController {
                     state: field.state,
                     zipCode: field.zipCode,
                     lat: fieldLat,
-                    lng: fieldLng,
+                    lng: fieldLng
                 },
                 locationDisplay: getLocationDisplay(field),
                 distance: field.distanceMiles === Infinity ? null : field.distanceMiles,
-                distanceDisplay: field.distanceMiles === Infinity
-                    ? 'Location not available'
-                    : field.distanceMiles < 1
-                        ? `${(field.distanceMiles * 1760).toFixed(0)} yards`
-                        : `${field.distanceMiles.toFixed(1)} miles`,
+                distanceDisplay: field.distanceMiles === Infinity ? 'Location not available' : field.distanceMiles < 1 ? `${(field.distanceMiles * 1760).toFixed(0)} yards` : `${field.distanceMiles.toFixed(1)} miles`
             };
         });
         // Run amenity enrichment and favorites query in parallel
         const userId = req.user?.id;
         const [enrichedFields, userLikedFieldIds] = await Promise.all([
-            (0, amenity_utils_1.enrichFieldsWithAmenities)(transformedFields),
-            (async () => {
-                if (!userId)
-                    return new Set();
-                const userFavorites = await database_1.default.favorite.findMany({
-                    where: { userId },
-                    select: { fieldId: true }
+            (0, _amenityutils.enrichFieldsWithAmenities)(transformedFields),
+            (async ()=>{
+                if (!userId) return new Set();
+                const userFavorites = await _database.default.favorite.findMany({
+                    where: {
+                        userId
+                    },
+                    select: {
+                        fieldId: true
+                    }
                 });
-                return new Set(userFavorites.map(f => f.fieldId));
-            })(),
+                return new Set(userFavorites.map((f)=>f.fieldId));
+            })()
         ]);
         // Add isLiked to each field
-        const fieldsWithLikeStatus = enrichedFields.map((field) => ({
-            ...field,
-            isLiked: userLikedFieldIds.has(field.id)
-        }));
+        const fieldsWithLikeStatus = enrichedFields.map((field)=>({
+                ...field,
+                isLiked: userLikedFieldIds.has(field.id)
+            }));
         res.json({
             success: true,
             data: fieldsWithLikeStatus,
@@ -1090,16 +1082,16 @@ class FieldController {
                 total,
                 totalPages,
                 hasNextPage: pageNum < totalPages,
-                hasPrevPage: pageNum > 1,
+                hasPrevPage: pageNum > 1
             },
             metadata: {
                 nearbyCount: combinedFields.length,
-                radius: radiusNum,
-            },
+                radius: radiusNum
+            }
         });
     });
     // Get popular fields based on highest rating and most bookings
-    getPopularFields = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getPopularFields = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { page = 1, limit = 12, lat, lng } = req.query;
         const pageNum = Number(page);
         const limitNum = Number(limit);
@@ -1109,12 +1101,12 @@ class FieldController {
         // Use denormalized averageRating + totalReviews for sorting (no _count needed)
         // Sort by rating descending, then by totalReviews descending
         const [fields, total] = await Promise.all([
-            database_1.default.field.findMany({
+            _database.default.field.findMany({
                 where: {
                     isActive: true,
                     isSubmitted: true,
                     isApproved: true,
-                    isBlocked: false,
+                    isBlocked: false
                 },
                 select: {
                     id: true,
@@ -1135,45 +1127,48 @@ class FieldController {
                     ownerName: true,
                     latitude: true,
                     longitude: true,
-                    location: true,
+                    location: true
                 },
                 orderBy: [
-                    { averageRating: 'desc' },
-                    { totalReviews: 'desc' },
+                    {
+                        averageRating: 'desc'
+                    },
+                    {
+                        totalReviews: 'desc'
+                    }
                 ],
                 skip,
-                take: limitNum,
+                take: limitNum
             }),
-            database_1.default.field.count({
+            _database.default.field.count({
                 where: {
                     isActive: true,
                     isSubmitted: true,
                     isApproved: true,
-                    isBlocked: false,
-                },
-            }),
+                    isBlocked: false
+                }
+            })
         ]);
         const totalPages = Math.ceil(total / limitNum);
-        const paginatedFields = fields.map((field) => {
+        const paginatedFields = fields.map((field)=>{
             let distanceMiles = undefined;
             if (userLat !== null && userLng !== null && field.latitude && field.longitude) {
                 const R = 3959;
                 const dLat = (field.latitude - userLat) * Math.PI / 180;
                 const dLng = (field.longitude - userLng) * Math.PI / 180;
-                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(userLat * Math.PI / 180) * Math.cos(field.latitude * Math.PI / 180) *
-                        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(userLat * Math.PI / 180) * Math.cos(field.latitude * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 distanceMiles = Number((R * c).toFixed(1));
             }
-            return { ...field, distanceMiles };
+            return {
+                ...field,
+                distanceMiles
+            };
         });
         // Transform to optimized field card format
-        const transformedFields = paginatedFields.map((field) => {
+        const transformedFields = paginatedFields.map((field)=>{
             // Handle both Prisma Json type and actual parsed object
-            const locationData = typeof field.location === 'string'
-                ? JSON.parse(field.location)
-                : field.location;
+            const locationData = typeof field.location === 'string' ? JSON.parse(field.location) : field.location;
             const fieldLat = locationData?.lat || field.latitude;
             const fieldLng = locationData?.lng || field.longitude;
             return {
@@ -1195,36 +1190,35 @@ class FieldController {
                     state: field.state,
                     zipCode: field.zipCode,
                     lat: fieldLat,
-                    lng: fieldLng,
+                    lng: fieldLng
                 },
                 locationDisplay: getLocationDisplay(field),
                 distance: field.distanceMiles,
-                distanceDisplay: field.distanceMiles
-                    ? field.distanceMiles < 1
-                        ? `${(field.distanceMiles * 1760).toFixed(0)} yards`
-                        : `${field.distanceMiles.toFixed(1)} miles`
-                    : undefined,
+                distanceDisplay: field.distanceMiles ? field.distanceMiles < 1 ? `${(field.distanceMiles * 1760).toFixed(0)} yards` : `${field.distanceMiles.toFixed(1)} miles` : undefined
             };
         });
         // Run amenity enrichment and favorites query in parallel
         const userId = req.user?.id;
         const [enrichedFields, userLikedFieldIds] = await Promise.all([
-            (0, amenity_utils_1.enrichFieldsWithAmenities)(transformedFields),
-            (async () => {
-                if (!userId)
-                    return new Set();
-                const userFavorites = await database_1.default.favorite.findMany({
-                    where: { userId },
-                    select: { fieldId: true }
+            (0, _amenityutils.enrichFieldsWithAmenities)(transformedFields),
+            (async ()=>{
+                if (!userId) return new Set();
+                const userFavorites = await _database.default.favorite.findMany({
+                    where: {
+                        userId
+                    },
+                    select: {
+                        fieldId: true
+                    }
                 });
-                return new Set(userFavorites.map(f => f.fieldId));
-            })(),
+                return new Set(userFavorites.map((f)=>f.fieldId));
+            })()
         ]);
         // Add isLiked to each field
-        const fieldsWithLikeStatus = enrichedFields.map((field) => ({
-            ...field,
-            isLiked: userLikedFieldIds.has(field.id)
-        }));
+        const fieldsWithLikeStatus = enrichedFields.map((field)=>({
+                ...field,
+                isLiked: userLikedFieldIds.has(field.id)
+            }));
         res.json({
             success: true,
             data: fieldsWithLikeStatus,
@@ -1234,14 +1228,14 @@ class FieldController {
                 total,
                 totalPages,
                 hasNextPage: pageNum < totalPages,
-                hasPrevPage: pageNum > 1,
-            },
+                hasPrevPage: pageNum > 1
+            }
         });
     });
     // Get field owner's single field (since they can only have one)
-    getOwnerField = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getOwnerField = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
-        const field = await field_model_1.default.findOneByOwner(ownerId);
+        const field = await _fieldmodel.default.findOneByOwner(ownerId);
         if (!field) {
             // Return success with null field to indicate no field exists yet
             // This allows the frontend to show the add field form
@@ -1253,7 +1247,7 @@ class FieldController {
             });
         }
         // Enrich field with full amenity objects
-        const enrichedField = await (0, amenity_utils_1.enrichFieldWithAmenities)(field);
+        const enrichedField = await (0, _amenityutils.enrichFieldWithAmenities)(field);
         // Return the field with step completion status
         res.json({
             success: true,
@@ -1265,15 +1259,12 @@ class FieldController {
                     pricingAvailability: enrichedField.pricingAvailabilityCompleted || false,
                     bookingRules: field.bookingRulesCompleted || false
                 },
-                allStepsCompleted: field.fieldDetailsCompleted &&
-                    field.uploadImagesCompleted &&
-                    field.pricingAvailabilityCompleted &&
-                    field.bookingRulesCompleted
+                allStepsCompleted: field.fieldDetailsCompleted && field.uploadImagesCompleted && field.pricingAvailabilityCompleted && field.bookingRulesCompleted
             }
         });
     });
     // Save field progress (auto-save functionality)
-    saveFieldProgress = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    saveFieldProgress = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
         const { step, data, fieldId: providedFieldId } = req.body;
         // Check if we're updating an existing field or creating a new one
@@ -1282,33 +1273,28 @@ class FieldController {
         // If fieldId is provided, use it; otherwise find or create a field
         if (providedFieldId) {
             // Verify ownership
-            const existingField = await field_model_1.default.findById(providedFieldId);
+            const existingField = await _fieldmodel.default.findById(providedFieldId);
             if (!existingField || existingField.ownerId !== ownerId) {
-                throw new AppError_1.AppError('Field not found or you do not have permission', 403);
+                throw new _AppError.AppError('Field not found or you do not have permission', 403);
             }
             fieldId = providedFieldId;
-        }
-        else {
+        } else {
             // No fieldId provided
             // For steps after field-details, try to find the most recent incomplete field
             // This handles cases where fieldId was lost due to page refresh or state issues
             if (step !== 'field-details') {
-                const ownerFields = await field_model_1.default.findByOwner(ownerId);
-                const incompleteField = ownerFields
-                    .filter((f) => !f.isSubmitted)
-                    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+                const ownerFields = await _fieldmodel.default.findByOwner(ownerId);
+                const incompleteField = ownerFields.filter((f)=>!f.isSubmitted).sort((a, b)=>new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
                 if (incompleteField) {
                     // Use the most recent incomplete field
                     fieldId = incompleteField.id;
                     console.log(`[SaveProgress] Using most recent incomplete field ${fieldId} for step ${step}`);
-                }
-                else {
+                } else {
                     // No incomplete fields found - create a new one
                     isNewField = true;
                     console.log(`[SaveProgress] No incomplete field found. Creating new field for step ${step}`);
                 }
-            }
-            else {
+            } else {
                 // For field-details step, always create a new field when no fieldId is provided
                 isNewField = true;
                 console.log(`[SaveProgress] Creating new field for field-details step`);
@@ -1325,7 +1311,7 @@ class FieldController {
                     bookingRulesCompleted: false,
                     lastEditedBy: ownerId,
                     lastEditedByRole: 'FIELD_OWNER',
-                    lastEditedAt: new Date(),
+                    lastEditedAt: new Date()
                 };
                 // If the first step is field-details, include that data
                 if (step === 'field-details') {
@@ -1333,22 +1319,18 @@ class FieldController {
                     if (data.startTime && data.endTime) {
                         const [oh, om] = data.startTime.split(':').map(Number);
                         const [ch, cm] = data.endTime.split(':').map(Number);
-                        if ((ch * 60 + cm) <= (oh * 60 + om)) {
-                            throw new AppError_1.AppError('Closing time must be after opening time', 400);
+                        if (ch * 60 + cm <= oh * 60 + om) {
+                            throw new _AppError.AppError('Closing time must be after opening time', 400);
                         }
                     }
                     // Convert amenity IDs to names
-                    const amenityIds = data.amenities && Array.isArray(data.amenities)
-                        ? data.amenities
-                        : (typeof data.amenities === 'object'
-                            ? Object.keys(data.amenities || {}).filter(key => data.amenities[key])
-                            : []);
-                    const amenityNames = amenityIds.length > 0 ? await (0, amenity_converter_1.convertAmenityIdsToNames)(amenityIds) : [];
+                    const amenityIds = data.amenities && Array.isArray(data.amenities) ? data.amenities : typeof data.amenities === 'object' ? Object.keys(data.amenities || {}).filter((key)=>data.amenities[key]) : [];
+                    const amenityNames = amenityIds.length > 0 ? await (0, _amenityconverter.convertAmenityIdsToNames)(amenityIds) : [];
                     initialFieldData = {
                         ...initialFieldData,
                         name: data.fieldName,
                         size: data.fieldSize,
-                        customFieldSize: data.customFieldSize || null, // Store custom field size if provided
+                        customFieldSize: data.customFieldSize || null,
                         terrainType: data.terrainType,
                         fenceType: data.fenceType,
                         fenceSize: data.fenceSize,
@@ -1358,7 +1340,9 @@ class FieldController {
                         maxDogs: parseInt(data.maxDogs) || 10,
                         openingTime: data.startTime,
                         closingTime: data.endTime,
-                        operatingDays: data.openingDays ? [data.openingDays] : [],
+                        operatingDays: data.openingDays ? [
+                            data.openingDays
+                        ] : [],
                         amenities: amenityNames,
                         // Store location object if provided
                         location: data.location || null,
@@ -1372,12 +1356,14 @@ class FieldController {
                         latitude: data.location?.lat || null,
                         longitude: data.location?.lng || null,
                         // Entry code (optional, 4-10 alphanumeric uppercase)
-                        ...(data.entryCode ? { entryCode: data.entryCode.replace(/[^0-9]/g, '').slice(0, 10) } : {}),
+                        ...data.entryCode ? {
+                            entryCode: data.entryCode.replace(/[^0-9]/g, '').slice(0, 10)
+                        } : {},
                         fieldDetailsCompleted: true
                     };
                 }
                 // Create the new field
-                const newField = await field_model_1.default.create(initialFieldData);
+                const newField = await _fieldmodel.default.create(initialFieldData);
                 fieldId = newField.id;
                 // If we've already processed the data in field creation, we're done
                 if (step === 'field-details') {
@@ -1395,37 +1381,35 @@ class FieldController {
         }
         let updateData = {};
         // Update based on which step is being saved
-        switch (step) {
+        switch(step){
             case 'field-details':
                 // Validate closing time is strictly after opening time (same day only)
                 if (data.startTime && data.endTime) {
                     const [oh2, om2] = data.startTime.split(':').map(Number);
                     const [ch2, cm2] = data.endTime.split(':').map(Number);
-                    if ((ch2 * 60 + cm2) <= (oh2 * 60 + om2)) {
-                        throw new AppError_1.AppError('Closing time must be after opening time', 400);
+                    if (ch2 * 60 + cm2 <= oh2 * 60 + om2) {
+                        throw new _AppError.AppError('Closing time must be after opening time', 400);
                     }
                 }
                 // Convert amenity IDs to names
-                const amenityIdsUpdate = data.amenities && Array.isArray(data.amenities)
-                    ? data.amenities
-                    : (typeof data.amenities === 'object'
-                        ? Object.keys(data.amenities || {}).filter(key => data.amenities[key])
-                        : []);
-                const amenityNamesUpdate = amenityIdsUpdate.length > 0 ? await (0, amenity_converter_1.convertAmenityIdsToNames)(amenityIdsUpdate) : [];
+                const amenityIdsUpdate = data.amenities && Array.isArray(data.amenities) ? data.amenities : typeof data.amenities === 'object' ? Object.keys(data.amenities || {}).filter((key)=>data.amenities[key]) : [];
+                const amenityNamesUpdate = amenityIdsUpdate.length > 0 ? await (0, _amenityconverter.convertAmenityIdsToNames)(amenityIdsUpdate) : [];
                 updateData = {
                     name: data.fieldName,
                     size: data.fieldSize,
-                    customFieldSize: data.customFieldSize || null, // Store custom field size if provided
-                    terrainType: data.terrainType, // This is terrain type, not field type
+                    customFieldSize: data.customFieldSize || null,
+                    terrainType: data.terrainType,
                     fenceType: data.fenceType,
                     fenceSize: data.fenceSize,
                     surfaceType: data.surfaceType,
-                    type: 'PRIVATE', // Default field type - you can add a field type selector in the form if needed
+                    type: 'PRIVATE',
                     description: data.description,
                     maxDogs: parseInt(data.maxDogs) || 10,
                     openingTime: data.startTime,
                     closingTime: data.endTime,
-                    operatingDays: data.openingDays ? [data.openingDays] : [],
+                    operatingDays: data.openingDays ? [
+                        data.openingDays
+                    ] : [],
                     amenities: amenityNamesUpdate,
                     // Store location object if provided
                     location: data.location || null,
@@ -1439,7 +1423,9 @@ class FieldController {
                     latitude: data.location?.lat || null,
                     longitude: data.location?.lng || null,
                     // Entry code (optional, 4-10 alphanumeric uppercase)
-                    ...(data.entryCode ? { entryCode: data.entryCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) } : {}),
+                    ...data.entryCode ? {
+                        entryCode: data.entryCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
+                    } : {},
                     fieldDetailsCompleted: true
                 };
                 break;
@@ -1447,41 +1433,39 @@ class FieldController {
                 // Get existing field to compare images
                 let oldImages = [];
                 if (!isNewField) {
-                    const existingField = await field_model_1.default.findById(fieldId);
+                    const existingField = await _fieldmodel.default.findById(fieldId);
                     oldImages = existingField?.images || [];
                 }
                 const newImages = data.images || [];
                 // Find images that were removed (exist in old but not in new)
-                const imagesToDelete = oldImages.filter(oldUrl => !newImages.includes(oldUrl));
+                const imagesToDelete = oldImages.filter((oldUrl)=>!newImages.includes(oldUrl));
                 // Delete removed images from S3
                 if (imagesToDelete.length > 0) {
                     console.log(`[SaveProgress] Deleting ${imagesToDelete.length} removed images`);
-                    for (const imageUrl of imagesToDelete) {
+                    for (const imageUrl of imagesToDelete){
                         try {
                             // Extract key from URL
                             let fileKey = '';
                             const urlParts = imageUrl.split('.amazonaws.com/');
                             if (urlParts.length > 1) {
                                 fileKey = urlParts[1];
-                            }
-                            else {
+                            } else {
                                 const altParts = imageUrl.split(`/${process.env.AWS_S3_BUCKET}/`);
                                 if (altParts.length > 1) {
                                     fileKey = altParts[1];
                                 }
                             }
                             if (fileKey) {
-                                const command = new client_s3_1.DeleteObjectCommand({
+                                const command = new _clients3.DeleteObjectCommand({
                                     Bucket: process.env.AWS_S3_BUCKET,
-                                    Key: fileKey,
+                                    Key: fileKey
                                 });
                                 await s3Client.send(command);
                                 console.log(`[SaveProgress] Deleted image: ${fileKey}`);
                             }
-                        }
-                        catch (error) {
+                        } catch (error) {
                             console.error(`[SaveProgress] Error deleting image ${imageUrl}:`, error);
-                            // Continue with other deletions even if one fails
+                        // Continue with other deletions even if one fails
                         }
                     }
                 }
@@ -1494,8 +1478,7 @@ class FieldController {
                         images: newImages,
                         uploadImagesCompleted: true
                     };
-                }
-                else {
+                } else {
                     updateData = {
                         images: newImages,
                         uploadImagesCompleted: true
@@ -1504,30 +1487,25 @@ class FieldController {
                 break;
             case 'pricing-availability':
                 // Handle price fields - convert empty/null/0 to null
-                const price30min = data.price30min === '' || data.price30min === null || data.price30min === undefined || parseFloat(data.price30min) === 0
-                    ? null
-                    : parseFloat(data.price30min);
-                const price1hr = data.price1hr === '' || data.price1hr === null || data.price1hr === undefined || parseFloat(data.price1hr) === 0
-                    ? null
-                    : parseFloat(data.price1hr);
+                const price30min = data.price30min === '' || data.price30min === null || data.price30min === undefined || parseFloat(data.price30min) === 0 ? null : parseFloat(data.price30min);
+                const price1hr = data.price1hr === '' || data.price1hr === null || data.price1hr === undefined || parseFloat(data.price1hr) === 0 ? null : parseFloat(data.price1hr);
                 if (isNewField) {
                     updateData = {
                         name: 'Untitled Field',
                         type: 'PRIVATE',
-                        price: parseFloat(data.price || data.pricePerHour) || 0, // Legacy field
+                        price: parseFloat(data.price || data.pricePerHour) || 0,
                         price30min,
                         price1hr,
-                        bookingDuration: data.bookingDuration || '30min', // Legacy field
+                        bookingDuration: data.bookingDuration || '30min',
                         instantBooking: data.instantBooking || false,
                         pricingAvailabilityCompleted: true
                     };
-                }
-                else {
+                } else {
                     updateData = {
-                        price: parseFloat(data.price || data.pricePerHour) || 0, // Legacy field
+                        price: parseFloat(data.price || data.pricePerHour) || 0,
                         price30min,
                         price1hr,
-                        bookingDuration: data.bookingDuration || '30min', // Legacy field
+                        bookingDuration: data.bookingDuration || '30min',
                         instantBooking: data.instantBooking || false,
                         pricingAvailabilityCompleted: true
                     };
@@ -1545,33 +1523,33 @@ class FieldController {
                     updateData = {
                         name: 'Untitled Field',
                         type: 'PRIVATE',
-                        rules: data.rules ? [data.rules] : [],
+                        rules: data.rules ? [
+                            data.rules
+                        ] : [],
                         cancellationPolicy: data.policies || '',
                         bookingRulesCompleted: true
                     };
-                }
-                else {
+                } else {
                     updateData = {
-                        rules: data.rules ? [data.rules] : [],
+                        rules: data.rules ? [
+                            data.rules
+                        ] : [],
                         cancellationPolicy: data.policies || '',
                         bookingRulesCompleted: true
                     };
                 }
                 break;
             default:
-                throw new AppError_1.AppError('Invalid step', 400);
+                throw new _AppError.AppError('Invalid step', 400);
         }
         // Track who made this edit
         updateData.lastEditedBy = ownerId;
         updateData.lastEditedByRole = 'FIELD_OWNER';
         updateData.lastEditedAt = new Date();
         // Update field
-        const field = await field_model_1.default.update(fieldId, updateData);
+        const field = await _fieldmodel.default.update(fieldId, updateData);
         // Check if all steps are completed
-        const allStepsCompleted = field.fieldDetailsCompleted &&
-            field.uploadImagesCompleted &&
-            field.pricingAvailabilityCompleted &&
-            field.bookingRulesCompleted;
+        const allStepsCompleted = field.fieldDetailsCompleted && field.uploadImagesCompleted && field.pricingAvailabilityCompleted && field.bookingRulesCompleted;
         // Note: Field should only become active after submission via submitFieldForReview
         // Do not auto-activate when steps are completed
         res.json({
@@ -1580,41 +1558,39 @@ class FieldController {
             fieldId: field.id,
             stepCompleted: true,
             allStepsCompleted,
-            isActive: field.isActive, // Return actual isActive status
+            isActive: field.isActive,
             isNewField
         });
     });
     // Submit field for review
-    submitFieldForReview = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    submitFieldForReview = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
         const { fieldId } = req.body;
         // Get the field - use fieldId if provided, otherwise get first field
         let field;
         if (fieldId) {
-            field = await field_model_1.default.findById(fieldId);
+            field = await _fieldmodel.default.findById(fieldId);
             // Verify ownership
             if (field && field.ownerId !== ownerId) {
-                throw new AppError_1.AppError('You can only submit your own fields', 403);
+                throw new _AppError.AppError('You can only submit your own fields', 403);
             }
-        }
-        else {
-            field = await field_model_1.default.findOneByOwner(ownerId);
+        } else {
+            field = await _fieldmodel.default.findOneByOwner(ownerId);
         }
         if (!field) {
-            throw new AppError_1.AppError('No field found for this owner', 404);
+            throw new _AppError.AppError('No field found for this owner', 404);
         }
         // Check if all steps are completed
-        if (!field.fieldDetailsCompleted ||
-            !field.uploadImagesCompleted ||
-            !field.pricingAvailabilityCompleted ||
-            !field.bookingRulesCompleted) {
-            throw new AppError_1.AppError('Please complete all steps before submitting', 400);
+        if (!field.fieldDetailsCompleted || !field.uploadImagesCompleted || !field.pricingAvailabilityCompleted || !field.bookingRulesCompleted) {
+            throw new _AppError.AppError('Please complete all steps before submitting', 400);
         }
         // Submit the field
-        const submittedField = await field_model_1.default.submitField(field.id);
+        const submittedField = await _fieldmodel.default.submitField(field.id);
         // Get field owner details for email and notification
-        const fieldOwner = await database_1.default.user.findUnique({
-            where: { id: ownerId },
+        const fieldOwner = await _database.default.user.findUnique({
+            where: {
+                id: ownerId
+            },
             select: {
                 id: true,
                 name: true,
@@ -1623,7 +1599,7 @@ class FieldController {
         });
         if (fieldOwner) {
             // Send email to field owner
-            const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
+            const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
             try {
                 await emailService.sendFieldSubmissionEmail({
                     email: fieldOwner.email,
@@ -1632,13 +1608,12 @@ class FieldController {
                     fieldAddress: `${submittedField.address || ''}, ${submittedField.city || ''}, ${submittedField.state || ''}`.trim(),
                     submittedAt: submittedField.submittedAt || new Date()
                 });
-            }
-            catch (emailError) {
+            } catch (emailError) {
                 console.error('Failed to send field submission email:', emailError);
-                // Don't throw error - email failure shouldn't stop the submission
+            // Don't throw error - email failure shouldn't stop the submission
             }
             // Create notification for field owner
-            const { NotificationService } = await Promise.resolve().then(() => __importStar(require('../services/notification.service')));
+            const { NotificationService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/notification.service")));
             try {
                 await NotificationService.createNotification({
                     userId: fieldOwner.id,
@@ -1651,8 +1626,7 @@ class FieldController {
                         submittedAt: submittedField.submittedAt
                     }
                 }, false); // Don't notify admin for user's own notification
-            }
-            catch (notificationError) {
+            } catch (notificationError) {
                 console.error('Failed to create field owner notification:', notificationError);
             }
             // Create notification for all admins
@@ -1664,8 +1638,7 @@ class FieldController {
                     ownerName: fieldOwner.name,
                     submittedAt: submittedField.submittedAt
                 });
-            }
-            catch (adminNotificationError) {
+            } catch (adminNotificationError) {
                 console.error('Failed to create admin notification:', adminNotificationError);
             }
         }
@@ -1676,12 +1649,12 @@ class FieldController {
         });
     });
     // Get bookings for field owner's field
-    getFieldBookings = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getFieldBookings = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
         const { status = 'all', page = 1, limit = 10 } = req.query;
         try {
             // First get all owner's fields
-            const fields = await field_model_1.default.findByOwner(ownerId);
+            const fields = await _fieldmodel.default.findByOwner(ownerId);
             if (!fields || fields.length === 0) {
                 return res.status(404).json({
                     success: false,
@@ -1695,26 +1668,28 @@ class FieldController {
                 });
             }
             // Get all field IDs for this owner
-            const fieldIds = fields.map((field) => field.id);
+            const fieldIds = fields.map((field)=>field.id);
             // Get bookings from database
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
-            let bookingFilter = { fieldId: { in: fieldIds } };
+            let bookingFilter = {
+                fieldId: {
+                    in: fieldIds
+                }
+            };
             // Filter based on status
             if (status === 'today') {
                 bookingFilter.date = {
                     gte: today,
                     lt: tomorrow
                 };
-            }
-            else if (status === 'upcoming') {
+            } else if (status === 'upcoming') {
                 bookingFilter.date = {
                     gte: tomorrow
                 };
-            }
-            else if (status === 'previous') {
+            } else if (status === 'previous') {
                 bookingFilter.date = {
                     lt: today
                 };
@@ -1724,7 +1699,7 @@ class FieldController {
             const skip = (pageNum - 1) * limitNum;
             // Fetch bookings with user details and count
             const [bookings, totalFilteredBookings] = await Promise.all([
-                database_1.default.booking.findMany({
+                _database.default.booking.findMany({
                     where: bookingFilter,
                     include: {
                         user: true
@@ -1735,15 +1710,19 @@ class FieldController {
                     skip,
                     take: limitNum
                 }),
-                database_1.default.booking.count({ where: bookingFilter })
+                _database.default.booking.count({
+                    where: bookingFilter
+                })
             ]);
             // Calculate total earnings from successful payouts (PAID status only)
-            const stripeAccount = await database_1.default.stripeAccount.findUnique({
-                where: { userId: ownerId }
+            const stripeAccount = await _database.default.stripeAccount.findUnique({
+                where: {
+                    userId: ownerId
+                }
             });
             let totalPaidEarnings = 0;
             if (stripeAccount) {
-                const payouts = await database_1.default.payout.aggregate({
+                const payouts = await _database.default.payout.aggregate({
                     where: {
                         stripeAccountId: stripeAccount.id,
                         status: 'paid'
@@ -1755,12 +1734,18 @@ class FieldController {
                 totalPaidEarnings = payouts._sum.amount || 0;
             }
             // Get overall stats across all fields
-            const totalBookings = await database_1.default.booking.count({
-                where: { fieldId: { in: fieldIds } }
-            });
-            const todayBookings = await database_1.default.booking.count({
+            const totalBookings = await _database.default.booking.count({
                 where: {
-                    fieldId: { in: fieldIds },
+                    fieldId: {
+                        in: fieldIds
+                    }
+                }
+            });
+            const todayBookings = await _database.default.booking.count({
+                where: {
+                    fieldId: {
+                        in: fieldIds
+                    },
                     date: {
                         gte: today,
                         lt: tomorrow
@@ -1768,18 +1753,18 @@ class FieldController {
                 }
             });
             // Format bookings for frontend
-            const formattedBookings = bookings.map((booking) => ({
-                id: booking.id,
-                userName: booking.user.name,
-                userAvatar: booking.user.image || booking.user.googleImage || null,
-                time: `${booking.startTime} - ${booking.endTime}`,
-                orderId: generateOrderId(booking),
-                status: booking.status.toLowerCase(),
-                frequency: formatRecurringFrequency(booking.repeatBooking),
-                dogs: booking.numberOfDogs,
-                amount: booking.totalPrice,
-                date: booking.date
-            }));
+            const formattedBookings = bookings.map((booking)=>({
+                    id: booking.id,
+                    userName: booking.user.name,
+                    userAvatar: booking.user.image || booking.user.googleImage || null,
+                    time: `${booking.startTime} - ${booking.endTime}`,
+                    orderId: generateOrderId(booking),
+                    status: booking.status.toLowerCase(),
+                    frequency: formatRecurringFrequency(booking.repeatBooking),
+                    dogs: booking.numberOfDogs,
+                    amount: booking.totalPrice,
+                    date: booking.date
+                }));
             res.json({
                 success: true,
                 bookings: formattedBookings,
@@ -1797,8 +1782,7 @@ class FieldController {
                     hasPrevPage: pageNum > 1
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching bookings:', error);
             res.status(500).json({
                 success: false,
@@ -1813,16 +1797,20 @@ class FieldController {
         }
     });
     // Get today's bookings for field owner
-    getTodayBookings = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getTodayBookings = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
         const { page = 1, limit = 12 } = req.query;
         try {
             // Get default platform commission rate and check for custom commission for this field owner
             const [systemSettings, ownerUser] = await Promise.all([
-                (0, settings_cache_1.getSystemSettings)(),
-                database_1.default.user.findUnique({
-                    where: { id: ownerId },
-                    select: { commissionRate: true }
+                (0, _settingscache.getSystemSettings)(),
+                _database.default.user.findUnique({
+                    where: {
+                        id: ownerId
+                    },
+                    select: {
+                        commissionRate: true
+                    }
                 })
             ]);
             const defaultCommissionRate = systemSettings?.defaultCommissionRate || 20;
@@ -1831,7 +1819,7 @@ class FieldController {
             // Use custom rate if set, otherwise use default platform rate
             const effectiveCommissionRate = hasCustomCommission ? ownerUser.commissionRate : defaultCommissionRate;
             // First get all owner's fields
-            const fields = await field_model_1.default.findByOwner(ownerId);
+            const fields = await _fieldmodel.default.findByOwner(ownerId);
             if (!fields || fields.length === 0) {
                 return res.status(404).json({
                     success: false,
@@ -1845,14 +1833,16 @@ class FieldController {
                 });
             }
             // Get all field IDs for this owner
-            const fieldIds = fields.map((field) => field.id);
+            const fieldIds = fields.map((field)=>field.id);
             // Get today's date range
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
             const bookingFilter = {
-                fieldId: { in: fieldIds },
+                fieldId: {
+                    in: fieldIds
+                },
                 date: {
                     gte: today,
                     lt: tomorrow
@@ -1863,7 +1853,7 @@ class FieldController {
             const skip = (pageNum - 1) * limitNum;
             // Fetch bookings with user details, field details, and count
             const [bookings, totalFilteredBookings] = await Promise.all([
-                database_1.default.booking.findMany({
+                _database.default.booking.findMany({
                     where: bookingFilter,
                     include: {
                         user: true,
@@ -1875,15 +1865,19 @@ class FieldController {
                     skip,
                     take: limitNum
                 }),
-                database_1.default.booking.count({ where: bookingFilter })
+                _database.default.booking.count({
+                    where: bookingFilter
+                })
             ]);
             // Calculate total earnings from successful payouts (PAID status only)
-            const stripeAccount = await database_1.default.stripeAccount.findUnique({
-                where: { userId: ownerId }
+            const stripeAccount = await _database.default.stripeAccount.findUnique({
+                where: {
+                    userId: ownerId
+                }
             });
             let totalPaidEarnings = 0;
             if (stripeAccount) {
-                const payouts = await database_1.default.payout.aggregate({
+                const payouts = await _database.default.payout.aggregate({
                     where: {
                         stripeAccountId: stripeAccount.id,
                         status: 'paid'
@@ -1895,11 +1889,17 @@ class FieldController {
                 totalPaidEarnings = payouts._sum.amount || 0;
             }
             // Get overall stats across all fields
-            const totalBookings = await database_1.default.booking.count({ where: { fieldId: { in: fieldIds } } });
+            const totalBookings = await _database.default.booking.count({
+                where: {
+                    fieldId: {
+                        in: fieldIds
+                    }
+                }
+            });
             // Format bookings for frontend with fee breakdown
-            const formattedBookings = bookings.map((booking) => {
+            const formattedBookings = bookings.map((booking)=>{
                 // Calculate Stripe fee (1.5% + 20p)
-                const stripeFee = booking.totalPrice > 0 ? Math.round(((booking.totalPrice * 0.015) + 0.20) * 100) / 100 : 0;
+                const stripeFee = booking.totalPrice > 0 ? Math.round((booking.totalPrice * 0.015 + 0.20) * 100) / 100 : 0;
                 const amountAfterStripeFee = Math.round((booking.totalPrice - stripeFee) * 100) / 100;
                 // Determine platform fee logic
                 // Use stored value if booking is completed OR cancellation window has passed
@@ -1921,16 +1921,14 @@ class FieldController {
                     platformFee = booking.platformCommission;
                     // Calculate effective rate for display based on GROSS booking amount (totalPrice)
                     if (booking.totalPrice > 0) {
-                        usedCommissionRate = (platformFee / booking.totalPrice) * 100;
+                        usedCommissionRate = platformFee / booking.totalPrice * 100;
                         usedCommissionRate = Math.round(usedCommissionRate * 100) / 100;
-                    }
-                    else {
+                    } else {
                         usedCommissionRate = 0;
                     }
-                }
-                else {
+                } else {
                     // Use dynamic/current rate applied to GROSS booking amount (if not stored)
-                    platformFee = Math.floor((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+                    platformFee = Math.floor(booking.totalPrice * effectiveCommissionRate / 100 * 100) / 100;
                     usedCommissionRate = effectiveCommissionRate;
                 }
                 // Field owner earnings - remainder after platform fees
@@ -1938,8 +1936,7 @@ class FieldController {
                 let fieldOwnerEarnings = 0;
                 if (isLocked && booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
                     fieldOwnerEarnings = booking.fieldOwnerAmount;
-                }
-                else {
+                } else {
                     fieldOwnerEarnings = Math.floor((booking.totalPrice - platformFee - stripeFee) * 100) / 100;
                 }
                 return {
@@ -1988,8 +1985,7 @@ class FieldController {
                     hasPrevPage: pageNum > 1
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching today bookings:', error);
             res.status(500).json({
                 success: false,
@@ -2004,16 +2000,20 @@ class FieldController {
         }
     });
     // Get upcoming bookings for field owner
-    getUpcomingBookings = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getUpcomingBookings = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
         const { page = 1, limit = 12 } = req.query;
         try {
             // Get default platform commission rate and check for custom commission for this field owner
             const [systemSettings, ownerUser] = await Promise.all([
-                (0, settings_cache_1.getSystemSettings)(),
-                database_1.default.user.findUnique({
-                    where: { id: ownerId },
-                    select: { commissionRate: true }
+                (0, _settingscache.getSystemSettings)(),
+                _database.default.user.findUnique({
+                    where: {
+                        id: ownerId
+                    },
+                    select: {
+                        commissionRate: true
+                    }
                 })
             ]);
             const defaultCommissionRate = systemSettings?.defaultCommissionRate || 20;
@@ -2022,7 +2022,7 @@ class FieldController {
             // Use custom rate if set, otherwise use default platform rate
             const effectiveCommissionRate = hasCustomCommission ? ownerUser.commissionRate : defaultCommissionRate;
             // First get all owner's fields
-            const fields = await field_model_1.default.findByOwner(ownerId);
+            const fields = await _fieldmodel.default.findByOwner(ownerId);
             if (!fields || fields.length === 0) {
                 return res.status(404).json({
                     success: false,
@@ -2036,14 +2036,16 @@ class FieldController {
                 });
             }
             // Get all field IDs for this owner
-            const fieldIds = fields.map((field) => field.id);
+            const fieldIds = fields.map((field)=>field.id);
             // Get tomorrow and beyond
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
             const bookingFilter = {
-                fieldId: { in: fieldIds },
+                fieldId: {
+                    in: fieldIds
+                },
                 date: {
                     gte: tomorrow
                 },
@@ -2056,7 +2058,7 @@ class FieldController {
             const skip = (pageNum - 1) * limitNum;
             // Fetch bookings with user and field details and count
             const [bookings, totalFilteredBookings] = await Promise.all([
-                database_1.default.booking.findMany({
+                _database.default.booking.findMany({
                     where: bookingFilter,
                     include: {
                         user: true,
@@ -2068,15 +2070,19 @@ class FieldController {
                     skip,
                     take: limitNum
                 }),
-                database_1.default.booking.count({ where: bookingFilter })
+                _database.default.booking.count({
+                    where: bookingFilter
+                })
             ]);
             // Calculate total earnings from successful payouts (PAID status only)
-            const stripeAccount = await database_1.default.stripeAccount.findUnique({
-                where: { userId: ownerId }
+            const stripeAccount = await _database.default.stripeAccount.findUnique({
+                where: {
+                    userId: ownerId
+                }
             });
             let totalPaidEarnings = 0;
             if (stripeAccount) {
-                const payouts = await database_1.default.payout.aggregate({
+                const payouts = await _database.default.payout.aggregate({
                     where: {
                         stripeAccountId: stripeAccount.id,
                         status: 'paid'
@@ -2089,10 +2095,18 @@ class FieldController {
             }
             // Get overall stats across all fields
             const [totalBookings, todayBookings] = await Promise.all([
-                database_1.default.booking.count({ where: { fieldId: { in: fieldIds } } }),
-                database_1.default.booking.count({
+                _database.default.booking.count({
                     where: {
-                        fieldId: { in: fieldIds },
+                        fieldId: {
+                            in: fieldIds
+                        }
+                    }
+                }),
+                _database.default.booking.count({
+                    where: {
+                        fieldId: {
+                            in: fieldIds
+                        },
                         date: {
                             gte: today,
                             lt: tomorrow
@@ -2101,9 +2115,9 @@ class FieldController {
                 })
             ]);
             // Format bookings for frontend with fee breakdown
-            const formattedBookings = bookings.map((booking) => {
+            const formattedBookings = bookings.map((booking)=>{
                 // Calculate Stripe fee (1.5% + 20p)
-                const stripeFee = booking.totalPrice > 0 ? Math.round(((booking.totalPrice * 0.015) + 0.20) * 100) / 100 : 0;
+                const stripeFee = booking.totalPrice > 0 ? Math.round((booking.totalPrice * 0.015 + 0.20) * 100) / 100 : 0;
                 const amountAfterStripeFee = Math.round((booking.totalPrice - stripeFee) * 100) / 100;
                 // Determine platform fee logic
                 // Use stored value if booking is completed OR cancellation window has passed
@@ -2125,16 +2139,14 @@ class FieldController {
                     platformFee = booking.platformCommission;
                     // Calculate effective rate for display based on GROSS booking amount (totalPrice)
                     if (booking.totalPrice > 0) {
-                        usedCommissionRate = (platformFee / booking.totalPrice) * 100;
+                        usedCommissionRate = platformFee / booking.totalPrice * 100;
                         usedCommissionRate = Math.round(usedCommissionRate * 100) / 100;
-                    }
-                    else {
+                    } else {
                         usedCommissionRate = 0;
                     }
-                }
-                else {
+                } else {
                     // Use dynamic/current rate applied to GROSS booking amount (if not stored)
-                    platformFee = Math.floor((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+                    platformFee = Math.floor(booking.totalPrice * effectiveCommissionRate / 100 * 100) / 100;
                     usedCommissionRate = effectiveCommissionRate;
                 }
                 // Field owner earnings - remainder after platform fees
@@ -2142,8 +2154,7 @@ class FieldController {
                 let fieldOwnerEarnings = 0;
                 if (isLocked && booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
                     fieldOwnerEarnings = booking.fieldOwnerAmount;
-                }
-                else {
+                } else {
                     fieldOwnerEarnings = Math.floor((booking.totalPrice - platformFee) * 100) / 100;
                 }
                 return {
@@ -2192,8 +2203,7 @@ class FieldController {
                     hasPrevPage: pageNum > 1
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching upcoming bookings:', error);
             res.status(500).json({
                 success: false,
@@ -2208,16 +2218,20 @@ class FieldController {
         }
     });
     // Get completed bookings for field owner (only COMPLETED status)
-    getCompletedBookings = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getCompletedBookings = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
         const { page = 1, limit = 12 } = req.query;
         try {
             // Get default platform commission rate and check for custom commission for this field owner
             const [systemSettings, ownerUser] = await Promise.all([
-                (0, settings_cache_1.getSystemSettings)(),
-                database_1.default.user.findUnique({
-                    where: { id: ownerId },
-                    select: { commissionRate: true }
+                (0, _settingscache.getSystemSettings)(),
+                _database.default.user.findUnique({
+                    where: {
+                        id: ownerId
+                    },
+                    select: {
+                        commissionRate: true
+                    }
                 })
             ]);
             const defaultCommissionRate = systemSettings?.defaultCommissionRate || 20;
@@ -2226,7 +2240,7 @@ class FieldController {
             // Use custom rate if set, otherwise use default platform rate
             const effectiveCommissionRate = hasCustomCommission ? ownerUser.commissionRate : defaultCommissionRate;
             // First get all owner's fields
-            const fields = await field_model_1.default.findByOwner(ownerId);
+            const fields = await _fieldmodel.default.findByOwner(ownerId);
             if (!fields || fields.length === 0) {
                 return res.status(404).json({
                     success: false,
@@ -2240,20 +2254,22 @@ class FieldController {
                 });
             }
             // Get all field IDs for this owner
-            const fieldIds = fields.map((field) => field.id);
+            const fieldIds = fields.map((field)=>field.id);
             // Get completed bookings only (status = COMPLETED)
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const bookingFilter = {
-                fieldId: { in: fieldIds },
-                status: 'COMPLETED' // Only completed bookings
+                fieldId: {
+                    in: fieldIds
+                },
+                status: 'COMPLETED'
             };
             const pageNum = Number(page);
             const limitNum = Number(limit);
             const skip = (pageNum - 1) * limitNum;
             // Fetch bookings with user and field details and count
             const [bookings, totalFilteredBookings] = await Promise.all([
-                database_1.default.booking.findMany({
+                _database.default.booking.findMany({
                     where: bookingFilter,
                     include: {
                         user: true,
@@ -2265,15 +2281,19 @@ class FieldController {
                     skip,
                     take: limitNum
                 }),
-                database_1.default.booking.count({ where: bookingFilter })
+                _database.default.booking.count({
+                    where: bookingFilter
+                })
             ]);
             // Calculate total earnings from successful payouts (PAID status only)
-            const stripeAccount = await database_1.default.stripeAccount.findUnique({
-                where: { userId: ownerId }
+            const stripeAccount = await _database.default.stripeAccount.findUnique({
+                where: {
+                    userId: ownerId
+                }
             });
             let totalPaidEarnings = 0;
             if (stripeAccount) {
-                const payouts = await database_1.default.payout.aggregate({
+                const payouts = await _database.default.payout.aggregate({
                     where: {
                         stripeAccountId: stripeAccount.id,
                         status: 'paid'
@@ -2288,10 +2308,18 @@ class FieldController {
             const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
             const [totalBookings, todayBookings] = await Promise.all([
-                database_1.default.booking.count({ where: { fieldId: { in: fieldIds } } }),
-                database_1.default.booking.count({
+                _database.default.booking.count({
                     where: {
-                        fieldId: { in: fieldIds },
+                        fieldId: {
+                            in: fieldIds
+                        }
+                    }
+                }),
+                _database.default.booking.count({
+                    where: {
+                        fieldId: {
+                            in: fieldIds
+                        },
                         date: {
                             gte: today,
                             lt: tomorrow
@@ -2300,9 +2328,9 @@ class FieldController {
                 })
             ]);
             // Format bookings for frontend with fee breakdown
-            const formattedBookings = bookings.map((booking) => {
+            const formattedBookings = bookings.map((booking)=>{
                 // Calculate Stripe fee (1.5% + 20p) - Informational, covered by platform commission
-                const stripeFee = booking.totalPrice > 0 ? Math.round(((booking.totalPrice * 0.015) + 0.20) * 100) / 100 : 0;
+                const stripeFee = booking.totalPrice > 0 ? Math.round((booking.totalPrice * 0.015 + 0.20) * 100) / 100 : 0;
                 const amountAfterStripeFee = Math.round((booking.totalPrice - stripeFee) * 100) / 100;
                 let platformFee = 0;
                 let usedCommissionRate = effectiveCommissionRate;
@@ -2311,16 +2339,14 @@ class FieldController {
                     platformFee = booking.platformCommission;
                     // Calculate effective rate for display based on GROSS booking amount (totalPrice)
                     if (booking.totalPrice > 0) {
-                        usedCommissionRate = (platformFee / booking.totalPrice) * 100;
+                        usedCommissionRate = platformFee / booking.totalPrice * 100;
                         usedCommissionRate = Math.round(usedCommissionRate * 100) / 100;
-                    }
-                    else {
+                    } else {
                         usedCommissionRate = 0;
                     }
-                }
-                else {
+                } else {
                     // Use dynamic/current rate applied to GROSS booking amount (if not stored)
-                    platformFee = Math.floor((booking.totalPrice * effectiveCommissionRate) / 100 * 100) / 100;
+                    platformFee = Math.floor(booking.totalPrice * effectiveCommissionRate / 100 * 100) / 100;
                     usedCommissionRate = effectiveCommissionRate;
                 }
                 // Field owner earnings - remainder after platform fees
@@ -2328,8 +2354,7 @@ class FieldController {
                 let fieldOwnerEarnings = 0;
                 if (booking.fieldOwnerAmount !== null && booking.fieldOwnerAmount !== undefined) {
                     fieldOwnerEarnings = booking.fieldOwnerAmount;
-                }
-                else {
+                } else {
                     fieldOwnerEarnings = Math.floor((booking.totalPrice - platformFee) * 100) / 100;
                 }
                 return {
@@ -2378,8 +2403,7 @@ class FieldController {
                     hasPrevPage: pageNum > 1
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching completed bookings:', error);
             res.status(500).json({
                 success: false,
@@ -2394,13 +2418,13 @@ class FieldController {
         }
     });
     // Get recent bookings for field owner
-    getRecentBookings = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getRecentBookings = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const ownerId = req.user.id;
         const { limit = 5 } = req.query;
         const limitNum = Number(limit);
         try {
             // First get the owner's field
-            const fields = await field_model_1.default.findByOwner(ownerId);
+            const fields = await _fieldmodel.default.findByOwner(ownerId);
             if (!fields || fields.length === 0) {
                 return res.status(404).json({
                     success: false,
@@ -2410,11 +2434,14 @@ class FieldController {
             }
             const fieldId = fields[0].id;
             // Get recent bookings
-            const bookings = await database_1.default.booking.findMany({
+            const bookings = await _database.default.booking.findMany({
                 where: {
                     fieldId,
                     status: {
-                        in: ['CONFIRMED', 'COMPLETED']
+                        in: [
+                            'CONFIRMED',
+                            'COMPLETED'
+                        ]
                     }
                 },
                 orderBy: {
@@ -2434,30 +2461,29 @@ class FieldController {
                 }
             });
             // Format bookings
-            const formattedBookings = bookings.map(booking => ({
-                id: booking.id,
-                date: booking.date,
-                startTime: booking.startTime,
-                endTime: booking.endTime,
-                numberOfDogs: booking.numberOfDogs,
-                totalPrice: booking.totalPrice,
-                status: booking.status,
-                createdAt: booking.createdAt,
-                rescheduleCount: booking.rescheduleCount || 0,
-                user: {
-                    id: booking.user.id,
-                    name: booking.user.name || 'Unknown',
-                    email: booking.user.email,
-                    phone: booking.user.phone,
-                    profilePicture: booking.user.image
-                }
-            }));
+            const formattedBookings = bookings.map((booking)=>({
+                    id: booking.id,
+                    date: booking.date,
+                    startTime: booking.startTime,
+                    endTime: booking.endTime,
+                    numberOfDogs: booking.numberOfDogs,
+                    totalPrice: booking.totalPrice,
+                    status: booking.status,
+                    createdAt: booking.createdAt,
+                    rescheduleCount: booking.rescheduleCount || 0,
+                    user: {
+                        id: booking.user.id,
+                        name: booking.user.name || 'Unknown',
+                        email: booking.user.email,
+                        phone: booking.user.phone,
+                        profilePicture: booking.user.image
+                    }
+                }));
             res.status(200).json({
                 success: true,
                 bookings: formattedBookings
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching recent bookings:', error);
             return res.status(500).json({
                 success: false,
@@ -2467,8 +2493,8 @@ class FieldController {
         }
     });
     // Get fields available for claiming
-    getFieldForClaim = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-        const fields = await database_1.default.field.findMany({
+    getFieldForClaim = (0, _asyncHandler.asyncHandler)(async (req, res)=>{
+        const fields = await _database.default.field.findMany({
             where: {
                 isClaimed: false,
                 isActive: true
@@ -2492,7 +2518,7 @@ class FieldController {
         });
     });
     // Claim a field
-    claimField = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    claimField = (0, _asyncHandler.asyncHandler)(async (req, res)=>{
         const { fieldId } = req.body;
         const userId = req.user.id;
         if (!fieldId) {
@@ -2502,8 +2528,10 @@ class FieldController {
             });
         }
         // Check if field exists and is not already claimed
-        const field = await database_1.default.field.findUnique({
-            where: { id: fieldId }
+        const field = await _database.default.field.findUnique({
+            where: {
+                id: fieldId
+            }
         });
         if (!field) {
             return res.status(404).json({
@@ -2518,8 +2546,10 @@ class FieldController {
             });
         }
         // Update field with owner information
-        const updatedField = await database_1.default.field.update({
-            where: { id: fieldId },
+        const updatedField = await _database.default.field.update({
+            where: {
+                id: fieldId
+            },
             data: {
                 isClaimed: true,
                 ownerId: userId,
@@ -2534,38 +2564,42 @@ class FieldController {
         });
     });
     // Approve field (Admin only)
-    approveField = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    approveField = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { fieldId } = req.params;
         const adminId = req.user.id;
         const userRole = req.user.role;
         // Only admins can approve fields
         if (userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only admins can approve fields', 403);
+            throw new _AppError.AppError('Only admins can approve fields', 403);
         }
         // Get field details
-        const field = await database_1.default.field.findUnique({
-            where: { id: fieldId },
+        const field = await _database.default.field.findUnique({
+            where: {
+                id: fieldId
+            },
             include: {
                 owner: true
             }
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         // Check if field is already approved
         if (field.isApproved) {
-            throw new AppError_1.AppError('Field is already approved', 400);
+            throw new _AppError.AppError('Field is already approved', 400);
         }
         // Update field approval status
-        const approvedField = await database_1.default.field.update({
-            where: { id: fieldId },
+        const approvedField = await _database.default.field.update({
+            where: {
+                id: fieldId
+            },
             data: {
                 isApproved: true,
                 isActive: true // Make field active when approved
             }
         });
         // Create notification for field owner
-        await database_1.default.notification.create({
+        await _database.default.notification.create({
             data: {
                 userId: field.ownerId,
                 type: 'field_approved',
@@ -2579,14 +2613,13 @@ class FieldController {
         });
         // Send approval email to field owner
         try {
-            const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
+            const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
             // Get field address
             let fieldAddress = '';
             if (field.location && typeof field.location === 'object') {
                 const loc = field.location;
                 fieldAddress = loc.formatted_address || loc.streetAddress || field.address || '';
-            }
-            else {
+            } else {
                 fieldAddress = field.address || '';
             }
             await emailService.sendFieldApprovalEmail({
@@ -2595,10 +2628,9 @@ class FieldController {
                 fieldName: field.name || 'Your Field',
                 fieldAddress: fieldAddress
             });
-        }
-        catch (emailError) {
+        } catch (emailError) {
             console.error('Failed to send approval email:', emailError);
-            // Don't fail the approval if email fails
+        // Don't fail the approval if email fails
         }
         res.status(200).json({
             success: true,
@@ -2607,35 +2639,39 @@ class FieldController {
         });
     });
     // Reject field (Admin only)
-    rejectField = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    rejectField = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { fieldId } = req.params;
         const { rejectionReason } = req.body;
         const adminId = req.user.id;
         const userRole = req.user.role;
         // Only admins can reject fields
         if (userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only admins can reject fields', 403);
+            throw new _AppError.AppError('Only admins can reject fields', 403);
         }
         // Get field details
-        const field = await database_1.default.field.findUnique({
-            where: { id: fieldId },
+        const field = await _database.default.field.findUnique({
+            where: {
+                id: fieldId
+            },
             include: {
                 owner: true
             }
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         // Update field rejection status - only change isApproved (isActive is field-owner controlled)
-        const rejectedField = await database_1.default.field.update({
-            where: { id: fieldId },
+        const rejectedField = await _database.default.field.update({
+            where: {
+                id: fieldId
+            },
             data: {
                 isApproved: false,
-                rejectionReason: rejectionReason || 'Field did not meet our approval criteria',
+                rejectionReason: rejectionReason || 'Field did not meet our approval criteria'
             }
         });
         // Create notification for field owner
-        await database_1.default.notification.create({
+        await _database.default.notification.create({
             data: {
                 userId: field.ownerId,
                 type: 'field_rejected',
@@ -2655,18 +2691,18 @@ class FieldController {
         });
     });
     // Get fields pending approval (Admin only)
-    getPendingFields = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getPendingFields = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userRole = req.user.role;
         const { page = 1, limit = 10 } = req.query;
         // Only admins can view pending fields
         if (userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only admins can view pending fields', 403);
+            throw new _AppError.AppError('Only admins can view pending fields', 403);
         }
         const pageNum = Number(page);
         const limitNum = Number(limit);
         const skip = (pageNum - 1) * limitNum;
         const [fields, total] = await Promise.all([
-            database_1.default.field.findMany({
+            _database.default.field.findMany({
                 where: {
                     isSubmitted: true,
                     isApproved: false
@@ -2687,7 +2723,7 @@ class FieldController {
                     submittedAt: 'desc'
                 }
             }),
-            database_1.default.field.count({
+            _database.default.field.count({
                 where: {
                     isSubmitted: true,
                     isApproved: false
@@ -2706,14 +2742,16 @@ class FieldController {
         });
     });
     // Get price range (min and max) of all active fields
-    getPriceRange = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getPriceRange = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         // Get all approved and active fields with prices
-        const fields = await database_1.default.field.findMany({
+        const fields = await _database.default.field.findMany({
             where: {
                 isSubmitted: true,
                 isActive: true,
                 isClaimed: true,
-                price: { not: null }
+                price: {
+                    not: null
+                }
             },
             select: {
                 price: true
@@ -2723,7 +2761,7 @@ class FieldController {
         let minPrice = 0;
         let maxPrice = 100;
         if (fields.length > 0) {
-            const prices = fields.map(f => f.price).filter((p) => p !== null);
+            const prices = fields.map((f)=>f.price).filter((p)=>p !== null);
             if (prices.length > 0) {
                 minPrice = Math.min(...prices);
                 maxPrice = Math.max(...prices);
@@ -2739,12 +2777,16 @@ class FieldController {
         });
     });
     // Get field details for admin with all necessary data
-    getFieldDetailsForAdmin = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getFieldDetailsForAdmin = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-        const where = isObjectId ? { id } : { fieldId: id };
+        const where = isObjectId ? {
+            id
+        } : {
+            fieldId: id
+        };
         // Get field with owner and booking details
-        const field = await database_1.default.field.findUnique({
+        const field = await _database.default.field.findUnique({
             where,
             include: {
                 owner: {
@@ -2755,13 +2797,16 @@ class FieldController {
                         phone: true,
                         image: true,
                         isBlocked: true,
-                        createdAt: true,
+                        createdAt: true
                     }
                 },
                 bookings: {
                     where: {
                         status: {
-                            in: ['CONFIRMED', 'COMPLETED']
+                            in: [
+                                'CONFIRMED',
+                                'COMPLETED'
+                            ]
                         }
                     },
                     orderBy: {
@@ -2773,7 +2818,7 @@ class FieldController {
                             select: {
                                 id: true,
                                 name: true,
-                                email: true,
+                                email: true
                             }
                         },
                         payment: true
@@ -2782,59 +2827,65 @@ class FieldController {
             }
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         // Calculate total earnings from paid bookings for this specific field
-        const fieldBookings = await database_1.default.booking.findMany({
+        const fieldBookings = await _database.default.booking.findMany({
             where: {
                 fieldId: field.id,
                 paymentStatus: 'PAID'
             },
-            select: { id: true, totalPrice: true, fieldOwnerAmount: true, platformCommission: true }
+            select: {
+                id: true,
+                totalPrice: true,
+                fieldOwnerAmount: true,
+                platformCommission: true
+            }
         });
         // totalOwnerEarnings = sum of field owner's share from each paid booking
-        const totalOwnerEarnings = Math.floor(fieldBookings.reduce((sum, b) => {
-            if (b.fieldOwnerAmount)
-                return sum + b.fieldOwnerAmount;
+        const totalOwnerEarnings = Math.floor(fieldBookings.reduce((sum, b)=>{
+            if (b.fieldOwnerAmount) return sum + b.fieldOwnerAmount;
             // Fallback: totalPrice minus platform commission (default 20%)
-            const commission = b.platformCommission || (b.totalPrice * 0.2);
+            const commission = b.platformCommission || b.totalPrice * 0.2;
             return sum + (b.totalPrice - commission);
         }, 0) * 100) / 100;
         // totalEarnings = sum of total booking revenue (gross amount paid by customers)
-        const totalEarnings = Math.floor(fieldBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0) * 100) / 100;
-        const normalizePriceValue = (value) => {
-            if (value === null || value === undefined)
-                return null;
+        const totalEarnings = Math.floor(fieldBookings.reduce((sum, b)=>sum + (b.totalPrice || 0), 0) * 100) / 100;
+        const normalizePriceValue = (value)=>{
+            if (value === null || value === undefined) return null;
             const numericValue = typeof value === 'number' ? value : Number(value);
             return Number.isFinite(numericValue) ? numericValue : null;
         };
         let legacyHourlyPrice = null;
-        if ((field.price === null || field.price === undefined) && mongodb_1.ObjectId.isValid(id)) {
+        if ((field.price === null || field.price === undefined) && _mongodb.ObjectId.isValid(id)) {
             try {
-                const rawResult = await database_1.default.$runCommandRaw({
+                const rawResult = await _database.default.$runCommandRaw({
                     find: 'fields',
-                    filter: { _id: new mongodb_1.ObjectId(id) },
-                    projection: { pricePerHour: 1 },
+                    filter: {
+                        _id: new _mongodb.ObjectId(id)
+                    },
+                    projection: {
+                        pricePerHour: 1
+                    }
                 });
                 const rawField = rawResult?.cursor?.firstBatch?.[0];
                 if (rawField && rawField.pricePerHour !== undefined && rawField.pricePerHour !== null) {
                     legacyHourlyPrice = normalizePriceValue(rawField.pricePerHour);
                 }
-            }
-            catch (legacyPriceError) {
+            } catch (legacyPriceError) {
                 console.warn(`Failed to fetch legacy pricePerHour for field ${id}:`, legacyPriceError?.message || legacyPriceError);
             }
         }
         const normalizedHourlyPrice = normalizePriceValue(field.price ?? legacyHourlyPrice);
         const normalizedDailyPrice = normalizePriceValue(field.pricePerDay);
         // Transform amenities to objects with icons
-        const amenityObjects = await (0, amenity_utils_1.transformAmenitiesToObjects)(field.amenities || []);
-        const amenitiesWithIcons = amenityObjects.map((amenity) => ({
-            id: amenity.id,
-            label: amenity.label,
-            value: amenity.value,
-            iconUrl: amenity.iconUrl ?? null,
-        }));
+        const amenityObjects = await (0, _amenityutils.transformAmenitiesToObjects)(field.amenities || []);
+        const amenitiesWithIcons = amenityObjects.map((amenity)=>({
+                id: amenity.id,
+                label: amenity.label,
+                value: amenity.value,
+                iconUrl: amenity.iconUrl ?? null
+            }));
         // Parse and format booking policies from cancellationPolicy field or use defaults
         let bookingPolicies = [];
         if (field.cancellationPolicy) {
@@ -2844,20 +2895,17 @@ class FieldController {
                     // Try parsing as JSON first
                     const parsed = JSON.parse(field.cancellationPolicy);
                     if (Array.isArray(parsed)) {
-                        bookingPolicies = parsed.filter(p => p && p.trim().length > 0);
-                    }
-                    else if (typeof parsed === 'string') {
+                        bookingPolicies = parsed.filter((p)=>p && p.trim().length > 0);
+                    } else if (typeof parsed === 'string') {
                         // Split by newlines or periods
-                        bookingPolicies = parsed.split(/[\n.]/).map(p => p.trim()).filter(p => p.length > 0);
+                        bookingPolicies = parsed.split(/[\n.]/).map((p)=>p.trim()).filter((p)=>p.length > 0);
                     }
-                }
-                catch {
+                } catch  {
                     // If not JSON, split by newlines or periods
-                    bookingPolicies = field.cancellationPolicy.split(/[\n.]/).map(p => p.trim()).filter(p => p.length > 0);
+                    bookingPolicies = field.cancellationPolicy.split(/[\n.]/).map((p)=>p.trim()).filter((p)=>p.length > 0);
                 }
-            }
-            else if (Array.isArray(field.cancellationPolicy)) {
-                bookingPolicies = field.cancellationPolicy.filter(p => p && p.trim && p.trim().length > 0);
+            } else if (Array.isArray(field.cancellationPolicy)) {
+                bookingPolicies = field.cancellationPolicy.filter((p)=>p && p.trim && p.trim().length > 0);
             }
         }
         // Use defaults if no policies found
@@ -2877,14 +2925,10 @@ class FieldController {
             if (field.rules.length === 1 && typeof field.rules[0] === 'string') {
                 // Single string with multiple rules - split by periods or newlines
                 const rulesString = field.rules[0];
-                safetyRules = rulesString
-                    .split(/[.\n]/)
-                    .map((rule) => rule.trim())
-                    .filter((rule) => rule.length > 0);
-            }
-            else {
+                safetyRules = rulesString.split(/[.\n]/).map((rule)=>rule.trim()).filter((rule)=>rule.length > 0);
+            } else {
                 // Already an array of rules
-                safetyRules = field.rules.filter((rule) => rule && typeof rule === 'string' && rule.trim().length > 0);
+                safetyRules = field.rules.filter((rule)=>rule && typeof rule === 'string' && rule.trim().length > 0);
             }
         }
         // Enrich response with formatted data
@@ -2903,30 +2947,34 @@ class FieldController {
                 month: 'short',
                 year: 'numeric',
                 timeZone: 'Europe/London'
-            }) : 'N/A',
+            }) : 'N/A'
         };
         res.json({
             success: true,
-            data: enrichedField,
+            data: enrichedField
         });
     });
     // Update entry code for a field (Field owner only)
-    updateEntryCode = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    updateEntryCode = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { fieldId } = req.params;
         const { entryCode } = req.body;
         const userId = req.user.id;
         if (!entryCode || typeof entryCode !== 'string') {
-            throw new AppError_1.AppError('Entry code is required and must be a string', 400);
+            throw new _AppError.AppError('Entry code is required and must be a string', 400);
         }
         // Validate entry code format (alphanumeric, 4-10 characters)
         const trimmedCode = entryCode.trim().toUpperCase();
         if (!/^[A-Z0-9]{4,10}$/.test(trimmedCode)) {
-            throw new AppError_1.AppError('Entry code must be 4-10 alphanumeric characters', 400);
+            throw new _AppError.AppError('Entry code must be 4-10 alphanumeric characters', 400);
         }
         // Resolve field (support both ObjectID and human-readable fieldId)
         const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
-        const where = isObjectId ? { id: fieldId } : { fieldId: fieldId };
-        const field = await database_1.default.field.findUnique({
+        const where = isObjectId ? {
+            id: fieldId
+        } : {
+            fieldId: fieldId
+        };
+        const field = await _database.default.field.findUnique({
             where,
             select: {
                 id: true,
@@ -2937,17 +2985,21 @@ class FieldController {
             }
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         // Verify ownership
         if (field.ownerId !== userId) {
-            throw new AppError_1.AppError('You do not have permission to update this field', 403);
+            throw new _AppError.AppError('You do not have permission to update this field', 403);
         }
         const previousCode = field.entryCode;
         // Update the entry code
-        const updatedField = await database_1.default.field.update({
-            where: { id: field.id },
-            data: { entryCode: trimmedCode }
+        const updatedField = await _database.default.field.update({
+            where: {
+                id: field.id
+            },
+            data: {
+                entryCode: trimmedCode
+            }
         });
         // If entry code actually changed, notify dog owners with upcoming bookings
         if (previousCode !== trimmedCode) {
@@ -2955,11 +3007,18 @@ class FieldController {
                 // Get all upcoming bookings for this field
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const upcomingBookings = await database_1.default.booking.findMany({
+                const upcomingBookings = await _database.default.booking.findMany({
                     where: {
                         fieldId: field.id,
-                        date: { gte: today },
-                        status: { in: ['CONFIRMED', 'PENDING'] }
+                        date: {
+                            gte: today
+                        },
+                        status: {
+                            in: [
+                                'CONFIRMED',
+                                'PENDING'
+                            ]
+                        }
                     },
                     include: {
                         user: {
@@ -2973,24 +3032,25 @@ class FieldController {
                 });
                 // Get unique users who have upcoming bookings
                 const usersToNotify = new Map();
-                for (const booking of upcomingBookings) {
+                for (const booking of upcomingBookings){
                     if (booking.user?.email) {
                         const existing = usersToNotify.get(booking.user.id);
                         if (existing) {
                             existing.bookingDates.push(booking.date);
-                        }
-                        else {
+                        } else {
                             usersToNotify.set(booking.user.id, {
                                 email: booking.user.email,
                                 name: booking.user.name || 'Valued Customer',
-                                bookingDates: [booking.date]
+                                bookingDates: [
+                                    booking.date
+                                ]
                             });
                         }
                     }
                 }
                 // Send emails to all affected users
-                const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
-                for (const [, userData] of usersToNotify) {
+                const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
+                for (const [, userData] of usersToNotify){
                     try {
                         await emailService.sendEntryCodeUpdateNotification({
                             email: userData.email,
@@ -3000,17 +3060,15 @@ class FieldController {
                             newEntryCode: trimmedCode,
                             upcomingBookingDates: userData.bookingDates
                         });
-                    }
-                    catch (emailError) {
+                    } catch (emailError) {
                         console.error(`Failed to send entry code update email to ${userData.email}:`, emailError);
-                        // Continue with other users even if one fails
+                    // Continue with other users even if one fails
                     }
                 }
                 console.log(`✅ Entry code updated for field ${field.id}. Notified ${usersToNotify.size} users with upcoming bookings.`);
-            }
-            catch (notifyError) {
+            } catch (notifyError) {
                 console.error('Error notifying users about entry code change:', notifyError);
-                // Don't fail the update if notification fails
+            // Don't fail the update if notification fails
             }
         }
         res.status(200).json({
@@ -3024,17 +3082,20 @@ class FieldController {
         });
     });
     /**
-     * Get Google Reviews for a field
-     * Fetches scraped Google reviews from the database
-     */
-    getGoogleReviews = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+   * Get Google Reviews for a field
+   * Fetches scraped Google reviews from the database
+   */ getGoogleReviews = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { id } = req.params;
         // Get the field
-        const field = await database_1.default.field.findFirst({
+        const field = await _database.default.field.findFirst({
             where: {
                 OR: [
-                    { id: id.length === 24 && /^[0-9a-fA-F]+$/.test(id) ? id : undefined },
-                    { fieldId: id }
+                    {
+                        id: id.length === 24 && /^[0-9a-fA-F]+$/.test(id) ? id : undefined
+                    },
+                    {
+                        fieldId: id
+                    }
                 ].filter(Boolean)
             },
             select: {
@@ -3043,27 +3104,29 @@ class FieldController {
             }
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         try {
             // Fetch Google reviews from database
-            const reviews = await database_1.default.googleReview.findMany({
-                where: { fieldId: field.id },
-                orderBy: { createdAt: 'desc' }
+            const reviews = await _database.default.googleReview.findMany({
+                where: {
+                    fieldId: field.id
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                }
             });
             // Calculate average rating
             const totalReviews = reviews.length;
-            const averageRating = totalReviews > 0
-                ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
-                : 0;
+            const averageRating = totalReviews > 0 ? reviews.reduce((sum, review)=>sum + review.rating, 0) / totalReviews : 0;
             // Format reviews for frontend
-            const formattedReviews = reviews.map(review => ({
-                authorName: review.authorName,
-                authorPhoto: review.authorPhoto,
-                rating: review.rating,
-                text: review.text,
-                relativeTime: review.reviewTime
-            }));
+            const formattedReviews = reviews.map((review)=>({
+                    authorName: review.authorName,
+                    authorPhoto: review.authorPhoto,
+                    rating: review.rating,
+                    text: review.text,
+                    relativeTime: review.reviewTime
+                }));
             res.status(200).json({
                 success: true,
                 data: {
@@ -3072,8 +3135,7 @@ class FieldController {
                     totalReviews
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching Google reviews:', error);
             res.status(200).json({
                 success: true,
@@ -3087,4 +3149,6 @@ class FieldController {
         }
     });
 }
-exports.default = new FieldController();
+const _default = new FieldController();
+
+//# sourceMappingURL=field.controller.js.map

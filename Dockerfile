@@ -9,11 +9,12 @@ FROM node:20-alpine AS builder
 # Install build dependencies for native modules (sharp, bcrypt, etc.)
 RUN apk add --no-cache python3 make g++ libc6-compat
 
-# Copy the local package so npm can resolve file:../packages/stripe-auto-payout
-COPY packages/stripe-auto-payout /app/packages/stripe-auto-payout
-
 # Set working directory to match the relative path in package.json
 WORKDIR /app/backend
+
+# Copy the local payout-engine package so npm can resolve file:./packages/stripe-auto-payout
+# It must exist BEFORE npm install runs.
+COPY backend/packages/stripe-auto-payout ./packages/stripe-auto-payout
 
 # Copy package files first (for better layer caching)
 COPY backend/package.json backend/package-lock.json* ./
@@ -42,11 +43,12 @@ RUN apk add --no-cache libc6-compat && \
     addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy the local package so npm can resolve file:../packages/stripe-auto-payout
-COPY --chown=nodejs:nodejs packages/stripe-auto-payout /app/packages/stripe-auto-payout
-
 # Set working directory to match the relative path in package.json
 WORKDIR /app/backend
+
+# Copy the local payout-engine package so npm can resolve file:./packages/stripe-auto-payout
+# It must exist BEFORE npm install runs.
+COPY --chown=nodejs:nodejs backend/packages/stripe-auto-payout ./packages/stripe-auto-payout
 
 # Copy package files
 COPY --chown=nodejs:nodejs backend/package.json backend/package-lock.json* ./
@@ -77,5 +79,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Start the application
 # --preserve-symlinks ensures the file: linked package resolves peer deps
-# (like stripe) from backend/node_modules instead of packages/stripe-auto-payout/
+# (like stripe) from backend/node_modules instead of backend/packages/stripe-auto-payout/node_modules
 CMD ["node", "--preserve-symlinks", "dist/server.js"]

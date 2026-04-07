@@ -1,26 +1,38 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkPlatformBalance = checkPlatformBalance;
-exports.checkConnectedAccountBalance = checkConnectedAccountBalance;
-exports.getChargeAvailabilityDate = getChargeAvailabilityDate;
-exports.checkChargeFundsAvailable = checkChargeFundsAvailable;
-exports.safeTransferWithBalanceGate = safeTransferWithBalanceGate;
 //@ts-nocheck
-const stripe_config_1 = require("../config/stripe.config");
-/**
- * Check if platform has sufficient available balance for a transfer
- * This MUST be called before any stripe.transfers.create() call
- *
- * @param amountInCents - The amount to transfer in minor units (cents/pence)
- * @param currency - The currency code (default: 'gbp')
- * @returns BalanceCheckResult with availability info
- */
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get checkChargeFundsAvailable () {
+        return checkChargeFundsAvailable;
+    },
+    get checkConnectedAccountBalance () {
+        return checkConnectedAccountBalance;
+    },
+    get checkPlatformBalance () {
+        return checkPlatformBalance;
+    },
+    get getChargeAvailabilityDate () {
+        return getChargeAvailabilityDate;
+    },
+    get safeTransferWithBalanceGate () {
+        return safeTransferWithBalanceGate;
+    }
+});
+const _stripeconfig = require("../config/stripe.config");
 async function checkPlatformBalance(amountInCents, currency = 'gbp') {
     try {
-        const balance = await stripe_config_1.stripe.balance.retrieve();
+        const balance = await _stripeconfig.stripe.balance.retrieve();
         // Find available and pending balances for the currency
-        const availableBalance = balance.available.find(b => b.currency === currency);
-        const pendingBalance = balance.pending.find(b => b.currency === currency);
+        const availableBalance = balance.available.find((b)=>b.currency === currency);
+        const pendingBalance = balance.pending.find((b)=>b.currency === currency);
         const availableAmount = availableBalance?.amount || 0;
         const pendingAmount = pendingBalance?.amount || 0;
         const hasAvailableBalance = availableAmount >= amountInCents;
@@ -30,12 +42,9 @@ async function checkPlatformBalance(amountInCents, currency = 'gbp') {
             pendingAmount,
             currency,
             canTransfer: hasAvailableBalance,
-            message: hasAvailableBalance
-                ? `Sufficient balance: ${availableAmount / 100} ${currency.toUpperCase()} available`
-                : `Insufficient balance: Need ${amountInCents / 100} ${currency.toUpperCase()}, only ${availableAmount / 100} available (${pendingAmount / 100} pending)`
+            message: hasAvailableBalance ? `Sufficient balance: ${availableAmount / 100} ${currency.toUpperCase()} available` : `Insufficient balance: Need ${amountInCents / 100} ${currency.toUpperCase()}, only ${availableAmount / 100} available (${pendingAmount / 100} pending)`
         };
-    }
-    catch (error) {
+    } catch (error) {
         console.error('[StripeBalance] Error checking platform balance:', error);
         return {
             hasAvailableBalance: false,
@@ -47,20 +56,13 @@ async function checkPlatformBalance(amountInCents, currency = 'gbp') {
         };
     }
 }
-/**
- * Check connected account balance (for payouts to bank)
- *
- * @param stripeAccountId - The connected account ID (acct_xxx)
- * @param amountInCents - The amount to payout in minor units
- * @param currency - The currency code (default: 'gbp')
- */
 async function checkConnectedAccountBalance(stripeAccountId, amountInCents, currency = 'gbp') {
     try {
-        const balance = await stripe_config_1.stripe.balance.retrieve({
+        const balance = await _stripeconfig.stripe.balance.retrieve({
             stripeAccount: stripeAccountId
         });
-        const availableBalance = balance.available.find(b => b.currency === currency);
-        const pendingBalance = balance.pending.find(b => b.currency === currency);
+        const availableBalance = balance.available.find((b)=>b.currency === currency);
+        const pendingBalance = balance.pending.find((b)=>b.currency === currency);
         const availableAmount = availableBalance?.amount || 0;
         const pendingAmount = pendingBalance?.amount || 0;
         const hasAvailableBalance = availableAmount >= amountInCents;
@@ -70,12 +72,9 @@ async function checkConnectedAccountBalance(stripeAccountId, amountInCents, curr
             pendingAmount,
             currency,
             canTransfer: hasAvailableBalance,
-            message: hasAvailableBalance
-                ? `Connected account has sufficient balance: ${availableAmount / 100} ${currency.toUpperCase()}`
-                : `Connected account insufficient: Need ${amountInCents / 100} ${currency.toUpperCase()}, only ${availableAmount / 100} available`
+            message: hasAvailableBalance ? `Connected account has sufficient balance: ${availableAmount / 100} ${currency.toUpperCase()}` : `Connected account insufficient: Need ${amountInCents / 100} ${currency.toUpperCase()}, only ${availableAmount / 100} available`
         };
-    }
-    catch (error) {
+    } catch (error) {
         console.error('[StripeBalance] Error checking connected account balance:', error);
         return {
             hasAvailableBalance: false,
@@ -87,42 +86,26 @@ async function checkConnectedAccountBalance(stripeAccountId, amountInCents, curr
         };
     }
 }
-/**
- * Get the estimated availability date for a charge
- * Stripe typically makes funds available in 2 business days (UK)
- *
- * @param chargeId - The Stripe charge ID
- * @returns Date when funds will be available, or null if not determinable
- */
 async function getChargeAvailabilityDate(chargeId) {
     try {
-        const charge = await stripe_config_1.stripe.charges.retrieve(chargeId);
+        const charge = await _stripeconfig.stripe.charges.retrieve(chargeId);
         if (charge.balance_transaction) {
-            const balanceTransactionId = typeof charge.balance_transaction === 'string'
-                ? charge.balance_transaction
-                : charge.balance_transaction.id;
-            const balanceTransaction = await stripe_config_1.stripe.balanceTransactions.retrieve(balanceTransactionId);
+            const balanceTransactionId = typeof charge.balance_transaction === 'string' ? charge.balance_transaction : charge.balance_transaction.id;
+            const balanceTransaction = await _stripeconfig.stripe.balanceTransactions.retrieve(balanceTransactionId);
             // available_on is a Unix timestamp
             if (balanceTransaction.available_on) {
                 return new Date(balanceTransaction.available_on * 1000);
             }
         }
         return null;
-    }
-    catch (error) {
+    } catch (error) {
         console.error('[StripeBalance] Error getting charge availability date:', error);
         return null;
     }
 }
-/**
- * Check if funds for a specific charge are now available
- *
- * @param chargeId - The Stripe charge ID
- * @returns Object with availability status and details
- */
 async function checkChargeFundsAvailable(chargeId) {
     try {
-        const charge = await stripe_config_1.stripe.charges.retrieve(chargeId);
+        const charge = await _stripeconfig.stripe.charges.retrieve(chargeId);
         if (!charge.balance_transaction) {
             return {
                 isAvailable: false,
@@ -131,26 +114,18 @@ async function checkChargeFundsAvailable(chargeId) {
                 message: 'No balance transaction associated with charge'
             };
         }
-        const balanceTransactionId = typeof charge.balance_transaction === 'string'
-            ? charge.balance_transaction
-            : charge.balance_transaction.id;
-        const balanceTransaction = await stripe_config_1.stripe.balanceTransactions.retrieve(balanceTransactionId);
-        const availableOn = balanceTransaction.available_on
-            ? new Date(balanceTransaction.available_on * 1000)
-            : null;
+        const balanceTransactionId = typeof charge.balance_transaction === 'string' ? charge.balance_transaction : charge.balance_transaction.id;
+        const balanceTransaction = await _stripeconfig.stripe.balanceTransactions.retrieve(balanceTransactionId);
+        const availableOn = balanceTransaction.available_on ? new Date(balanceTransaction.available_on * 1000) : null;
         const now = new Date();
-        const isAvailable = balanceTransaction.status === 'available' ||
-            (availableOn !== null && now >= availableOn);
+        const isAvailable = balanceTransaction.status === 'available' || availableOn !== null && now >= availableOn;
         return {
             isAvailable,
             availableOn,
             status: isAvailable ? 'available' : 'pending',
-            message: isAvailable
-                ? 'Funds are available for transfer'
-                : `Funds will be available on ${availableOn?.toISOString() || 'unknown date'}`
+            message: isAvailable ? 'Funds are available for transfer' : `Funds will be available on ${availableOn?.toISOString() || 'unknown date'}`
         };
-    }
-    catch (error) {
+    } catch (error) {
         console.error('[StripeBalance] Error checking charge funds availability:', error);
         return {
             isAvailable: false,
@@ -160,12 +135,6 @@ async function checkChargeFundsAvailable(chargeId) {
         };
     }
 }
-/**
- * Safe transfer with balance gate
- * This wraps stripe.transfers.create with proper balance checking
- *
- * @returns The transfer object if successful, or null with reason if balance insufficient
- */
 async function safeTransferWithBalanceGate(params) {
     const { amount, currency = 'gbp', destination, transferGroup, metadata, description } = params;
     // Step 1: Check platform balance
@@ -181,7 +150,7 @@ async function safeTransferWithBalanceGate(params) {
     }
     // Step 2: Create transfer
     try {
-        const transfer = await stripe_config_1.stripe.transfers.create({
+        const transfer = await _stripeconfig.stripe.transfers.create({
             amount,
             currency,
             destination,
@@ -196,13 +165,10 @@ async function safeTransferWithBalanceGate(params) {
             reason: 'Transfer completed successfully',
             shouldDefer: false
         };
-    }
-    catch (error) {
+    } catch (error) {
         console.error('[StripeBalance] Transfer failed:', error);
         // Check if it's a balance-related error
-        const isBalanceError = error.code === 'balance_insufficient' ||
-            error.message?.includes('balance') ||
-            error.message?.includes('insufficient');
+        const isBalanceError = error.code === 'balance_insufficient' || error.message?.includes('balance') || error.message?.includes('insufficient');
         return {
             success: false,
             transfer: null,
@@ -211,3 +177,5 @@ async function safeTransferWithBalanceGate(params) {
         };
     }
 }
+
+//# sourceMappingURL=stripe-balance.helper.js.map

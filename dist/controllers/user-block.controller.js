@@ -1,12 +1,22 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.userBlockController = void 0;
-const database_1 = __importDefault(require("../config/database"));
-exports.userBlockController = {
-    async blockUser(req, res) {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "userBlockController", {
+    enumerable: true,
+    get: function() {
+        return userBlockController;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const userBlockController = {
+    async blockUser (req, res) {
         try {
             const blockerId = req.user?.id;
             const { blockedUserId, reason } = req.body;
@@ -29,8 +39,10 @@ exports.userBlockController = {
                 });
             }
             // Check if user exists
-            const userToBlock = await database_1.default.user.findUnique({
-                where: { id: blockedUserId }
+            const userToBlock = await _database.default.user.findUnique({
+                where: {
+                    id: blockedUserId
+                }
             });
             if (!userToBlock) {
                 return res.status(404).json({
@@ -39,7 +51,7 @@ exports.userBlockController = {
                 });
             }
             // Check if already blocked
-            const existingBlock = await database_1.default.userBlock.findUnique({
+            const existingBlock = await _database.default.userBlock.findUnique({
                 where: {
                     blockerId_blockedUserId: {
                         blockerId,
@@ -54,7 +66,7 @@ exports.userBlockController = {
                 });
             }
             // Create the block
-            const block = await database_1.default.userBlock.create({
+            const block = await _database.default.userBlock.create({
                 data: {
                     blockerId,
                     blockedUserId,
@@ -76,8 +88,7 @@ exports.userBlockController = {
                 message: 'User blocked successfully',
                 data: block
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Block user error:', error);
             res.status(500).json({
                 success: false,
@@ -85,7 +96,7 @@ exports.userBlockController = {
             });
         }
     },
-    async unblockUser(req, res) {
+    async unblockUser (req, res) {
         try {
             const blockerId = req.user?.id;
             const { blockedUserId } = req.body;
@@ -102,7 +113,7 @@ exports.userBlockController = {
                 });
             }
             // Check if block exists
-            const existingBlock = await database_1.default.userBlock.findUnique({
+            const existingBlock = await _database.default.userBlock.findUnique({
                 where: {
                     blockerId_blockedUserId: {
                         blockerId,
@@ -117,7 +128,7 @@ exports.userBlockController = {
                 });
             }
             // Delete the block
-            await database_1.default.userBlock.delete({
+            await _database.default.userBlock.delete({
                 where: {
                     blockerId_blockedUserId: {
                         blockerId,
@@ -129,8 +140,7 @@ exports.userBlockController = {
                 success: true,
                 message: 'User unblocked successfully'
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Unblock user error:', error);
             res.status(500).json({
                 success: false,
@@ -138,7 +148,7 @@ exports.userBlockController = {
             });
         }
     },
-    async getBlockedUsers(req, res) {
+    async getBlockedUsers (req, res) {
         try {
             const userId = req.user?.id;
             const page = parseInt(req.query.page) || 1;
@@ -151,8 +161,10 @@ exports.userBlockController = {
                 });
             }
             const [blocks, total] = await Promise.all([
-                database_1.default.userBlock.findMany({
-                    where: { blockerId: userId },
+                _database.default.userBlock.findMany({
+                    where: {
+                        blockerId: userId
+                    },
                     include: {
                         blockedUser: {
                             select: {
@@ -170,7 +182,11 @@ exports.userBlockController = {
                     skip,
                     take: limit
                 }),
-                database_1.default.userBlock.count({ where: { blockerId: userId } })
+                _database.default.userBlock.count({
+                    where: {
+                        blockerId: userId
+                    }
+                })
             ]);
             res.json({
                 success: true,
@@ -182,8 +198,7 @@ exports.userBlockController = {
                     totalPages: Math.ceil(total / limit)
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Get blocked users error:', error);
             res.status(500).json({
                 success: false,
@@ -191,7 +206,7 @@ exports.userBlockController = {
             });
         }
     },
-    async checkBlockStatus(req, res) {
+    async checkBlockStatus (req, res) {
         try {
             const userId = req.user?.id;
             const { otherUserId } = req.params;
@@ -208,7 +223,7 @@ exports.userBlockController = {
                 });
             }
             // Check if current user has blocked the other user
-            const userBlockedOther = await database_1.default.userBlock.findUnique({
+            const userBlockedOther = await _database.default.userBlock.findUnique({
                 where: {
                     blockerId_blockedUserId: {
                         blockerId: userId,
@@ -217,7 +232,7 @@ exports.userBlockController = {
                 }
             });
             // Check if other user has blocked the current user
-            const otherBlockedUser = await database_1.default.userBlock.findUnique({
+            const otherBlockedUser = await _database.default.userBlock.findUnique({
                 where: {
                     blockerId_blockedUserId: {
                         blockerId: otherUserId,
@@ -233,8 +248,7 @@ exports.userBlockController = {
                     canChat: !userBlockedOther && !otherBlockedUser
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Check block status error:', error);
             res.status(500).json({
                 success: false,
@@ -242,7 +256,7 @@ exports.userBlockController = {
             });
         }
     },
-    async getBlockedByUsers(req, res) {
+    async getBlockedByUsers (req, res) {
         try {
             const userId = req.user?.id;
             const page = parseInt(req.query.page) || 1;
@@ -255,8 +269,10 @@ exports.userBlockController = {
                 });
             }
             const [blocks, total] = await Promise.all([
-                database_1.default.userBlock.findMany({
-                    where: { blockedUserId: userId },
+                _database.default.userBlock.findMany({
+                    where: {
+                        blockedUserId: userId
+                    },
                     include: {
                         blocker: {
                             select: {
@@ -274,7 +290,11 @@ exports.userBlockController = {
                     skip,
                     take: limit
                 }),
-                database_1.default.userBlock.count({ where: { blockedUserId: userId } })
+                _database.default.userBlock.count({
+                    where: {
+                        blockedUserId: userId
+                    }
+                })
             ]);
             res.json({
                 success: true,
@@ -286,8 +306,7 @@ exports.userBlockController = {
                     totalPages: Math.ceil(total / limit)
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Get blocked by users error:', error);
             res.status(500).json({
                 success: false,
@@ -296,3 +315,5 @@ exports.userBlockController = {
         }
     }
 };
+
+//# sourceMappingURL=user-block.controller.js.map

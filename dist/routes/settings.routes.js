@@ -1,19 +1,29 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const settings_controller_1 = require("../controllers/settings.controller");
-const auth_middleware_1 = require("../middleware/auth.middleware");
-const admin_middleware_1 = require("../middleware/admin.middleware");
-const cache_middleware_1 = require("../middleware/cache.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _settingscontroller = require("../controllers/settings.controller");
+const _authmiddleware = require("../middleware/auth.middleware");
+const _adminmiddleware = require("../middleware/admin.middleware");
+const _cachemiddleware = require("../middleware/cache.middleware");
+const router = (0, _express.Router)();
 // Public route — NOT cached because response includes per-user hasAccess field
-router.get('/public', settings_controller_1.getPublicSettings);
-router.post('/verify-access', (0, cache_middleware_1.invalidateCacheMiddleware)('/api/settings'), settings_controller_1.verifySiteAccess);
+router.get('/public', _settingscontroller.getPublicSettings);
+router.post('/verify-access', (0, _cachemiddleware.invalidateCacheMiddleware)('/api/settings'), _settingscontroller.verifySiteAccess);
 // Admin routes (invalidate public settings cache on update)
-router.get('/admin', admin_middleware_1.authenticateAdmin, settings_controller_1.getSystemSettings);
-router.put('/admin', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/settings'), settings_controller_1.updateSystemSettings);
-router.put('/admin/platform-images', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/settings'), settings_controller_1.updatePlatformImages);
+router.get('/admin', _adminmiddleware.authenticateAdmin, _settingscontroller.getSystemSettings);
+router.put('/admin', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/settings'), _settingscontroller.updateSystemSettings);
+router.put('/admin/platform-images', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/settings'), _settingscontroller.updatePlatformImages);
 // Authenticated route
-router.get('/user', auth_middleware_1.protect, settings_controller_1.getPublicSettings);
-exports.default = router;
+router.get('/user', _authmiddleware.protect, _settingscontroller.getPublicSettings);
+const _default = router;
+
+//# sourceMappingURL=settings.routes.js.map

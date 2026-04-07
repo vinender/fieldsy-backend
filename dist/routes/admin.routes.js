@@ -1,78 +1,108 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const crypto_1 = __importDefault(require("crypto"));
-const database_1 = __importDefault(require("../config/database"));
-const admin_middleware_1 = require("../middleware/admin.middleware");
-const field_controller_1 = __importDefault(require("../controllers/field.controller"));
-const email_service_1 = require("../services/email.service");
-const otp_service_1 = require("../services/otp.service");
-const constants_1 = require("../config/constants");
-const rateLimiter_middleware_1 = require("../middleware/rateLimiter.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _bcryptjs = /*#__PURE__*/ _interop_require_default(require("bcryptjs"));
+const _jsonwebtoken = /*#__PURE__*/ _interop_require_default(require("jsonwebtoken"));
+const _crypto = /*#__PURE__*/ _interop_require_default(require("crypto"));
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _adminmiddleware = require("../middleware/admin.middleware");
+const _fieldcontroller = /*#__PURE__*/ _interop_require_default(require("../controllers/field.controller"));
+const _emailservice = require("../services/email.service");
+const _otpservice = require("../services/otp.service");
+const _constants = require("../config/constants");
+const _rateLimitermiddleware = require("../middleware/rateLimiter.middleware");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
+const router = (0, _express.Router)();
 // Admin login endpoint
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res)=>{
     try {
         const { email, password } = req.body;
         if (!email || !password) {
-            return res.status(400).json({ error: 'Email and password are required' });
+            return res.status(400).json({
+                error: 'Email and password are required'
+            });
         }
         // Find admin user - first find by email, then check role
-        const admin = await database_1.default.user.findFirst({
+        const admin = await _database.default.user.findFirst({
             where: {
                 email,
                 role: 'ADMIN'
             }
         });
         if (!admin) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({
+                error: 'Invalid credentials'
+            });
         }
         // Verify password
-        const validPassword = await bcryptjs_1.default.compare(password, admin.password || '');
+        const validPassword = await _bcryptjs.default.compare(password, admin.password || '');
         if (!validPassword) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({
+                error: 'Invalid credentials'
+            });
         }
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({ userId: admin.id, email: admin.email, role: admin.role }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '24h' });
+        const token = _jsonwebtoken.default.sign({
+            userId: admin.id,
+            email: admin.email,
+            role: admin.role
+        }, process.env.JWT_SECRET || 'your-secret-key', {
+            expiresIn: '24h'
+        });
         // Return admin data without password
         const { password: _, ...adminData } = admin;
         res.json({
@@ -80,14 +110,15 @@ router.post('/login', async (req, res) => {
             token,
             admin: adminData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Admin login error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Verify admin token endpoint
-router.get('/verify', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/verify', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const admin = req.admin;
         const { password: _, ...adminData } = admin;
@@ -95,14 +126,15 @@ router.get('/verify', admin_middleware_1.authenticateAdmin, async (req, res) => 
             success: true,
             admin: adminData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Admin verify error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get dashboard statistics
-router.get('/stats', admin_middleware_1.authenticateAdmin, rateLimiter_middleware_1.strictLimiter, async (req, res) => {
+router.get('/stats', _adminmiddleware.authenticateAdmin, _rateLimitermiddleware.strictLimiter, async (req, res)=>{
     try {
         const { period = 'Today' } = req.query;
         // Get current date and calculate date ranges based on period
@@ -111,7 +143,7 @@ router.get('/stats', admin_middleware_1.authenticateAdmin, rateLimiter_middlewar
         let startDate;
         let compareStartDate;
         let compareEndDate;
-        switch (period) {
+        switch(period){
             case 'Today':
                 startDate = startOfToday;
                 compareStartDate = new Date(startOfToday);
@@ -145,83 +177,160 @@ router.get('/stats', admin_middleware_1.authenticateAdmin, rateLimiter_middlewar
                 compareEndDate.setMilliseconds(compareEndDate.getMilliseconds() - 1);
         }
         // Get current statistics
-        const [totalUsers, totalFields, totalBookings, totalRevenue, upcomingBookings, recentBookings, dogOwners, fieldOwners, 
-        // Yesterday's stats for comparison
+        const [totalUsers, totalFields, totalBookings, totalRevenue, upcomingBookings, recentBookings, dogOwners, fieldOwners, // Yesterday's stats for comparison
         yesterdayUsers, yesterdayFields, yesterdayBookings, yesterdayRevenue, yesterdayUpcomingBookings] = await Promise.all([
             // Current stats
-            database_1.default.user.count(),
-            database_1.default.field.count(),
-            database_1.default.booking.count({
+            _database.default.user.count(),
+            _database.default.field.count(),
+            _database.default.booking.count({
                 where: {
-                    field: { id: { not: undefined } },
-                    user: { id: { not: undefined } }
+                    field: {
+                        id: {
+                            not: undefined
+                        }
+                    },
+                    user: {
+                        id: {
+                            not: undefined
+                        }
+                    }
                 }
             }),
-            database_1.default.booking.aggregate({
-                _sum: { totalPrice: true },
+            _database.default.booking.aggregate({
+                _sum: {
+                    totalPrice: true
+                },
                 where: {
                     paymentStatus: 'PAID',
-                    field: { id: { not: undefined } },
-                    user: { id: { not: undefined } }
+                    field: {
+                        id: {
+                            not: undefined
+                        }
+                    },
+                    user: {
+                        id: {
+                            not: undefined
+                        }
+                    }
                 }
             }),
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
-                    date: { gte: now },
-                    status: { in: ['PENDING', 'CONFIRMED'] }
+                    date: {
+                        gte: now
+                    },
+                    status: {
+                        in: [
+                            'PENDING',
+                            'CONFIRMED'
+                        ]
+                    }
                 }
             }),
-            database_1.default.booking.findMany({
+            _database.default.booking.findMany({
                 where: {
-                    field: { id: { not: undefined } },
-                    user: { id: { not: undefined } }
+                    field: {
+                        id: {
+                            not: undefined
+                        }
+                    },
+                    user: {
+                        id: {
+                            not: undefined
+                        }
+                    }
                 },
                 take: 5,
-                orderBy: { createdAt: 'desc' },
+                orderBy: {
+                    createdAt: 'desc'
+                },
                 include: {
                     user: true,
                     field: true
                 }
             }),
-            database_1.default.user.count({ where: { role: 'DOG_OWNER' } }),
-            database_1.default.user.count({ where: { role: 'FIELD_OWNER' } }),
+            _database.default.user.count({
+                where: {
+                    role: 'DOG_OWNER'
+                }
+            }),
+            _database.default.user.count({
+                where: {
+                    role: 'FIELD_OWNER'
+                }
+            }),
             // Previous period stats for comparison
-            database_1.default.user.count({
+            _database.default.user.count({
                 where: {
-                    createdAt: { lte: compareEndDate }
+                    createdAt: {
+                        lte: compareEndDate
+                    }
                 }
             }),
-            database_1.default.field.count({
+            _database.default.field.count({
                 where: {
-                    createdAt: { lte: compareEndDate }
+                    createdAt: {
+                        lte: compareEndDate
+                    }
                 }
             }),
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
-                    createdAt: { lte: compareEndDate },
-                    field: { id: { not: undefined } },
-                    user: { id: { not: undefined } }
+                    createdAt: {
+                        lte: compareEndDate
+                    },
+                    field: {
+                        id: {
+                            not: undefined
+                        }
+                    },
+                    user: {
+                        id: {
+                            not: undefined
+                        }
+                    }
                 }
             }),
-            database_1.default.booking.aggregate({
-                _sum: { totalPrice: true },
+            _database.default.booking.aggregate({
+                _sum: {
+                    totalPrice: true
+                },
                 where: {
                     paymentStatus: 'PAID',
-                    createdAt: { lte: compareEndDate },
-                    field: { id: { not: undefined } },
-                    user: { id: { not: undefined } }
+                    createdAt: {
+                        lte: compareEndDate
+                    },
+                    field: {
+                        id: {
+                            not: undefined
+                        }
+                    },
+                    user: {
+                        id: {
+                            not: undefined
+                        }
+                    }
                 }
             }),
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
-                    date: { gte: compareStartDate },
-                    createdAt: { lte: compareEndDate },
-                    status: { in: ['PENDING', 'CONFIRMED'] }
+                    date: {
+                        gte: compareStartDate
+                    },
+                    createdAt: {
+                        lte: compareEndDate
+                    },
+                    status: {
+                        in: [
+                            'PENDING',
+                            'CONFIRMED'
+                        ]
+                    }
                 }
             })
         ]);
         // Calculate growth percentages
-        const calculateGrowth = (current, yesterday) => {
+        const calculateGrowth = (current, yesterday)=>{
             if (!yesterday || yesterday === 0) {
                 return current > 0 ? 100 : 0;
             }
@@ -250,35 +359,47 @@ router.get('/stats', admin_middleware_1.authenticateAdmin, rateLimiter_middlewar
                 }
             }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Stats error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get total revenue
-router.get('/revenue/total', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/revenue/total', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
-        const totalRevenue = await database_1.default.booking.aggregate({
-            _sum: { totalPrice: true },
+        const totalRevenue = await _database.default.booking.aggregate({
+            _sum: {
+                totalPrice: true
+            },
             where: {
                 paymentStatus: 'PAID',
-                field: { id: { not: undefined } },
-                user: { id: { not: undefined } }
+                field: {
+                    id: {
+                        not: undefined
+                    }
+                },
+                user: {
+                    id: {
+                        not: undefined
+                    }
+                }
             }
         });
         res.json({
             success: true,
             totalRevenue: totalRevenue._sum.totalPrice || 0
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Revenue error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get all bookings for admin
-router.get('/bookings', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/bookings', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { page = '1', limit = '10', searchName, status, dateRange } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -286,8 +407,16 @@ router.get('/bookings', admin_middleware_1.authenticateAdmin, async (req, res) =
         // Build where clause for filters
         // Exclude bookings with deleted fields or users (orphaned references)
         const whereClause = {
-            field: { id: { not: undefined } },
-            user: { id: { not: undefined } }
+            field: {
+                id: {
+                    not: undefined
+                }
+            },
+            user: {
+                id: {
+                    not: undefined
+                }
+            }
         };
         let shortBookingIdSearch = null;
         // Search filter - supports searching by user name OR booking ID (full, short, or sequential format)
@@ -305,17 +434,14 @@ router.get('/bookings', admin_middleware_1.authenticateAdmin, async (req, res) =
                 // Search by new human-readable bookingId
                 const cleanId = searchTerm.startsWith('#') ? searchTerm.slice(1) : searchTerm;
                 whereClause.bookingId = cleanId;
-            }
-            else if (isFullBookingId) {
+            } else if (isFullBookingId) {
                 // Search by full booking ID directly
                 whereClause.id = searchTerm;
-            }
-            else if (isShortBookingId) {
+            } else if (isShortBookingId) {
                 // For short booking ID search, we'll filter in application code
                 // because MongoDB ObjectIds can't use string endsWith
                 shortBookingIdSearch = shortIdTerm.toLowerCase();
-            }
-            else {
+            } else {
                 // Search by user name (case-insensitive)
                 whereClause.user = {
                     name: {
@@ -333,7 +459,7 @@ router.get('/bookings', admin_middleware_1.authenticateAdmin, async (req, res) =
         if (dateRange && typeof dateRange === 'string' && dateRange.toLowerCase() !== 'all') {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            switch (dateRange) {
+            switch(dateRange){
                 case 'Today':
                     const tomorrow = new Date(today);
                     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -370,9 +496,11 @@ router.get('/bookings', admin_middleware_1.authenticateAdmin, async (req, res) =
         if (shortBookingIdSearch) {
             // For short booking ID search, fetch all matching bookings and filter by ID suffix
             // This is less efficient but necessary because MongoDB ObjectIds are binary, not strings
-            const allBookings = await database_1.default.booking.findMany({
+            const allBookings = await _database.default.booking.findMany({
                 where: whereClause,
-                orderBy: { createdAt: 'desc' },
+                orderBy: {
+                    createdAt: 'desc'
+                },
                 include: {
                     user: true,
                     field: {
@@ -384,18 +512,19 @@ router.get('/bookings', admin_middleware_1.authenticateAdmin, async (req, res) =
                 }
             });
             // Filter by last 6 characters of booking ID
-            const filteredBookings = allBookings.filter(booking => booking.id.toLowerCase().endsWith(shortBookingIdSearch));
+            const filteredBookings = allBookings.filter((booking)=>booking.id.toLowerCase().endsWith(shortBookingIdSearch));
             total = filteredBookings.length;
             bookings = filteredBookings.slice(skip, skip + take);
-        }
-        else {
+        } else {
             // Standard query with pagination
             [bookings, total] = await Promise.all([
-                database_1.default.booking.findMany({
+                _database.default.booking.findMany({
                     where: whereClause,
                     skip,
                     take,
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
                     include: {
                         user: true,
                         field: {
@@ -406,7 +535,9 @@ router.get('/bookings', admin_middleware_1.authenticateAdmin, async (req, res) =
                         payment: true
                     }
                 }),
-                database_1.default.booking.count({ where: whereClause })
+                _database.default.booking.count({
+                    where: whereClause
+                })
             ]);
         }
         res.json({
@@ -415,49 +546,54 @@ router.get('/bookings', admin_middleware_1.authenticateAdmin, async (req, res) =
             total,
             pages: Math.ceil(total / take)
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get bookings error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get booking details
-router.get('/bookings/:id', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/bookings/:id', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const id = req.params.id;
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
         // Use findUnique for ObjectId, findFirst for human-readable bookingId
-        const booking = isObjectId
-            ? await database_1.default.booking.findUnique({
-                where: { id },
-                include: {
-                    user: true,
-                    field: {
-                        include: {
-                            owner: true
-                        }
-                    },
-                    payment: true
-                }
-            })
-            : await database_1.default.booking.findFirst({
-                where: { bookingId: id },
-                include: {
-                    user: true,
-                    field: {
-                        include: {
-                            owner: true
-                        }
-                    },
-                    payment: true
-                }
-            });
+        const booking = isObjectId ? await _database.default.booking.findUnique({
+            where: {
+                id
+            },
+            include: {
+                user: true,
+                field: {
+                    include: {
+                        owner: true
+                    }
+                },
+                payment: true
+            }
+        }) : await _database.default.booking.findFirst({
+            where: {
+                bookingId: id
+            },
+            include: {
+                user: true,
+                field: {
+                    include: {
+                        owner: true
+                    }
+                },
+                payment: true
+            }
+        });
         if (!booking) {
-            return res.status(404).json({ error: 'Booking not found' });
+            return res.status(404).json({
+                error: 'Booking not found'
+            });
         }
         // Calculate Stripe processing fee (1.5% + £0.20)
         const totalPrice = booking.totalPrice || 0;
-        const stripeFee = totalPrice > 0 ? Math.round(((totalPrice * 0.015) + 0.20) * 100) / 100 : 0;
+        const stripeFee = totalPrice > 0 ? Math.round((totalPrice * 0.015 + 0.20) * 100) / 100 : 0;
         const amountAfterStripeFee = Math.round((totalPrice - stripeFee) * 100) / 100;
         // Get commission rate from field owner or default
         const commissionRate = booking.field?.owner?.commissionRate || 20;
@@ -468,20 +604,21 @@ router.get('/bookings/:id', admin_middleware_1.authenticateAdmin, async (req, re
             fieldOwnerCommission: booking.fieldOwnerAmount || 0,
             stripeFee,
             amountAfterStripeFee,
-            commissionRate,
+            commissionRate
         };
         res.json({
             success: true,
             booking: enrichedBooking
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get booking details error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get user details with bookings
-router.get('/users/:id', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/users/:id', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { bookingPage = '1', bookingLimit = '10' } = req.query;
         const bPage = parseInt(bookingPage);
@@ -508,7 +645,9 @@ router.get('/users/:id', admin_middleware_1.authenticateAdmin, async (req, res) 
                 }
             },
             bookings: {
-                orderBy: { createdAt: 'desc' },
+                orderBy: {
+                    createdAt: 'desc'
+                },
                 skip: bSkip,
                 take: bLimit,
                 select: {
@@ -532,17 +671,21 @@ router.get('/users/:id', admin_middleware_1.authenticateAdmin, async (req, res) 
             }
         };
         // Support both MongoDB ObjectId and human-readable userId
-        const user = isObjectId
-            ? await database_1.default.user.findUnique({
-                where: { id: paramId },
-                select: selectFields
-            })
-            : await database_1.default.user.findUnique({
-                where: { userId: paramId },
-                select: selectFields
-            });
+        const user = isObjectId ? await _database.default.user.findUnique({
+            where: {
+                id: paramId
+            },
+            select: selectFields
+        }) : await _database.default.user.findUnique({
+            where: {
+                userId: paramId
+            },
+            select: selectFields
+        });
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({
+                error: 'User not found'
+            });
         }
         const totalBookings = user._count?.bookings || 0;
         res.json({
@@ -555,14 +698,15 @@ router.get('/users/:id', admin_middleware_1.authenticateAdmin, async (req, res) 
                 totalPages: Math.ceil(totalBookings / bLimit)
             }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get user details error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get all users for admin (supports search by name, email, or userId)
-router.get('/users', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/users', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { page = '1', limit = '10', role, search } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -579,25 +723,53 @@ router.get('/users', admin_middleware_1.authenticateAdmin, async (req, res) => {
             if (isNumeric) {
                 // Search by userId (numeric) OR name containing the search term
                 where.OR = [
-                    { userId: numericSearch },
-                    { name: { contains: searchStr, mode: 'insensitive' } },
-                    { email: { contains: searchStr, mode: 'insensitive' } }
+                    {
+                        userId: numericSearch
+                    },
+                    {
+                        name: {
+                            contains: searchStr,
+                            mode: 'insensitive'
+                        }
+                    },
+                    {
+                        email: {
+                            contains: searchStr,
+                            mode: 'insensitive'
+                        }
+                    }
                 ];
-            }
-            else {
+            } else {
                 where.OR = [
-                    { name: { contains: searchStr, mode: 'insensitive' } },
-                    { email: { contains: searchStr, mode: 'insensitive' } },
-                    { phone: { contains: searchStr, mode: 'insensitive' } }
+                    {
+                        name: {
+                            contains: searchStr,
+                            mode: 'insensitive'
+                        }
+                    },
+                    {
+                        email: {
+                            contains: searchStr,
+                            mode: 'insensitive'
+                        }
+                    },
+                    {
+                        phone: {
+                            contains: searchStr,
+                            mode: 'insensitive'
+                        }
+                    }
                 ];
             }
         }
         const [users, total] = await Promise.all([
-            database_1.default.user.findMany({
+            _database.default.user.findMany({
                 where,
                 skip,
                 take: parseInt(limit),
-                orderBy: { createdAt: 'desc' },
+                orderBy: {
+                    createdAt: 'desc'
+                },
                 select: {
                     id: true,
                     userId: true,
@@ -618,7 +790,9 @@ router.get('/users', admin_middleware_1.authenticateAdmin, async (req, res) => {
                     }
                 }
             }),
-            database_1.default.user.count({ where })
+            _database.default.user.count({
+                where
+            })
         ]);
         res.json({
             success: true,
@@ -626,14 +800,15 @@ router.get('/users', admin_middleware_1.authenticateAdmin, async (req, res) => {
             total,
             pages: Math.ceil(total / parseInt(limit))
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get users error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get all fields for admin
-router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/fields', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { page = '1', limit = '10', search = '' } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -642,20 +817,54 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
         // Add search conditions if provided
         if (search && search.trim() !== '') {
             finalSearchFilter.OR = [
-                { fieldId: { contains: search, mode: 'insensitive' } },
-                { name: { contains: search, mode: 'insensitive' } },
-                { address: { contains: search, mode: 'insensitive' } },
-                { city: { contains: search, mode: 'insensitive' } },
-                { state: { contains: search, mode: 'insensitive' } },
-                { owner: { name: { contains: search, mode: 'insensitive' } } }
+                {
+                    fieldId: {
+                        contains: search,
+                        mode: 'insensitive'
+                    }
+                },
+                {
+                    name: {
+                        contains: search,
+                        mode: 'insensitive'
+                    }
+                },
+                {
+                    address: {
+                        contains: search,
+                        mode: 'insensitive'
+                    }
+                },
+                {
+                    city: {
+                        contains: search,
+                        mode: 'insensitive'
+                    }
+                },
+                {
+                    state: {
+                        contains: search,
+                        mode: 'insensitive'
+                    }
+                },
+                {
+                    owner: {
+                        name: {
+                            contains: search,
+                            mode: 'insensitive'
+                        }
+                    }
+                }
             ];
         }
         const [fields, total] = await Promise.all([
-            database_1.default.field.findMany({
+            _database.default.field.findMany({
                 where: finalSearchFilter,
                 skip,
                 take: parseInt(limit),
-                orderBy: { createdAt: 'desc' },
+                orderBy: {
+                    createdAt: 'desc'
+                },
                 select: {
                     id: true,
                     fieldId: true,
@@ -679,7 +888,7 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
                     isBlocked: true,
                     isApproved: true,
                     isSubmitted: true,
-                    isClaimed: true, // Explicitly include isClaimed
+                    isClaimed: true,
                     entryCode: true,
                     lastEditedBy: true,
                     lastEditedByRole: true,
@@ -694,45 +903,67 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
                         }
                     }
                 }
-            }).catch((error) => {
+            }).catch((error)=>{
                 console.error('Field findMany error:', {
                     filter: finalSearchFilter,
                     message: error.message
                 });
                 throw error;
             }),
-            database_1.default.field.count({ where: finalSearchFilter })
+            _database.default.field.count({
+                where: finalSearchFilter
+            })
         ]);
         // Separately fetch owners for fields that have them (avoid null owner issues)
-        const fieldIds = fields.map(f => f.id);
-        const ownerIds = fields.map(f => f.ownerId).filter((id) => id !== null);
+        const fieldIds = fields.map((f)=>f.id);
+        const ownerIds = fields.map((f)=>f.ownerId).filter((id)=>id !== null);
         // Fetch owners separately
-        const owners = ownerIds.length > 0
-            ? await database_1.default.user.findMany({
-                where: { id: { in: ownerIds } },
-                select: { id: true, name: true, email: true, phone: true }
-            })
-            : [];
-        const ownerMap = new Map(owners.map(o => [o.id, o]));
-        // 1. Batch-fetch stripe accounts for owners (only those that exist)
-        const stripeAccounts = ownerIds.length > 0
-            ? await database_1.default.stripeAccount.findMany({
-                where: { userId: { in: ownerIds } }
-            })
-            : [];
-        const stripeAccountByOwnerId = new Map(stripeAccounts.map(sa => [sa.userId, sa]));
-        // 2. Batch-fetch all paid booking IDs for fields on this page
-        const allFieldBookings = await database_1.default.booking.findMany({
+        const owners = ownerIds.length > 0 ? await _database.default.user.findMany({
             where: {
-                fieldId: { in: fieldIds },
+                id: {
+                    in: ownerIds
+                }
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true
+            }
+        }) : [];
+        const ownerMap = new Map(owners.map((o)=>[
+                o.id,
+                o
+            ]));
+        // 1. Batch-fetch stripe accounts for owners (only those that exist)
+        const stripeAccounts = ownerIds.length > 0 ? await _database.default.stripeAccount.findMany({
+            where: {
+                userId: {
+                    in: ownerIds
+                }
+            }
+        }) : [];
+        const stripeAccountByOwnerId = new Map(stripeAccounts.map((sa)=>[
+                sa.userId,
+                sa
+            ]));
+        // 2. Batch-fetch all paid booking IDs for fields on this page
+        const allFieldBookings = await _database.default.booking.findMany({
+            where: {
+                fieldId: {
+                    in: fieldIds
+                },
                 paymentStatus: 'PAID'
             },
-            select: { id: true, fieldId: true }
+            select: {
+                id: true,
+                fieldId: true
+            }
         });
         // Group booking IDs by fieldId for quick lookup
         const bookingIdsByFieldId = new Map();
         const allBookingIds = [];
-        for (const b of allFieldBookings) {
+        for (const b of allFieldBookings){
             if (!bookingIdsByFieldId.has(b.fieldId)) {
                 bookingIdsByFieldId.set(b.fieldId, new Set());
             }
@@ -740,43 +971,45 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
             allBookingIds.push(b.id);
         }
         // 3. Batch-fetch all paid payouts that reference any of these bookings
-        const stripeAccountIds = stripeAccounts.map(sa => sa.id);
-        const allPayouts = allBookingIds.length > 0 && stripeAccountIds.length > 0
-            ? await database_1.default.payout.findMany({
-                where: {
-                    stripeAccountId: { in: stripeAccountIds },
-                    status: 'paid',
-                    bookingIds: { hasSome: allBookingIds }
+        const stripeAccountIds = stripeAccounts.map((sa)=>sa.id);
+        const allPayouts = allBookingIds.length > 0 && stripeAccountIds.length > 0 ? await _database.default.payout.findMany({
+            where: {
+                stripeAccountId: {
+                    in: stripeAccountIds
+                },
+                status: 'paid',
+                bookingIds: {
+                    hasSome: allBookingIds
                 }
-            })
-            : [];
+            }
+        }) : [];
         // Build a map from stripeAccountId to its payouts for fast lookup
         const payoutsByStripeAccountId = new Map();
-        for (const payout of allPayouts) {
+        for (const payout of allPayouts){
             if (!payoutsByStripeAccountId.has(payout.stripeAccountId)) {
                 payoutsByStripeAccountId.set(payout.stripeAccountId, []);
             }
             payoutsByStripeAccountId.get(payout.stripeAccountId).push(payout);
         }
         // Calculate earnings per field in-memory (no additional queries)
-        const fieldsWithEarnings = fields.map((field) => {
+        const fieldsWithEarnings = fields.map((field)=>{
             const stripeAccount = stripeAccountByOwnerId.get(field.ownerId);
             let totalPayouts = 0;
             if (stripeAccount) {
                 const fieldBookingIdSet = bookingIdsByFieldId.get(field.id);
                 if (fieldBookingIdSet && fieldBookingIdSet.size > 0) {
                     const payouts = payoutsByStripeAccountId.get(stripeAccount.id) || [];
-                    totalPayouts = payouts.reduce((sum, payout) => {
+                    totalPayouts = payouts.reduce((sum, payout)=>{
                         // Safety check: ensure bookingIds is an array
                         if (!Array.isArray(payout.bookingIds) || payout.bookingIds.length === 0) {
                             return sum;
                         }
                         // Count how many bookings in this payout belong to this field
-                        const payoutFieldBookings = payout.bookingIds.filter(id => fieldBookingIdSet.has(id));
+                        const payoutFieldBookings = payout.bookingIds.filter((id)=>fieldBookingIdSet.has(id));
                         // Calculate proportional amount
                         // If payout has 3 bookings and 2 are from this field, this field gets 2/3 of the payout
                         const proportion = payoutFieldBookings.length / payout.bookingIds.length;
-                        return sum + (payout.amount * proportion);
+                        return sum + payout.amount * proportion;
                     }, 0);
                 }
             }
@@ -792,8 +1025,7 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
             total,
             pages: Math.ceil(total / parseInt(limit))
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get fields error:', {
             message: error.message,
             code: error.code,
@@ -807,9 +1039,9 @@ router.get('/fields', admin_middleware_1.authenticateAdmin, async (req, res) => 
     }
 });
 // Get field details for admin (with owner and booking data)
-router.get('/fields/:id', admin_middleware_1.authenticateAdmin, field_controller_1.default.getFieldDetailsForAdmin);
+router.get('/fields/:id', _adminmiddleware.authenticateAdmin, _fieldcontroller.default.getFieldDetailsForAdmin);
 // Get all notifications for admin (including both dog owner and field owner notifications)
-router.get('/notifications', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/notifications', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { page = '1', limit = '20' } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -817,10 +1049,12 @@ router.get('/notifications', admin_middleware_1.authenticateAdmin, async (req, r
         const adminId = req.userId;
         // Get all notifications (system-wide) with user details
         const [notifications, total, unreadCount] = await Promise.all([
-            database_1.default.notification.findMany({
+            _database.default.notification.findMany({
                 skip,
                 take: parseInt(limit),
-                orderBy: { createdAt: 'desc' },
+                orderBy: {
+                    createdAt: 'desc'
+                },
                 include: {
                     user: {
                         select: {
@@ -832,13 +1066,24 @@ router.get('/notifications', admin_middleware_1.authenticateAdmin, async (req, r
                     }
                 }
             }),
-            database_1.default.notification.count(),
+            _database.default.notification.count(),
             // Count unread admin notifications
-            database_1.default.notification.count({
+            _database.default.notification.count({
                 where: {
                     OR: [
-                        { userId: adminId }, // Admin's own notifications
-                        { type: { in: ['user_registered', 'field_added', 'payment_received', 'booking_received'] } } // System-wide events
+                        {
+                            userId: adminId
+                        },
+                        {
+                            type: {
+                                in: [
+                                    'user_registered',
+                                    'field_added',
+                                    'payment_received',
+                                    'booking_received'
+                                ]
+                            }
+                        } // System-wide events
                     ],
                     read: false
                 }
@@ -851,17 +1096,20 @@ router.get('/notifications', admin_middleware_1.authenticateAdmin, async (req, r
             unreadCount,
             pages: Math.ceil(total / parseInt(limit))
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get admin notifications error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Mark notification as read for admin
-router.patch('/notifications/:id/read', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.patch('/notifications/:id/read', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
-        const notification = await database_1.default.notification.update({
-            where: { id: req.params.id },
+        const notification = await _database.default.notification.update({
+            where: {
+                id: req.params.id
+            },
             data: {
                 read: true,
                 readAt: new Date()
@@ -871,22 +1119,34 @@ router.patch('/notifications/:id/read', admin_middleware_1.authenticateAdmin, as
             success: true,
             notification
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Mark notification as read error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Mark all admin notifications as read
-router.patch('/notifications/read-all', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.patch('/notifications/read-all', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const adminId = req.userId;
         // Mark all system-wide notifications as read
-        await database_1.default.notification.updateMany({
+        await _database.default.notification.updateMany({
             where: {
                 OR: [
-                    { userId: adminId },
-                    { type: { in: ['user_registered', 'field_added', 'payment_received', 'booking_received'] } }
+                    {
+                        userId: adminId
+                    },
+                    {
+                        type: {
+                            in: [
+                                'user_registered',
+                                'field_added',
+                                'payment_received',
+                                'booking_received'
+                            ]
+                        }
+                    }
                 ],
                 read: false
             },
@@ -899,38 +1159,44 @@ router.patch('/notifications/read-all', admin_middleware_1.authenticateAdmin, as
             success: true,
             message: 'All notifications marked as read'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Mark all notifications as read error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Delete notification for admin
-router.delete('/notifications/:id', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.delete('/notifications/:id', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
-        await database_1.default.notification.delete({
-            where: { id: req.params.id }
+        await _database.default.notification.delete({
+            where: {
+                id: req.params.id
+            }
         });
         res.json({
             success: true,
             message: 'Notification deleted'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Delete notification error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get all payments for admin
-router.get('/payments', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/payments', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { page = '1', limit = '10' } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const [payments, total] = await Promise.all([
-            database_1.default.payment.findMany({
+            _database.default.payment.findMany({
                 skip,
                 take: parseInt(limit),
-                orderBy: { createdAt: 'desc' },
+                orderBy: {
+                    createdAt: 'desc'
+                },
                 include: {
                     booking: {
                         include: {
@@ -940,7 +1206,7 @@ router.get('/payments', admin_middleware_1.authenticateAdmin, async (req, res) =
                     }
                 }
             }),
-            database_1.default.payment.count()
+            _database.default.payment.count()
         ]);
         res.json({
             success: true,
@@ -948,21 +1214,22 @@ router.get('/payments', admin_middleware_1.authenticateAdmin, async (req, res) =
             total,
             pages: Math.ceil(total / parseInt(limit))
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get payments error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get booking stats based on period
-router.get('/booking-stats', admin_middleware_1.authenticateAdmin, rateLimiter_middleware_1.strictLimiter, async (req, res) => {
+router.get('/booking-stats', _adminmiddleware.authenticateAdmin, _rateLimitermiddleware.strictLimiter, async (req, res)=>{
     try {
         const { period = 'Today' } = req.query;
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         let startDate;
         let endDate = now;
-        switch (period) {
+        switch(period){
             case 'Today':
                 startDate = startOfToday;
                 break;
@@ -981,126 +1248,185 @@ router.get('/booking-stats', admin_middleware_1.authenticateAdmin, rateLimiter_m
         }
         // Get booking stats by status
         const [completed, cancelled, refunded, pending, confirmed] = await Promise.all([
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
                     status: 'COMPLETED',
-                    createdAt: { gte: startDate, lte: endDate }
+                    createdAt: {
+                        gte: startDate,
+                        lte: endDate
+                    }
                 }
             }),
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
                     status: 'CANCELLED',
-                    createdAt: { gte: startDate, lte: endDate }
+                    createdAt: {
+                        gte: startDate,
+                        lte: endDate
+                    }
                 }
             }),
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
                     paymentStatus: 'REFUNDED',
-                    createdAt: { gte: startDate, lte: endDate }
+                    createdAt: {
+                        gte: startDate,
+                        lte: endDate
+                    }
                 }
             }),
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
                     status: 'PENDING',
-                    createdAt: { gte: startDate, lte: endDate }
+                    createdAt: {
+                        gte: startDate,
+                        lte: endDate
+                    }
                 }
             }),
-            database_1.default.booking.count({
+            _database.default.booking.count({
                 where: {
                     status: 'CONFIRMED',
-                    createdAt: { gte: startDate, lte: endDate }
+                    createdAt: {
+                        gte: startDate,
+                        lte: endDate
+                    }
                 }
             })
         ]);
         // Single query: fetch all bookings in range with only the fields we need
         const chartQueryStart = period === 'Yearly' ? new Date(now.getFullYear(), 0, 1) : startDate;
         const chartQueryEnd = period === 'Yearly' ? new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999) : endDate;
-        const chartBookings = await database_1.default.booking.findMany({
+        const chartBookings = await _database.default.booking.findMany({
             where: {
-                createdAt: { gte: chartQueryStart, lte: chartQueryEnd }
+                createdAt: {
+                    gte: chartQueryStart,
+                    lte: chartQueryEnd
+                }
             },
-            select: { status: true, paymentStatus: true, createdAt: true }
+            select: {
+                status: true,
+                paymentStatus: true,
+                createdAt: true
+            }
         });
         // Bucket bookings in-memory by period and status
         let chartData = [];
         if (period === 'Today' || period === 'Weekly') {
             // Show daily data
-            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const days = [
+                'Mon',
+                'Tue',
+                'Wed',
+                'Thu',
+                'Fri',
+                'Sat',
+                'Sun'
+            ];
             const buckets = [];
-            for (let i = 0; i < 7; i++) {
-                buckets.push({ completed: 0, cancelled: 0, refunded: 0 });
+            for(let i = 0; i < 7; i++){
+                buckets.push({
+                    completed: 0,
+                    cancelled: 0,
+                    refunded: 0
+                });
             }
-            for (const b of chartBookings) {
+            for (const b of chartBookings){
                 const bDate = new Date(b.createdAt);
                 const diffMs = bDate.getTime() - startDate.getTime();
                 const dayIndex = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                if (dayIndex < 0 || dayIndex >= 7)
-                    continue;
-                if (b.status === 'COMPLETED')
-                    buckets[dayIndex].completed++;
-                if (b.status === 'CANCELLED')
-                    buckets[dayIndex].cancelled++;
-                if (b.paymentStatus === 'REFUNDED')
-                    buckets[dayIndex].refunded++;
+                if (dayIndex < 0 || dayIndex >= 7) continue;
+                if (b.status === 'COMPLETED') buckets[dayIndex].completed++;
+                if (b.status === 'CANCELLED') buckets[dayIndex].cancelled++;
+                if (b.paymentStatus === 'REFUNDED') buckets[dayIndex].refunded++;
             }
-            for (let i = 0; i < 7; i++) {
+            for(let i = 0; i < 7; i++){
                 const dayStart = new Date(startDate);
                 dayStart.setDate(startDate.getDate() + i);
                 const jsDay = dayStart.getDay();
                 chartData.push({
                     day: days[jsDay === 0 ? 6 : jsDay - 1],
-                    values: [buckets[i].completed, buckets[i].cancelled, buckets[i].refunded]
+                    values: [
+                        buckets[i].completed,
+                        buckets[i].cancelled,
+                        buckets[i].refunded
+                    ]
                 });
             }
-        }
-        else if (period === 'Monthly') {
+        } else if (period === 'Monthly') {
             // Show weekly data for the month
-            const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+            const weeks = [
+                'Week 1',
+                'Week 2',
+                'Week 3',
+                'Week 4'
+            ];
             const buckets = [];
-            for (let i = 0; i < 4; i++) {
-                buckets.push({ completed: 0, cancelled: 0, refunded: 0 });
+            for(let i = 0; i < 4; i++){
+                buckets.push({
+                    completed: 0,
+                    cancelled: 0,
+                    refunded: 0
+                });
             }
-            for (const b of chartBookings) {
+            for (const b of chartBookings){
                 const bDate = new Date(b.createdAt);
                 const diffMs = bDate.getTime() - startDate.getTime();
                 const weekIndex = Math.min(Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)), 3);
-                if (weekIndex < 0)
-                    continue;
-                if (b.status === 'COMPLETED')
-                    buckets[weekIndex].completed++;
-                if (b.status === 'CANCELLED')
-                    buckets[weekIndex].cancelled++;
-                if (b.paymentStatus === 'REFUNDED')
-                    buckets[weekIndex].refunded++;
+                if (weekIndex < 0) continue;
+                if (b.status === 'COMPLETED') buckets[weekIndex].completed++;
+                if (b.status === 'CANCELLED') buckets[weekIndex].cancelled++;
+                if (b.paymentStatus === 'REFUNDED') buckets[weekIndex].refunded++;
             }
-            for (let i = 0; i < 4; i++) {
+            for(let i = 0; i < 4; i++){
                 chartData.push({
                     day: weeks[i],
-                    values: [buckets[i].completed, buckets[i].cancelled, buckets[i].refunded]
+                    values: [
+                        buckets[i].completed,
+                        buckets[i].cancelled,
+                        buckets[i].refunded
+                    ]
                 });
             }
-        }
-        else {
+        } else {
             // Show monthly data for the year
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const months = [
+                'Jan',
+                'Feb',
+                'Mar',
+                'Apr',
+                'May',
+                'Jun',
+                'Jul',
+                'Aug',
+                'Sep',
+                'Oct',
+                'Nov',
+                'Dec'
+            ];
             const buckets = [];
-            for (let i = 0; i < 12; i++) {
-                buckets.push({ completed: 0, cancelled: 0, refunded: 0 });
+            for(let i = 0; i < 12; i++){
+                buckets.push({
+                    completed: 0,
+                    cancelled: 0,
+                    refunded: 0
+                });
             }
-            for (const b of chartBookings) {
+            for (const b of chartBookings){
                 const bDate = new Date(b.createdAt);
                 const monthIndex = bDate.getMonth();
-                if (b.status === 'COMPLETED')
-                    buckets[monthIndex].completed++;
-                if (b.status === 'CANCELLED')
-                    buckets[monthIndex].cancelled++;
-                if (b.paymentStatus === 'REFUNDED')
-                    buckets[monthIndex].refunded++;
+                if (b.status === 'COMPLETED') buckets[monthIndex].completed++;
+                if (b.status === 'CANCELLED') buckets[monthIndex].cancelled++;
+                if (b.paymentStatus === 'REFUNDED') buckets[monthIndex].refunded++;
             }
-            for (let i = 0; i < 12; i++) {
+            for(let i = 0; i < 12; i++){
                 chartData.push({
                     day: months[i],
-                    values: [buckets[i].completed, buckets[i].cancelled, buckets[i].refunded]
+                    values: [
+                        buckets[i].completed,
+                        buckets[i].cancelled,
+                        buckets[i].refunded
+                    ]
                 });
             }
         }
@@ -1116,21 +1442,22 @@ router.get('/booking-stats', admin_middleware_1.authenticateAdmin, rateLimiter_m
             },
             chartData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Booking stats error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get field utilization stats
-router.get('/field-utilization', admin_middleware_1.authenticateAdmin, rateLimiter_middleware_1.strictLimiter, async (req, res) => {
+router.get('/field-utilization', _adminmiddleware.authenticateAdmin, _rateLimitermiddleware.strictLimiter, async (req, res)=>{
     try {
         const { period = 'Today' } = req.query;
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         let startDate;
         let endDate = now;
-        switch (period) {
+        switch(period){
             case 'Today':
                 startDate = startOfToday;
                 break;
@@ -1148,7 +1475,7 @@ router.get('/field-utilization', admin_middleware_1.authenticateAdmin, rateLimit
                 startDate = startOfToday;
         }
         // Get top fields by bookings
-        const topFields = await database_1.default.field.findMany({
+        const topFields = await _database.default.field.findMany({
             take: 5,
             orderBy: {
                 bookings: {
@@ -1160,7 +1487,10 @@ router.get('/field-utilization', admin_middleware_1.authenticateAdmin, rateLimit
                     select: {
                         bookings: {
                             where: {
-                                createdAt: { gte: startDate, lte: endDate }
+                                createdAt: {
+                                    gte: startDate,
+                                    lte: endDate
+                                }
                             }
                         }
                     }
@@ -1171,96 +1501,150 @@ router.get('/field-utilization', admin_middleware_1.authenticateAdmin, rateLimit
         let chartData = [];
         if (period === 'Today' || period === 'Weekly') {
             // Show daily utilization
-            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            for (let i = 0; i < 7; i++) {
+            const days = [
+                'Mon',
+                'Tue',
+                'Wed',
+                'Thu',
+                'Fri',
+                'Sat',
+                'Sun'
+            ];
+            for(let i = 0; i < 7; i++){
                 const dayStart = new Date(startDate);
                 dayStart.setDate(startDate.getDate() + i);
                 const dayEnd = new Date(dayStart);
                 dayEnd.setDate(dayEnd.getDate() + 1);
                 const [fieldsWithBookings, totalBookings, avgUtilization] = await Promise.all([
-                    database_1.default.field.count({
+                    _database.default.field.count({
                         where: {
                             bookings: {
                                 some: {
-                                    createdAt: { gte: dayStart, lt: dayEnd }
+                                    createdAt: {
+                                        gte: dayStart,
+                                        lt: dayEnd
+                                    }
                                 }
                             }
                         }
                     }),
-                    database_1.default.booking.count({
+                    _database.default.booking.count({
                         where: {
-                            createdAt: { gte: dayStart, lt: dayEnd }
+                            createdAt: {
+                                gte: dayStart,
+                                lt: dayEnd
+                            }
                         }
                     }),
-                    database_1.default.field.count()
+                    _database.default.field.count()
                 ]);
-                const utilizationRate = avgUtilization > 0 ? Math.round((fieldsWithBookings / avgUtilization) * 100) : 0;
+                const utilizationRate = avgUtilization > 0 ? Math.round(fieldsWithBookings / avgUtilization * 100) : 0;
                 const dayIndex = dayStart.getDay();
                 chartData.push({
                     day: days[dayIndex === 0 ? 6 : dayIndex - 1],
-                    values: [fieldsWithBookings, totalBookings, utilizationRate]
+                    values: [
+                        fieldsWithBookings,
+                        totalBookings,
+                        utilizationRate
+                    ]
                 });
             }
-        }
-        else if (period === 'Monthly') {
+        } else if (period === 'Monthly') {
             // Show weekly utilization
-            const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-            for (let i = 0; i < 4; i++) {
+            const weeks = [
+                'Week 1',
+                'Week 2',
+                'Week 3',
+                'Week 4'
+            ];
+            for(let i = 0; i < 4; i++){
                 const weekStart = new Date(startDate);
-                weekStart.setDate(startDate.getDate() + (i * 7));
+                weekStart.setDate(startDate.getDate() + i * 7);
                 const weekEnd = new Date(weekStart);
                 weekEnd.setDate(weekEnd.getDate() + 7);
                 const [fieldsWithBookings, totalBookings, avgUtilization] = await Promise.all([
-                    database_1.default.field.count({
+                    _database.default.field.count({
                         where: {
                             bookings: {
                                 some: {
-                                    createdAt: { gte: weekStart, lt: weekEnd }
+                                    createdAt: {
+                                        gte: weekStart,
+                                        lt: weekEnd
+                                    }
                                 }
                             }
                         }
                     }),
-                    database_1.default.booking.count({
+                    _database.default.booking.count({
                         where: {
-                            createdAt: { gte: weekStart, lt: weekEnd }
+                            createdAt: {
+                                gte: weekStart,
+                                lt: weekEnd
+                            }
                         }
                     }),
-                    database_1.default.field.count()
+                    _database.default.field.count()
                 ]);
-                const utilizationRate = avgUtilization > 0 ? Math.round((fieldsWithBookings / avgUtilization) * 100) : 0;
+                const utilizationRate = avgUtilization > 0 ? Math.round(fieldsWithBookings / avgUtilization * 100) : 0;
                 chartData.push({
                     day: weeks[i],
-                    values: [fieldsWithBookings, totalBookings, utilizationRate]
+                    values: [
+                        fieldsWithBookings,
+                        totalBookings,
+                        utilizationRate
+                    ]
                 });
             }
-        }
-        else {
+        } else {
             // Show monthly utilization
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            for (let i = 0; i < 12; i++) {
+            const months = [
+                'Jan',
+                'Feb',
+                'Mar',
+                'Apr',
+                'May',
+                'Jun',
+                'Jul',
+                'Aug',
+                'Sep',
+                'Oct',
+                'Nov',
+                'Dec'
+            ];
+            for(let i = 0; i < 12; i++){
                 const monthStart = new Date(now.getFullYear(), i, 1);
                 const monthEnd = new Date(now.getFullYear(), i + 1, 0);
                 const [fieldsWithBookings, totalBookings, avgUtilization] = await Promise.all([
-                    database_1.default.field.count({
+                    _database.default.field.count({
                         where: {
                             bookings: {
                                 some: {
-                                    createdAt: { gte: monthStart, lte: monthEnd }
+                                    createdAt: {
+                                        gte: monthStart,
+                                        lte: monthEnd
+                                    }
                                 }
                             }
                         }
                     }),
-                    database_1.default.booking.count({
+                    _database.default.booking.count({
                         where: {
-                            createdAt: { gte: monthStart, lte: monthEnd }
+                            createdAt: {
+                                gte: monthStart,
+                                lte: monthEnd
+                            }
                         }
                     }),
-                    database_1.default.field.count()
+                    _database.default.field.count()
                 ]);
-                const utilizationRate = avgUtilization > 0 ? Math.round((fieldsWithBookings / avgUtilization) * 100) : 0;
+                const utilizationRate = avgUtilization > 0 ? Math.round(fieldsWithBookings / avgUtilization * 100) : 0;
                 chartData.push({
                     day: months[i],
-                    values: [fieldsWithBookings, totalBookings, utilizationRate]
+                    values: [
+                        fieldsWithBookings,
+                        totalBookings,
+                        utilizationRate
+                    ]
                 });
             }
         }
@@ -1269,14 +1653,15 @@ router.get('/field-utilization', admin_middleware_1.authenticateAdmin, rateLimit
             topFields,
             chartData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Field utilization error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get all claims for admin
-router.get('/claims', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/claims', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { status, page = '1', limit = '10' } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -1285,7 +1670,7 @@ router.get('/claims', admin_middleware_1.authenticateAdmin, async (req, res) => 
             where.status = status;
         }
         const [claimsWithoutField, total] = await Promise.all([
-            database_1.default.fieldClaim.findMany({
+            _database.default.fieldClaim.findMany({
                 where,
                 orderBy: {
                     createdAt: 'desc'
@@ -1293,15 +1678,19 @@ router.get('/claims', admin_middleware_1.authenticateAdmin, async (req, res) => 
                 skip,
                 take: parseInt(limit)
             }),
-            database_1.default.fieldClaim.count({ where })
+            _database.default.fieldClaim.count({
+                where
+            })
         ]);
         // Fetch field data separately to handle null fields gracefully
-        const claims = await Promise.all(claimsWithoutField.map(async (claim) => {
+        const claims = await Promise.all(claimsWithoutField.map(async (claim)=>{
             let field = null;
             if (claim.fieldId) {
                 try {
-                    field = await database_1.default.field.findUnique({
-                        where: { id: claim.fieldId },
+                    field = await _database.default.field.findUnique({
+                        where: {
+                            id: claim.fieldId
+                        },
                         select: {
                             id: true,
                             name: true,
@@ -1310,9 +1699,8 @@ router.get('/claims', admin_middleware_1.authenticateAdmin, async (req, res) => 
                             state: true
                         }
                     });
-                }
-                catch (err) {
-                    // Field might not exist, continue with null
+                } catch (err) {
+                // Field might not exist, continue with null
                 }
             }
             return {
@@ -1327,28 +1715,35 @@ router.get('/claims', admin_middleware_1.authenticateAdmin, async (req, res) => 
             pages: Math.ceil(total / parseInt(limit)),
             currentPage: parseInt(page)
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get claims error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get single claim details for admin
-router.get('/claims/:claimId', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/claims/:claimId', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { claimId } = req.params;
-        const claim = await database_1.default.fieldClaim.findUnique({
-            where: { id: claimId }
+        const claim = await _database.default.fieldClaim.findUnique({
+            where: {
+                id: claimId
+            }
         });
         if (!claim) {
-            return res.status(404).json({ error: 'Claim not found' });
+            return res.status(404).json({
+                error: 'Claim not found'
+            });
         }
         // Fetch field data separately to handle null fields
         let field = null;
         if (claim.fieldId) {
             try {
-                field = await database_1.default.field.findUnique({
-                    where: { id: claim.fieldId },
+                field = await _database.default.field.findUnique({
+                    where: {
+                        id: claim.fieldId
+                    },
                     select: {
                         id: true,
                         name: true,
@@ -1358,9 +1753,8 @@ router.get('/claims/:claimId', admin_middleware_1.authenticateAdmin, async (req,
                         location: true
                     }
                 });
-            }
-            catch (err) {
-                // Field might not exist, continue with null
+            } catch (err) {
+            // Field might not exist, continue with null
             }
         }
         res.json({
@@ -1370,24 +1764,32 @@ router.get('/claims/:claimId', admin_middleware_1.authenticateAdmin, async (req,
                 field
             }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get claim details error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Update claim status (approve/reject) for admin
-router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.patch('/claims/:claimId/status', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { claimId } = req.params;
         const { status, reviewNotes } = req.body;
         const adminId = req.userId;
-        if (!['APPROVED', 'REJECTED'].includes(status)) {
-            return res.status(400).json({ error: 'Invalid status. Must be APPROVED or REJECTED' });
+        if (![
+            'APPROVED',
+            'REJECTED'
+        ].includes(status)) {
+            return res.status(400).json({
+                error: 'Invalid status. Must be APPROVED or REJECTED'
+            });
         }
         // Get the claim with field details
-        const claim = await database_1.default.fieldClaim.findUnique({
-            where: { id: claimId },
+        const claim = await _database.default.fieldClaim.findUnique({
+            where: {
+                id: claimId
+            },
             include: {
                 field: {
                     select: {
@@ -1401,14 +1803,18 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
             }
         });
         if (!claim) {
-            return res.status(404).json({ error: 'Claim not found' });
+            return res.status(404).json({
+                error: 'Claim not found'
+            });
         }
         // Variables for credentials (used if approved)
         let generatedPassword;
         let fieldOwner = null;
         // Update the claim
-        const updatedClaim = await database_1.default.fieldClaim.update({
-            where: { id: claimId },
+        const updatedClaim = await _database.default.fieldClaim.update({
+            where: {
+                id: claimId
+            },
             data: {
                 status,
                 reviewNotes,
@@ -1427,8 +1833,10 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
                 console.log('========================================');
                 console.log('🔍 Claim fieldId:', claim.fieldId);
                 // Get the field with its current owner
-                const fieldWithOwner = await database_1.default.field.findUnique({
-                    where: { id: claim.fieldId },
+                const fieldWithOwner = await _database.default.field.findUnique({
+                    where: {
+                        id: claim.fieldId
+                    },
                     include: {
                         owner: true
                     }
@@ -1445,39 +1853,44 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
                     fieldOwner = fieldWithOwner.owner;
                     console.log('✅ Using existing field owner:', fieldOwner.email);
                     // Generate a new password for the existing owner
-                    generatedPassword = crypto_1.default.randomBytes(8).toString('hex');
-                    const hashedPassword = await bcryptjs_1.default.hash(generatedPassword, constants_1.BCRYPT_ROUNDS);
+                    generatedPassword = _crypto.default.randomBytes(8).toString('hex');
+                    const hashedPassword = await _bcryptjs.default.hash(generatedPassword, _constants.BCRYPT_ROUNDS);
                     // Update the owner's password and mark email as verified
-                    await database_1.default.user.update({
-                        where: { id: fieldOwner.id },
+                    await _database.default.user.update({
+                        where: {
+                            id: fieldOwner.id
+                        },
                         data: {
                             password: hashedPassword,
-                            emailVerified: new Date(), // DateTime field
+                            emailVerified: new Date(),
                             provider: 'general' // Update provider to general since they now have password login
                         }
                     });
                     // Mark the field as claimed
-                    await database_1.default.field.update({
-                        where: { id: claim.fieldId },
+                    await _database.default.field.update({
+                        where: {
+                            id: claim.fieldId
+                        },
                         data: {
                             isClaimed: true
                         }
                     });
                     console.log(`✅ Updated password for existing field owner: ${fieldOwner.email}`);
                     console.log('✅ Credentials will be sent for:', fieldOwner.email);
-                }
-                else {
+                } else {
                     // Field has no owner - this shouldn't happen normally, but handle it
                     // Create a new owner account using claimer's details
                     console.log('⚠️ Field has no owner - creating new account from claim data');
-                    generatedPassword = crypto_1.default.randomBytes(8).toString('hex');
-                    const hashedPassword = await bcryptjs_1.default.hash(generatedPassword, constants_1.BCRYPT_ROUNDS);
+                    generatedPassword = _crypto.default.randomBytes(8).toString('hex');
+                    const hashedPassword = await _bcryptjs.default.hash(generatedPassword, _constants.BCRYPT_ROUNDS);
                     // Check if user already exists with this email (any role)
-                    const existingFieldOwner = await database_1.default.user.findFirst({
-                        where: { email: claim.email }
+                    const existingFieldOwner = await _database.default.user.findFirst({
+                        where: {
+                            email: claim.email
+                        }
                     });
                     if (!existingFieldOwner) {
-                        fieldOwner = await database_1.default.user.create({
+                        fieldOwner = await _database.default.user.create({
                             data: {
                                 email: claim.email,
                                 name: claim.fullName,
@@ -1490,12 +1903,13 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
                             }
                         });
                         console.log(`✅ Created new field owner account for ${claim.email}`);
-                    }
-                    else {
+                    } else {
                         fieldOwner = existingFieldOwner;
                         // Update password for existing user
-                        await database_1.default.user.update({
-                            where: { id: existingFieldOwner.id },
+                        await _database.default.user.update({
+                            where: {
+                                id: existingFieldOwner.id
+                            },
                             data: {
                                 password: hashedPassword,
                                 emailVerified: new Date() // DateTime field
@@ -1504,25 +1918,26 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
                         console.log(`✅ Updated password for existing field owner: ${existingFieldOwner.email}`);
                     }
                     // Update the field with the owner
-                    await database_1.default.field.update({
-                        where: { id: claim.fieldId },
+                    await _database.default.field.update({
+                        where: {
+                            id: claim.fieldId
+                        },
                         data: {
                             isClaimed: true,
                             ownerId: fieldOwner.id
                         }
                     });
                 }
-            }
-            catch (accountError) {
+            } catch (accountError) {
                 console.error('Failed to process field owner account:', accountError);
-                return res.status(500).json({ error: 'Failed to process field owner account' });
+                return res.status(500).json({
+                    error: 'Failed to process field owner account'
+                });
             }
         }
         // Send email notification about status update
         try {
-            const fieldAddress = claim.field.address ?
-                `${claim.field.address}${claim.field.city ? ', ' + claim.field.city : ''}${claim.field.state ? ', ' + claim.field.state : ''}` :
-                'Address not specified';
+            const fieldAddress = claim.field.address ? `${claim.field.address}${claim.field.city ? ', ' + claim.field.city : ''}${claim.field.state ? ', ' + claim.field.state : ''}` : 'Address not specified';
             // Comprehensive logging for debugging email issues
             console.log('========================================');
             console.log('📧 CLAIM STATUS EMAIL - DEBUG START');
@@ -1543,8 +1958,8 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
                 console.log('📧 Generated password length:', generatedPassword.length);
             }
             console.log('📧 Calling emailService.sendFieldClaimStatusEmail...');
-            const emailResult = await email_service_1.emailService.sendFieldClaimStatusEmail({
-                email: claim.email, // Send notification to claimer's email
+            const emailResult = await _emailservice.emailService.sendFieldClaimStatusEmail({
+                email: claim.email,
                 fullName: claim.fullName,
                 fieldName: claim.field.name || 'Unnamed Field',
                 fieldAddress: fieldAddress,
@@ -1553,7 +1968,7 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
                 documents: claim.documents,
                 // Credentials are for the FIELD OWNER's account (not the claim email)
                 credentials: status === 'APPROVED' && generatedPassword && fieldOwner ? {
-                    email: fieldOwner.email, // Use field owner's email for login credentials
+                    email: fieldOwner.email,
                     password: generatedPassword
                 } : undefined
             });
@@ -1561,8 +1976,7 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
             console.log('========================================');
             console.log('📧 CLAIM STATUS EMAIL - DEBUG END');
             console.log('========================================');
-        }
-        catch (emailError) {
+        } catch (emailError) {
             // Log error but don't fail the status update
             console.error('========================================');
             console.error('❌ CLAIM STATUS EMAIL - ERROR');
@@ -1578,26 +1992,26 @@ router.patch('/claims/:claimId/status', admin_middleware_1.authenticateAdmin, as
             claim: updatedClaim,
             message: `Claim ${status.toLowerCase()} successfully. An email notification has been sent to the claimer.`
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Update claim status error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Update admin profile
-router.patch('/profile', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.patch('/profile', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const adminId = req.userId;
         const { name, phone, bio } = req.body;
         const updates = {};
-        if (name !== undefined)
-            updates.name = name;
-        if (phone !== undefined)
-            updates.phone = phone;
-        if (bio !== undefined)
-            updates.bio = bio;
-        const updatedAdmin = await database_1.default.user.update({
-            where: { id: adminId },
+        if (name !== undefined) updates.name = name;
+        if (phone !== undefined) updates.phone = phone;
+        if (bio !== undefined) updates.bio = bio;
+        const updatedAdmin = await _database.default.user.update({
+            where: {
+                id: adminId
+            },
             data: updates
         });
         const { password: _, ...adminData } = updatedAdmin;
@@ -1605,29 +2019,38 @@ router.patch('/profile', admin_middleware_1.authenticateAdmin, async (req, res) 
             success: true,
             admin: adminData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Update admin profile error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Upload admin profile image
-router.post('/profile/upload-image', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.post('/profile/upload-image', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const adminId = req.userId;
-        const upload = await Promise.resolve().then(() => __importStar(require('../middleware/upload.middleware')));
+        const upload = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../middleware/upload.middleware")));
         const uploadSingle = upload.uploadSingle('image');
-        uploadSingle(req, res, async (err) => {
+        uploadSingle(req, res, async (err)=>{
             if (err) {
-                return res.status(400).json({ error: err.message });
+                return res.status(400).json({
+                    error: err.message
+                });
             }
             const file = req.file;
             if (!file) {
-                return res.status(400).json({ error: 'No file uploaded' });
+                return res.status(400).json({
+                    error: 'No file uploaded'
+                });
             }
-            const updatedAdmin = await database_1.default.user.update({
-                where: { id: adminId },
-                data: { image: file.location }
+            const updatedAdmin = await _database.default.user.update({
+                where: {
+                    id: adminId
+                },
+                data: {
+                    image: file.location
+                }
             });
             const { password: _, ...adminData } = updatedAdmin;
             res.json({
@@ -1636,93 +2059,137 @@ router.post('/profile/upload-image', admin_middleware_1.authenticateAdmin, async
                 imageUrl: file.location
             });
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Upload admin profile image error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Delete admin profile image
-router.delete('/profile/delete-image', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.delete('/profile/delete-image', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const adminId = req.userId;
-        const updatedAdmin = await database_1.default.user.update({
-            where: { id: adminId },
-            data: { image: null }
+        const updatedAdmin = await _database.default.user.update({
+            where: {
+                id: adminId
+            },
+            data: {
+                image: null
+            }
         });
         const { password: _, ...adminData } = updatedAdmin;
         res.json({
             success: true,
             admin: adminData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Delete admin profile image error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Admin: Request email change OTP for own profile
-router.post('/profile/request-email-change', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.post('/profile/request-email-change', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const adminId = req.userId;
         const { newEmail } = req.body;
         if (!newEmail) {
-            return res.status(400).json({ error: 'New email is required' });
+            return res.status(400).json({
+                error: 'New email is required'
+            });
         }
         const trimmedEmail = newEmail.trim().toLowerCase();
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(trimmedEmail)) {
-            return res.status(400).json({ error: 'Please enter a valid email address' });
+            return res.status(400).json({
+                error: 'Please enter a valid email address'
+            });
         }
-        const admin = await database_1.default.user.findUnique({ where: { id: adminId } });
+        const admin = await _database.default.user.findUnique({
+            where: {
+                id: adminId
+            }
+        });
         if (!admin) {
-            return res.status(404).json({ error: 'Admin not found' });
+            return res.status(404).json({
+                error: 'Admin not found'
+            });
         }
         if (trimmedEmail === admin.email.toLowerCase()) {
-            return res.status(400).json({ error: 'New email must be different from your current email' });
+            return res.status(400).json({
+                error: 'New email must be different from your current email'
+            });
         }
         // Check if email is already in use by any user (regardless of role)
-        const existingUser = await database_1.default.user.findFirst({
-            where: { email: trimmedEmail }
+        const existingUser = await _database.default.user.findFirst({
+            where: {
+                email: trimmedEmail
+            }
         });
         if (existingUser) {
-            return res.status(409).json({ error: 'This email is already in use by another account' });
+            return res.status(409).json({
+                error: 'This email is already in use by another account'
+            });
         }
-        await otp_service_1.otpService.sendOtp(trimmedEmail, 'EMAIL_CHANGE', admin.name || undefined);
-        res.json({ success: true, message: 'Verification code sent to the new email' });
-    }
-    catch (error) {
+        await _otpservice.otpService.sendOtp(trimmedEmail, 'EMAIL_CHANGE', admin.name || undefined);
+        res.json({
+            success: true,
+            message: 'Verification code sent to the new email'
+        });
+    } catch (error) {
         console.error('Admin profile request email change error:', error);
-        res.status(500).json({ error: 'Failed to send verification code' });
+        res.status(500).json({
+            error: 'Failed to send verification code'
+        });
     }
 });
 // Admin: Verify email change OTP for own profile
-router.post('/profile/verify-email-change', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.post('/profile/verify-email-change', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const adminId = req.userId;
         const { newEmail, otp } = req.body;
         if (!newEmail || !otp) {
-            return res.status(400).json({ error: 'New email and OTP are required' });
+            return res.status(400).json({
+                error: 'New email and OTP are required'
+            });
         }
         const trimmedEmail = newEmail.trim().toLowerCase();
-        const admin = await database_1.default.user.findUnique({ where: { id: adminId } });
+        const admin = await _database.default.user.findUnique({
+            where: {
+                id: adminId
+            }
+        });
         if (!admin) {
-            return res.status(404).json({ error: 'Admin not found' });
+            return res.status(404).json({
+                error: 'Admin not found'
+            });
         }
         // Re-check uniqueness (regardless of role)
-        const existingUser = await database_1.default.user.findFirst({
-            where: { email: trimmedEmail }
+        const existingUser = await _database.default.user.findFirst({
+            where: {
+                email: trimmedEmail
+            }
         });
         if (existingUser) {
-            return res.status(409).json({ error: 'This email is already in use by another account' });
+            return res.status(409).json({
+                error: 'This email is already in use by another account'
+            });
         }
-        const isValid = await otp_service_1.otpService.verifyOtp(trimmedEmail, otp, 'EMAIL_CHANGE');
+        const isValid = await _otpservice.otpService.verifyOtp(trimmedEmail, otp, 'EMAIL_CHANGE');
         if (!isValid) {
-            return res.status(400).json({ error: 'Invalid or expired verification code' });
+            return res.status(400).json({
+                error: 'Invalid or expired verification code'
+            });
         }
-        const updatedAdmin = await database_1.default.user.update({
-            where: { id: adminId },
-            data: { email: trimmedEmail }
+        const updatedAdmin = await _database.default.user.update({
+            where: {
+                id: adminId
+            },
+            data: {
+                email: trimmedEmail
+            }
         });
         const { password: _, ...adminData } = updatedAdmin;
         res.json({
@@ -1730,63 +2197,92 @@ router.post('/profile/verify-email-change', admin_middleware_1.authenticateAdmin
             message: 'Email updated successfully',
             admin: adminData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Admin profile verify email change error:', error);
-        res.status(500).json({ error: 'Failed to update email' });
+        res.status(500).json({
+            error: 'Failed to update email'
+        });
     }
 });
 // Admin: Change own password
-router.patch('/profile/change-password', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.patch('/profile/change-password', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const adminId = req.userId;
         const { currentPassword, newPassword } = req.body;
         if (!currentPassword || !newPassword) {
-            return res.status(400).json({ error: 'Current password and new password are required' });
+            return res.status(400).json({
+                error: 'Current password and new password are required'
+            });
         }
         if (newPassword.length < 8) {
-            return res.status(400).json({ error: 'New password must be at least 8 characters' });
+            return res.status(400).json({
+                error: 'New password must be at least 8 characters'
+            });
         }
-        const admin = await database_1.default.user.findUnique({ where: { id: adminId } });
+        const admin = await _database.default.user.findUnique({
+            where: {
+                id: adminId
+            }
+        });
         if (!admin) {
-            return res.status(404).json({ error: 'Admin not found' });
+            return res.status(404).json({
+                error: 'Admin not found'
+            });
         }
         // Verify current password
-        const validPassword = await bcryptjs_1.default.compare(currentPassword, admin.password || '');
+        const validPassword = await _bcryptjs.default.compare(currentPassword, admin.password || '');
         if (!validPassword) {
-            return res.status(400).json({ error: 'Current password is incorrect' });
+            return res.status(400).json({
+                error: 'Current password is incorrect'
+            });
         }
-        const hashedPassword = await bcryptjs_1.default.hash(newPassword, constants_1.BCRYPT_ROUNDS);
-        await database_1.default.user.update({
-            where: { id: adminId },
-            data: { password: hashedPassword }
+        const hashedPassword = await _bcryptjs.default.hash(newPassword, _constants.BCRYPT_ROUNDS);
+        await _database.default.user.update({
+            where: {
+                id: adminId
+            },
+            data: {
+                password: hashedPassword
+            }
         });
-        res.json({ success: true, message: 'Password updated successfully' });
-    }
-    catch (error) {
+        res.json({
+            success: true,
+            message: 'Password updated successfully'
+        });
+    } catch (error) {
         console.error('Admin profile change password error:', error);
-        res.status(500).json({ error: 'Failed to update password' });
+        res.status(500).json({
+            error: 'Failed to update password'
+        });
     }
 });
 // Block user (admin only)
-router.patch('/users/:userId/block', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.patch('/users/:userId/block', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { userId } = req.params;
         const { reason } = req.body;
         // Check if user exists
-        const user = await database_1.default.user.findUnique({
-            where: { id: userId }
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            }
         });
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({
+                error: 'User not found'
+            });
         }
         // Prevent blocking other admins
         if (user.role === 'ADMIN') {
-            return res.status(403).json({ error: 'Cannot block admin users' });
+            return res.status(403).json({
+                error: 'Cannot block admin users'
+            });
         }
         // Block the user
-        const blockedUser = await database_1.default.user.update({
-            where: { id: userId },
+        const blockedUser = await _database.default.user.update({
+            where: {
+                id: userId
+            },
             data: {
                 isBlocked: true,
                 blockedAt: new Date(),
@@ -1795,9 +2291,13 @@ router.patch('/users/:userId/block', admin_middleware_1.authenticateAdmin, async
         });
         // If user is a FIELD_OWNER, also block all their fields
         if (user.role === 'FIELD_OWNER') {
-            await database_1.default.field.updateMany({
-                where: { ownerId: userId },
-                data: { isBlocked: true }
+            await _database.default.field.updateMany({
+                where: {
+                    ownerId: userId
+                },
+                data: {
+                    isBlocked: true
+                }
             });
         }
         const { password: _, ...userData } = blockedUser;
@@ -1806,26 +2306,33 @@ router.patch('/users/:userId/block', admin_middleware_1.authenticateAdmin, async
             message: 'User blocked successfully',
             user: userData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Block user error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Unblock user (admin only)
-router.patch('/users/:userId/unblock', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.patch('/users/:userId/unblock', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { userId } = req.params;
         // Check if user exists
-        const user = await database_1.default.user.findUnique({
-            where: { id: userId }
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            }
         });
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({
+                error: 'User not found'
+            });
         }
         // Unblock the user
-        const unblockedUser = await database_1.default.user.update({
-            where: { id: userId },
+        const unblockedUser = await _database.default.user.update({
+            where: {
+                id: userId
+            },
             data: {
                 isBlocked: false,
                 blockedAt: null,
@@ -1834,9 +2341,13 @@ router.patch('/users/:userId/unblock', admin_middleware_1.authenticateAdmin, asy
         });
         // If user is a FIELD_OWNER, also unblock all their fields
         if (user.role === 'FIELD_OWNER') {
-            await database_1.default.field.updateMany({
-                where: { ownerId: userId },
-                data: { isBlocked: false }
+            await _database.default.field.updateMany({
+                where: {
+                    ownerId: userId
+                },
+                data: {
+                    isBlocked: false
+                }
             });
         }
         const { password: _, ...userData } = unblockedUser;
@@ -1845,79 +2356,118 @@ router.patch('/users/:userId/unblock', admin_middleware_1.authenticateAdmin, asy
             message: 'User unblocked successfully',
             user: userData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Unblock user error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Admin: Request email change OTP for a user
-router.post('/users/:userId/request-email-change', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.post('/users/:userId/request-email-change', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { userId } = req.params;
         const { newEmail } = req.body;
         if (!newEmail) {
-            return res.status(400).json({ error: 'New email is required' });
+            return res.status(400).json({
+                error: 'New email is required'
+            });
         }
         const trimmedEmail = newEmail.trim().toLowerCase();
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(trimmedEmail)) {
-            return res.status(400).json({ error: 'Please enter a valid email address' });
+            return res.status(400).json({
+                error: 'Please enter a valid email address'
+            });
         }
         // Check if user exists
-        const user = await database_1.default.user.findUnique({ where: { id: userId } });
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            }
+        });
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({
+                error: 'User not found'
+            });
         }
         if (trimmedEmail === user.email.toLowerCase()) {
-            return res.status(400).json({ error: 'New email must be different from the current email' });
+            return res.status(400).json({
+                error: 'New email must be different from the current email'
+            });
         }
         // Check if the new email is already in use by any user (regardless of role)
-        const existingUser = await database_1.default.user.findFirst({
-            where: { email: trimmedEmail }
+        const existingUser = await _database.default.user.findFirst({
+            where: {
+                email: trimmedEmail
+            }
         });
         if (existingUser) {
-            return res.status(409).json({ error: 'This email is already in use by another account' });
+            return res.status(409).json({
+                error: 'This email is already in use by another account'
+            });
         }
         // Send OTP to the new email
-        await otp_service_1.otpService.sendOtp(trimmedEmail, 'EMAIL_CHANGE', user.name || undefined);
-        res.json({ success: true, message: 'Verification code sent to the new email' });
-    }
-    catch (error) {
+        await _otpservice.otpService.sendOtp(trimmedEmail, 'EMAIL_CHANGE', user.name || undefined);
+        res.json({
+            success: true,
+            message: 'Verification code sent to the new email'
+        });
+    } catch (error) {
         console.error('Admin request email change error:', error);
-        res.status(500).json({ error: 'Failed to send verification code' });
+        res.status(500).json({
+            error: 'Failed to send verification code'
+        });
     }
 });
 // Admin: Verify email change OTP and update user email
-router.post('/users/:userId/verify-email-change', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.post('/users/:userId/verify-email-change', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { userId } = req.params;
         const { newEmail, otp } = req.body;
         if (!newEmail || !otp) {
-            return res.status(400).json({ error: 'New email and OTP are required' });
+            return res.status(400).json({
+                error: 'New email and OTP are required'
+            });
         }
         const trimmedEmail = newEmail.trim().toLowerCase();
         // Check if user exists
-        const user = await database_1.default.user.findUnique({ where: { id: userId } });
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            }
+        });
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({
+                error: 'User not found'
+            });
         }
         // Re-check email uniqueness (regardless of role)
-        const existingUser = await database_1.default.user.findFirst({
-            where: { email: trimmedEmail }
+        const existingUser = await _database.default.user.findFirst({
+            where: {
+                email: trimmedEmail
+            }
         });
         if (existingUser) {
-            return res.status(409).json({ error: 'This email is already in use by another account' });
+            return res.status(409).json({
+                error: 'This email is already in use by another account'
+            });
         }
         // Verify OTP
-        const isValid = await otp_service_1.otpService.verifyOtp(trimmedEmail, otp, 'EMAIL_CHANGE');
+        const isValid = await _otpservice.otpService.verifyOtp(trimmedEmail, otp, 'EMAIL_CHANGE');
         if (!isValid) {
-            return res.status(400).json({ error: 'Invalid or expired verification code' });
+            return res.status(400).json({
+                error: 'Invalid or expired verification code'
+            });
         }
         // Update user email
-        const updatedUser = await database_1.default.user.update({
-            where: { id: userId },
-            data: { email: trimmedEmail }
+        const updatedUser = await _database.default.user.update({
+            where: {
+                id: userId
+            },
+            data: {
+                email: trimmedEmail
+            }
         });
         const { password: _, ...userData } = updatedUser;
         res.json({
@@ -1925,46 +2475,65 @@ router.post('/users/:userId/verify-email-change', admin_middleware_1.authenticat
             message: 'Email updated successfully',
             user: userData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Admin verify email change error:', error);
-        res.status(500).json({ error: 'Failed to update email' });
+        res.status(500).json({
+            error: 'Failed to update email'
+        });
     }
 });
 // Admin: Change user password
-router.patch('/users/:userId/change-password', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.patch('/users/:userId/change-password', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { userId } = req.params;
         const { newPassword } = req.body;
         if (!newPassword) {
-            return res.status(400).json({ error: 'New password is required' });
+            return res.status(400).json({
+                error: 'New password is required'
+            });
         }
         if (newPassword.length < 8) {
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+            return res.status(400).json({
+                error: 'Password must be at least 8 characters'
+            });
         }
         // Check if user exists
-        const user = await database_1.default.user.findUnique({ where: { id: userId } });
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            }
+        });
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({
+                error: 'User not found'
+            });
         }
         // Hash new password
-        const hashedPassword = await bcryptjs_1.default.hash(newPassword, constants_1.BCRYPT_ROUNDS);
-        await database_1.default.user.update({
-            where: { id: userId },
-            data: { password: hashedPassword }
+        const hashedPassword = await _bcryptjs.default.hash(newPassword, _constants.BCRYPT_ROUNDS);
+        await _database.default.user.update({
+            where: {
+                id: userId
+            },
+            data: {
+                password: hashedPassword
+            }
         });
-        res.json({ success: true, message: 'Password updated successfully' });
-    }
-    catch (error) {
+        res.json({
+            success: true,
+            message: 'Password updated successfully'
+        });
+    } catch (error) {
         console.error('Admin change password error:', error);
-        res.status(500).json({ error: 'Failed to update password' });
+        res.status(500).json({
+            error: 'Failed to update password'
+        });
     }
 });
 // ============================================================================
 // TRANSACTIONS - Admin Financial Overview
 // ============================================================================
 // Get all transactions (payments, refunds, payouts, transfers)
-router.get('/transactions', admin_middleware_1.authenticateAdmin, rateLimiter_middleware_1.strictLimiter, async (req, res) => {
+router.get('/transactions', _adminmiddleware.authenticateAdmin, _rateLimitermiddleware.strictLimiter, async (req, res)=>{
     try {
         const { page = '1', limit = '20', search = '', type = 'ALL', status = 'ALL', dateRange = 'ALL' } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -1972,38 +2541,56 @@ router.get('/transactions', admin_middleware_1.authenticateAdmin, rateLimiter_mi
         // Build date filter
         let dateFilter = {};
         const now = new Date();
-        switch (dateRange) {
+        switch(dateRange){
             case 'today':
                 const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                dateFilter = { gte: startOfToday };
+                dateFilter = {
+                    gte: startOfToday
+                };
                 break;
             case 'week':
                 const weekAgo = new Date(now);
                 weekAgo.setDate(weekAgo.getDate() - 7);
-                dateFilter = { gte: weekAgo };
+                dateFilter = {
+                    gte: weekAgo
+                };
                 break;
             case 'month':
                 const monthAgo = new Date(now);
                 monthAgo.setMonth(monthAgo.getMonth() - 1);
-                dateFilter = { gte: monthAgo };
+                dateFilter = {
+                    gte: monthAgo
+                };
                 break;
             case 'quarter':
                 const quarterAgo = new Date(now);
                 quarterAgo.setMonth(quarterAgo.getMonth() - 3);
-                dateFilter = { gte: quarterAgo };
+                dateFilter = {
+                    gte: quarterAgo
+                };
                 break;
             case 'year':
                 const yearAgo = new Date(now);
                 yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-                dateFilter = { gte: yearAgo };
+                dateFilter = {
+                    gte: yearAgo
+                };
                 break;
         }
         // GROUP BY BOOKING APPROACH: Get all bookings with their payment, refund, and payout status
         // This ensures ONE ROW PER BOOKING instead of multiple rows per transaction event
         // Build booking filter (exclude orphaned bookings with deleted fields or users)
         const bookingWhere = {
-            field: { id: { not: undefined } },
-            user: { id: { not: undefined } }
+            field: {
+                id: {
+                    not: undefined
+                }
+            },
+            user: {
+                id: {
+                    not: undefined
+                }
+            }
         };
         if (dateRange !== 'ALL') {
             bookingWhere.createdAt = dateFilter;
@@ -2016,61 +2603,80 @@ router.get('/transactions', admin_middleware_1.authenticateAdmin, rateLimiter_mi
         // Apply type filter at DB level where possible
         if (type === 'REFUND') {
             bookingWhere.paymentStatus = 'REFUNDED';
-        }
-        else if (type === 'PAYOUT') {
-            bookingWhere.payoutStatus = { in: ['RELEASED', 'COMPLETED'] };
+        } else if (type === 'PAYOUT') {
+            bookingWhere.payoutStatus = {
+                in: [
+                    'RELEASED',
+                    'COMPLETED'
+                ]
+            };
         }
         // Apply status filter at DB level
         if (status !== 'ALL') {
-            bookingWhere.transactions = { some: { status: status } };
+            bookingWhere.transactions = {
+                some: {
+                    status: status
+                }
+            };
         }
         // Only need transactions for pagination, not full scan
         // Get total count first (cheap)
-        const total = await database_1.default.booking.count({ where: bookingWhere });
+        const total = await _database.default.booking.count({
+            where: bookingWhere
+        });
         // Get paginated bookings (DB-level pagination)
-        const bookings = await database_1.default.booking.findMany({
+        const bookings = await _database.default.booking.findMany({
             where: bookingWhere,
             include: {
                 user: {
-                    select: { id: true, name: true, email: true }
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
                 },
                 field: {
                     include: {
                         owner: {
-                            select: { id: true, name: true, email: true }
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true
+                            }
                         }
                     }
                 },
                 transactions: {
-                    orderBy: { createdAt: 'asc' }
+                    orderBy: {
+                        createdAt: 'asc'
+                    }
                 }
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: {
+                createdAt: 'desc'
+            },
             skip,
-            take,
+            take
         });
         // Transform bookings into transaction records (one row per booking)
-        let allTransactions = bookings.map(booking => {
+        let allTransactions = bookings.map((booking)=>{
             // Find payment transaction
-            const paymentTransaction = booking.transactions.find(t => t.type === 'PAYMENT');
+            const paymentTransaction = booking.transactions.find((t)=>t.type === 'PAYMENT');
             // Find refund transaction (could be a separate REFUND type OR the payment itself marked as REFUNDED)
-            const refundTransaction = booking.transactions.find(t => t.type === 'REFUND');
+            const refundTransaction = booking.transactions.find((t)=>t.type === 'REFUND');
             // Get main transaction (payment if exists, otherwise first transaction)
             const mainTransaction = paymentTransaction || booking.transactions[0];
             if (!mainTransaction) {
                 return null; // Skip bookings without transactions
             }
             // Detect refund: either a separate REFUND transaction exists, or the booking/payment is marked as refunded
-            const isRefunded = !!refundTransaction ||
-                booking.paymentStatus === 'REFUNDED' ||
-                mainTransaction.lifecycleStage === 'REFUNDED' ||
-                !!mainTransaction.refundedAt;
+            const isRefunded = !!refundTransaction || booking.paymentStatus === 'REFUNDED' || mainTransaction.lifecycleStage === 'REFUNDED' || !!mainTransaction.refundedAt;
             // Calculate fees
             const amount = mainTransaction.amount || 0;
-            const stripeFee = amount > 0 ? Math.round(((amount * 0.015) + 0.20) * 100) / 100 : 0;
+            const stripeFee = amount > 0 ? Math.round((amount * 0.015 + 0.20) * 100) / 100 : 0;
             const amountAfterStripeFee = Math.round((amount - stripeFee) * 100) / 100;
             const platformCommissionRate = mainTransaction.commissionRate || 20;
-            const platformFee = Math.floor((amountAfterStripeFee * platformCommissionRate) / 100 * 100) / 100;
+            const platformFee = Math.floor(amountAfterStripeFee * platformCommissionRate / 100 * 100) / 100;
             const fieldOwnerEarnings = Math.floor((amountAfterStripeFee - platformFee) * 100) / 100;
             // Refund amount: from separate refund tx, or full amount if refunded via Stripe directly
             const refundAmount = refundTransaction?.amount || (isRefunded ? amount : 0);
@@ -2096,11 +2702,9 @@ router.get('/transactions', admin_middleware_1.authenticateAdmin, rateLimiter_mi
                 // Refund identifiers
                 stripeRefundId: refundTransaction?.stripeRefundId || mainTransaction.stripeRefundId,
                 // Lifecycle
-                lifecycleStage: (() => {
-                    if (isRefunded)
-                        return 'REFUNDED';
-                    if (booking.status === 'CANCELLED')
-                        return 'CANCELLED';
+                lifecycleStage: (()=>{
+                    if (isRefunded) return 'REFUNDED';
+                    if (booking.status === 'CANCELLED') return 'CANCELLED';
                     return mainTransaction.lifecycleStage;
                 })(),
                 paymentReceivedAt: mainTransaction.paymentReceivedAt || mainTransaction.createdAt,
@@ -2143,34 +2747,57 @@ router.get('/transactions', admin_middleware_1.authenticateAdmin, rateLimiter_mi
                 payoutStatus: booking.payoutStatus,
                 payoutReleasedAt: booking.payoutReleasedAt
             };
-        }).filter(t => t !== null); // Remove null entries
+        }).filter((t)=>t !== null); // Remove null entries
         // Pagination already applied at DB level
         const paginatedTransactions = allTransactions;
         // Compute stats with aggregate queries (not full scans)
         // Build a base where clause for stats (same date filter, ignore pagination)
         const statsWhere = {
-            field: { id: { not: undefined } },
-            user: { id: { not: undefined } }
+            field: {
+                id: {
+                    not: undefined
+                }
+            },
+            user: {
+                id: {
+                    not: undefined
+                }
+            }
         };
         if (dateRange !== 'ALL' && Object.keys(dateFilter).length > 0) {
             statsWhere.createdAt = dateFilter;
         }
         const [paymentStats, refundStats, payoutAgg] = await Promise.all([
             // Total payments (non-refunded)
-            database_1.default.booking.aggregate({
-                where: { ...statsWhere, paymentStatus: 'PAID' },
-                _sum: { totalPrice: true, platformCommission: true },
+            _database.default.booking.aggregate({
+                where: {
+                    ...statsWhere,
+                    paymentStatus: 'PAID'
+                },
+                _sum: {
+                    totalPrice: true,
+                    platformCommission: true
+                }
             }),
             // Total refunds
-            database_1.default.booking.aggregate({
-                where: { ...statsWhere, paymentStatus: 'REFUNDED' },
-                _sum: { totalPrice: true },
+            _database.default.booking.aggregate({
+                where: {
+                    ...statsWhere,
+                    paymentStatus: 'REFUNDED'
+                },
+                _sum: {
+                    totalPrice: true
+                }
             }),
             // Total payouts
-            database_1.default.payout.aggregate({
-                where: { status: 'paid' },
-                _sum: { amount: true },
-            }),
+            _database.default.payout.aggregate({
+                where: {
+                    status: 'paid'
+                },
+                _sum: {
+                    amount: true
+                }
+            })
         ]);
         const totalPayments = paymentStats._sum.totalPrice || 0;
         const totalRefunds = refundStats._sum.totalPrice || 0;
@@ -2190,34 +2817,48 @@ router.get('/transactions', admin_middleware_1.authenticateAdmin, rateLimiter_mi
             pages: Math.ceil(total / take),
             stats
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Get transactions error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
 // Get single transaction details with complete breakdown
-router.get('/transactions/:id', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/transactions/:id', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { id } = req.params;
         // Try to find in Transaction model first
-        let transaction = await database_1.default.transaction.findUnique({
-            where: { id },
+        let transaction = await _database.default.transaction.findUnique({
+            where: {
+                id
+            },
             include: {
                 user: {
-                    select: { id: true, name: true, email: true, phone: true }
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true
+                    }
                 },
                 booking: {
                     include: {
                         field: {
                             include: {
                                 owner: {
-                                    select: { id: true, name: true, email: true }
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true
+                                    }
                                 }
                             }
                         },
                         transactions: {
-                            orderBy: { createdAt: 'asc' }
+                            orderBy: {
+                                createdAt: 'asc'
+                            }
                         }
                     }
                 }
@@ -2227,17 +2868,17 @@ router.get('/transactions/:id', admin_middleware_1.authenticateAdmin, async (req
             const booking = transaction.booking;
             // Get all transactions for this booking to show complete history
             const allBookingTransactions = booking?.transactions || [];
-            const paymentTransaction = allBookingTransactions.find((t) => t.type === 'PAYMENT');
-            const refundTransaction = allBookingTransactions.find((t) => t.type === 'REFUND');
+            const paymentTransaction = allBookingTransactions.find((t)=>t.type === 'PAYMENT');
+            const refundTransaction = allBookingTransactions.find((t)=>t.type === 'REFUND');
             // Calculate Stripe processing fee estimate (approximately 1.5% + 20p for UK/EU cards)
             const grossAmount = transaction.amount;
-            const stripeProcessingFee = grossAmount > 0 ? Math.round(((grossAmount * 0.015) + 0.20) * 100) / 100 : 0;
+            const stripeProcessingFee = grossAmount > 0 ? Math.round((grossAmount * 0.015 + 0.20) * 100) / 100 : 0;
             const amountAfterStripe = Math.round((grossAmount - stripeProcessingFee) * 100) / 100;
             // Calculate platform fee and field owner earnings
             // Commission rate = platform/admin fee percentage (what Fieldsy takes)
             // Field owner receives the remainder after Stripe fees and platform commission
             const platformCommissionRate = transaction.commissionRate || 20; // Default 20% platform fee
-            const platformFee = Math.floor((amountAfterStripe * platformCommissionRate) / 100 * 100) / 100;
+            const platformFee = Math.floor(amountAfterStripe * platformCommissionRate / 100 * 100) / 100;
             const fieldOwnerEarnings = Math.floor((amountAfterStripe - platformFee) * 100) / 100;
             return res.json({
                 success: true,
@@ -2319,13 +2960,20 @@ router.get('/transactions/:id', admin_middleware_1.authenticateAdmin, async (req
             });
         }
         // Try to find in Payout model
-        const payout = await database_1.default.payout.findUnique({
-            where: { id },
+        const payout = await _database.default.payout.findUnique({
+            where: {
+                id
+            },
             include: {
                 stripeAccount: {
                     include: {
                         user: {
-                            select: { id: true, name: true, email: true, phone: true }
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                phone: true
+                            }
                         }
                     }
                 }
@@ -2334,13 +2982,19 @@ router.get('/transactions/:id', admin_middleware_1.authenticateAdmin, async (req
         if (payout) {
             let bookingDetails = null;
             if (payout.bookingIds && payout.bookingIds.length > 0) {
-                bookingDetails = await database_1.default.booking.findFirst({
-                    where: { id: payout.bookingIds[0] },
+                bookingDetails = await _database.default.booking.findFirst({
+                    where: {
+                        id: payout.bookingIds[0]
+                    },
                     include: {
                         field: {
                             include: {
                                 owner: {
-                                    select: { id: true, name: true, email: true }
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true
+                                    }
                                 }
                             }
                         }
@@ -2366,11 +3020,16 @@ router.get('/transactions/:id', admin_middleware_1.authenticateAdmin, async (req
                 }
             });
         }
-        res.status(404).json({ error: 'Transaction not found' });
-    }
-    catch (error) {
+        res.status(404).json({
+            error: 'Transaction not found'
+        });
+    } catch (error) {
         console.error('Get transaction details error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error'
+        });
     }
 });
-exports.default = router;
+const _default = router;
+
+//# sourceMappingURL=admin.routes.js.map

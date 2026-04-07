@@ -1,43 +1,66 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PaymentController = void 0;
-const stripe_config_1 = require("../config/stripe.config");
-const database_1 = __importDefault(require("../config/database"));
-const notification_controller_1 = require("./notification.controller");
-const notification_service_1 = require("../services/notification.service");
-const commission_utils_1 = require("../utils/commission.utils");
-const payout_services_1 = require("../config/payout-services");
-const subscriptionService = (0, payout_services_1.getSubscriptionService)();
-const email_service_1 = require("../services/email.service");
-const booking_model_1 = __importDefault(require("../models/booking.model"));
-const constants_1 = require("../config/constants");
-const field_utils_1 = require("../utils/field.utils");
-const settings_cache_1 = require("../config/settings-cache");
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "PaymentController", {
+    enumerable: true,
+    get: function() {
+        return PaymentController;
+    }
+});
+const _stripeconfig = require("../config/stripe.config");
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _notificationcontroller = require("./notification.controller");
+const _notificationservice = require("../services/notification.service");
+const _commissionutils = require("../utils/commission.utils");
+const _payoutservices = require("../config/payout-services");
+const _emailservice = require("../services/email.service");
+const _bookingmodel = /*#__PURE__*/ _interop_require_default(require("../models/booking.model"));
+const _constants = require("../config/constants");
+const _fieldutils = require("../utils/field.utils");
+const _settingscache = require("../config/settings-cache");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const subscriptionService = (0, _payoutservices.getSubscriptionService)();
 /**
  * Check if a date is valid for a field's operating days
- */
-function isDateValidForField(date, operatingDays) {
+ */ function isDateValidForField(date, operatingDays) {
     if (!operatingDays || operatingDays.length === 0) {
         return true; // If no operating days specified, assume all days are valid
     }
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayNames = [
+        'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday'
+    ];
     const dayOfWeek = dayNames[date.getDay()];
-    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const weekends = ['Saturday', 'Sunday'];
-    for (const opDay of operatingDays) {
+    const weekdays = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday'
+    ];
+    const weekends = [
+        'Saturday',
+        'Sunday'
+    ];
+    for (const opDay of operatingDays){
         if (opDay === 'everyday') {
             return true;
-        }
-        else if (opDay === 'weekdays' && weekdays.includes(dayOfWeek)) {
+        } else if (opDay === 'weekdays' && weekdays.includes(dayOfWeek)) {
             return true;
-        }
-        else if (opDay === 'weekends' && weekends.includes(dayOfWeek)) {
+        } else if (opDay === 'weekends' && weekends.includes(dayOfWeek)) {
             return true;
-        }
-        else if (opDay === dayOfWeek) {
+        } else if (opDay === dayOfWeek) {
             return true;
         }
     }
@@ -46,13 +69,12 @@ function isDateValidForField(date, operatingDays) {
 /**
  * Get the next valid booking date for everyday subscriptions
  * Skips days when the field doesn't operate
- */
-function getNextValidBookingDate(baseDate, operatingDays) {
+ */ function getNextValidBookingDate(baseDate, operatingDays) {
     let nextDate = new Date(baseDate);
     nextDate.setDate(nextDate.getDate() + 1);
     // Find the next valid operating day (max 7 iterations to prevent infinite loop)
     let iterations = 0;
-    while (!isDateValidForField(nextDate, operatingDays) && iterations < 7) {
+    while(!isDateValidForField(nextDate, operatingDays) && iterations < 7){
         nextDate.setDate(nextDate.getDate() + 1);
         iterations++;
     }
@@ -62,28 +84,32 @@ class PaymentController {
     // Create a payment intent for booking a field
     async createPaymentIntent(req, res) {
         try {
-            const { fieldId: rawFieldId, numberOfDogs, date, timeSlots, // Array of selected time slots (e.g., ["9:00AM - 10:00AM", "10:00AM - 11:00AM"])
-            repeatBooking, amount, paymentMethodId, // Optional: use saved payment method
-            duration // Optional: booking duration ('30min' or '60min')
+            const { fieldId: rawFieldId, numberOfDogs, date, timeSlots, repeatBooking, amount, paymentMethodId, duration// Optional: booking duration ('30min' or '60min')
              } = req.body;
-            let fieldId = rawFieldId;
+            let fieldId1 = rawFieldId;
             // Normalize timeSlots - ensure it's always an array
-            const normalizedTimeSlots = Array.isArray(timeSlots) ? timeSlots : (timeSlots ? [timeSlots] : []);
+            const normalizedTimeSlots = Array.isArray(timeSlots) ? timeSlots : timeSlots ? [
+                timeSlots
+            ] : [];
             if (normalizedTimeSlots.length === 0) {
-                return res.status(400).json({ error: 'At least one time slot is required' });
+                return res.status(400).json({
+                    error: 'At least one time slot is required'
+                });
             }
             // For display purposes, use first and last slot
-            const displayTimeSlot = normalizedTimeSlots.length === 1
-                ? normalizedTimeSlots[0]
-                : `${normalizedTimeSlots[0]} (+${normalizedTimeSlots.length - 1} more)`;
+            const displayTimeSlot = normalizedTimeSlots.length === 1 ? normalizedTimeSlots[0] : `${normalizedTimeSlots[0]} (+${normalizedTimeSlots.length - 1} more)`;
             // Validate user
             const userId = req.user?.id;
             if (!userId) {
-                return res.status(401).json({ error: 'User not authenticated' });
+                return res.status(401).json({
+                    error: 'User not authenticated'
+                });
             }
             // Get user for Stripe customer
-            const user = await database_1.default.user.findUnique({
-                where: { id: userId },
+            const user = await _database.default.user.findUnique({
+                where: {
+                    id: userId
+                },
                 select: {
                     id: true,
                     email: true,
@@ -93,8 +119,10 @@ class PaymentController {
             });
             // Check if user is blocked (field might not exist in production yet)
             try {
-                const userBlockStatus = await database_1.default.user.findUnique({
-                    where: { id: userId },
+                const userBlockStatus = await _database.default.user.findUnique({
+                    where: {
+                        id: userId
+                    },
                     select: {
                         isBlocked: true,
                         blockReason: true
@@ -106,18 +134,19 @@ class PaymentController {
                         reason: userBlockStatus.blockReason || 'Please contact support for more information'
                     });
                 }
-            }
-            catch (error) {
+            } catch (error) {
                 // isBlocked field doesn't exist in production yet, skip check
                 console.warn('Warning: isBlocked field not found in User model.');
             }
             // Resolve field early - support both ObjectID and human-readable fieldId (e.g. "F1153")
-            const field = await (0, field_utils_1.resolveField)(fieldId);
+            const field = await (0, _fieldutils.resolveField)(fieldId1);
             if (!field) {
-                return res.status(404).json({ error: 'Field not found' });
+                return res.status(404).json({
+                    error: 'Field not found'
+                });
             }
             // Reassign fieldId to the resolved MongoDB ObjectID for all downstream database queries
-            fieldId = field.id;
+            fieldId1 = field.id;
             // ============================================================
             // SLOT AVAILABILITY CHECK - Prevent race conditions
             // Check availability BEFORE creating payment intent
@@ -127,21 +156,18 @@ class PaymentController {
             // Parse time slots and check availability for each
             const actualDurationMinutes = duration === '30min' ? 30 : 60;
             // Helper function to parse time string to minutes
-            const parseTimeToMinutesLocal = (timeStr) => {
+            const parseTimeToMinutesLocal = (timeStr)=>{
                 const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
-                if (!match)
-                    return 0;
+                if (!match) return 0;
                 let hours = parseInt(match[1]);
                 const minutes = parseInt(match[2]);
                 const period = match[3].toUpperCase();
-                if (period === 'PM' && hours !== 12)
-                    hours += 12;
-                if (period === 'AM' && hours === 12)
-                    hours = 0;
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
                 return hours * 60 + minutes;
             };
             // Helper function to convert minutes to time string
-            const minutesToTimeStrLocal = (totalMinutes) => {
+            const minutesToTimeStrLocal = (totalMinutes)=>{
                 const hours = Math.floor(totalMinutes / 60);
                 const minutes = totalMinutes % 60;
                 const period = hours >= 12 ? 'PM' : 'AM';
@@ -151,12 +177,14 @@ class PaymentController {
             // Check availability for ALL slots atomically before proceeding
             // Batch DB queries: fetch all bookings and recurring subscriptions ONCE
             const [slotBookings, activeSubscriptions] = await Promise.all([
-                database_1.default.booking.findMany({
+                _database.default.booking.findMany({
                     where: {
-                        fieldId,
+                        fieldId: fieldId1,
                         date: bookingDate,
                         status: {
-                            notIn: ['CANCELLED']
+                            notIn: [
+                                'CANCELLED'
+                            ]
                         }
                     },
                     select: {
@@ -167,9 +195,9 @@ class PaymentController {
                         userId: true
                     }
                 }),
-                database_1.default.subscription.findMany({
+                _database.default.subscription.findMany({
                     where: {
-                        fieldId,
+                        fieldId: fieldId1,
                         status: 'active',
                         cancelAtPeriodEnd: false
                     },
@@ -189,23 +217,29 @@ class PaymentController {
             requestedDate.setHours(0, 0, 0, 0);
             const requestedDayOfWeek = requestedDate.getDay();
             const requestedDayOfMonth = requestedDate.getDate();
-            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayNames = [
+                'Sunday',
+                'Monday',
+                'Tuesday',
+                'Wednesday',
+                'Thursday',
+                'Friday',
+                'Saturday'
+            ];
             const requestedDayName = dayNames[requestedDayOfWeek];
-            for (const slot of normalizedTimeSlots) {
-                const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
+            for (const slot of normalizedTimeSlots){
+                const [slotStart, displaySlotEnd] = slot.split(' - ').map((t)=>t.trim());
                 const startMinutes = parseTimeToMinutesLocal(slotStart);
                 const actualEndMinutes = startMinutes + actualDurationMinutes;
                 const actualSlotEnd = minutesToTimeStrLocal(actualEndMinutes);
                 // Check for time overlap with existing bookings (in-memory)
-                for (const booking of slotBookings) {
+                for (const booking of slotBookings){
                     const bookingStart = parseTimeToMinutesLocal(booking.startTime);
                     const bookingEnd = parseTimeToMinutesLocal(booking.endTime);
                     const requestedStart = startMinutes;
                     const requestedEnd = actualEndMinutes;
                     // Check if times overlap
-                    const hasOverlap = (requestedStart >= bookingStart && requestedStart < bookingEnd) ||
-                        (requestedEnd > bookingStart && requestedEnd <= bookingEnd) ||
-                        (requestedStart <= bookingStart && requestedEnd >= bookingEnd);
+                    const hasOverlap = requestedStart >= bookingStart && requestedStart < bookingEnd || requestedEnd > bookingStart && requestedEnd <= bookingEnd || requestedStart <= bookingStart && requestedEnd >= bookingEnd;
                     if (hasOverlap) {
                         console.log('[PaymentController] Slot conflict detected:', {
                             requestedSlot: slot,
@@ -221,23 +255,19 @@ class PaymentController {
                     }
                 }
                 // Check for recurring subscription conflicts (in-memory)
-                for (const subscription of activeSubscriptions) {
+                for (const subscription of activeSubscriptions){
                     let isDateMatch = false;
                     if (subscription.interval === 'everyday') {
                         isDateMatch = true;
-                    }
-                    else if (subscription.interval === 'weekly') {
+                    } else if (subscription.interval === 'weekly') {
                         isDateMatch = subscription.dayOfWeek === requestedDayName;
-                    }
-                    else if (subscription.interval === 'monthly') {
+                    } else if (subscription.interval === 'monthly') {
                         isDateMatch = subscription.dayOfMonth === requestedDayOfMonth;
                     }
                     if (isDateMatch) {
                         const subStart = parseTimeToMinutesLocal(subscription.startTime);
                         const subEnd = parseTimeToMinutesLocal(subscription.endTime);
-                        const hasTimeOverlap = (startMinutes >= subStart && startMinutes < subEnd) ||
-                            (actualEndMinutes > subStart && actualEndMinutes <= subEnd) ||
-                            (startMinutes <= subStart && actualEndMinutes >= subEnd);
+                        const hasTimeOverlap = startMinutes >= subStart && startMinutes < subEnd || actualEndMinutes > subStart && actualEndMinutes <= subEnd || startMinutes <= subStart && actualEndMinutes >= subEnd;
                         if (hasTimeOverlap) {
                             const reason = `This time slot is reserved by a ${subscription.interval} recurring booking (${subscription.timeSlot})`;
                             console.log('[PaymentController] Recurring subscription conflict detected:', {
@@ -265,32 +295,34 @@ class PaymentController {
             const acquiredLocks = [];
             let slotLockingEnabled = true;
             // Check if slotLock model is available (might not be on production yet)
-            if (!database_1.default.slotLock) {
+            if (!_database.default.slotLock) {
                 console.warn('[PaymentController] SlotLock model not available - skipping slot locking');
                 slotLockingEnabled = false;
             }
             if (slotLockingEnabled) {
                 try {
                     // First, clean up any expired locks for these slots
-                    await database_1.default.slotLock.deleteMany({
+                    await _database.default.slotLock.deleteMany({
                         where: {
-                            fieldId,
+                            fieldId: fieldId1,
                             date: bookingDate,
-                            expiresAt: { lt: new Date() }
+                            expiresAt: {
+                                lt: new Date()
+                            }
                         }
                     });
                     // Try to acquire locks for all slots
-                    for (const slot of normalizedTimeSlots) {
-                        const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
+                    for (const slot of normalizedTimeSlots){
+                        const [slotStart, displaySlotEnd] = slot.split(' - ').map((t)=>t.trim());
                         const startMinutes = parseTimeToMinutesLocal(slotStart);
                         const actualEndMinutes = startMinutes + actualDurationMinutes;
                         const actualSlotEnd = minutesToTimeStrLocal(actualEndMinutes);
                         try {
                             // Try to create a lock - the unique constraint on (fieldId, date, startTime)
                             // will cause this to fail if another user already has a lock
-                            await database_1.default.slotLock.create({
+                            await _database.default.slotLock.create({
                                 data: {
-                                    fieldId,
+                                    fieldId: fieldId1,
                                     date: bookingDate,
                                     startTime: slotStart,
                                     endTime: actualSlotEnd,
@@ -300,44 +332,43 @@ class PaymentController {
                             });
                             acquiredLocks.push(slotStart);
                             console.log(`[PaymentController] Acquired lock for slot ${slot}`);
-                        }
-                        catch (lockError) {
+                        } catch (lockError) {
                             // Check if this is a unique constraint violation (slot already locked)
                             if (lockError.code === 'P2002') {
                                 // Check if the existing lock belongs to another user
-                                const existingLock = await database_1.default.slotLock.findFirst({
+                                const existingLock = await _database.default.slotLock.findFirst({
                                     where: {
-                                        fieldId,
+                                        fieldId: fieldId1,
                                         date: bookingDate,
                                         startTime: slotStart,
-                                        expiresAt: { gt: new Date() } // Only consider non-expired locks
+                                        expiresAt: {
+                                            gt: new Date()
+                                        } // Only consider non-expired locks
                                     }
                                 });
                                 if (existingLock && existingLock.userId !== userId) {
                                     // Another user has the lock - log warning but allow to proceed
                                     // The transaction-level check will catch actual conflicts
                                     console.log(`[PaymentController] Slot ${slot} is locked by another user, but allowing to proceed (transaction will catch conflicts)`);
-                                    // Don't add to acquiredLocks since we don't own this lock
-                                    // Continue without blocking - let the booking transaction handle conflicts
-                                }
-                                else if (existingLock && existingLock.userId === userId) {
+                                // Don't add to acquiredLocks since we don't own this lock
+                                // Continue without blocking - let the booking transaction handle conflicts
+                                } else if (existingLock && existingLock.userId === userId) {
                                     // Same user already has the lock (retry attempt) - that's fine
                                     acquiredLocks.push(slotStart);
                                     console.log(`[PaymentController] Reusing existing lock for slot ${slot}`);
-                                }
-                                else {
+                                } else {
                                     // Lock exists but is expired - try to delete and recreate
-                                    await database_1.default.slotLock.deleteMany({
+                                    await _database.default.slotLock.deleteMany({
                                         where: {
-                                            fieldId,
+                                            fieldId: fieldId1,
                                             date: bookingDate,
                                             startTime: slotStart
                                         }
                                     });
                                     // Try again to create the lock
-                                    await database_1.default.slotLock.create({
+                                    await _database.default.slotLock.create({
                                         data: {
-                                            fieldId,
+                                            fieldId: fieldId1,
                                             date: bookingDate,
                                             startTime: slotStart,
                                             endTime: actualSlotEnd,
@@ -348,23 +379,23 @@ class PaymentController {
                                     acquiredLocks.push(slotStart);
                                     console.log(`[PaymentController] Acquired lock after cleanup for slot ${slot}`);
                                 }
-                            }
-                            else {
+                            } else {
                                 // Some other error - rethrow
                                 throw lockError;
                             }
                         }
                     }
                     console.log('[PaymentController] All slot locks acquired successfully:', acquiredLocks);
-                }
-                catch (lockError) {
+                } catch (lockError) {
                     // Failed to acquire locks - clean up any we got
                     if (acquiredLocks.length > 0) {
-                        await database_1.default.slotLock.deleteMany({
+                        await _database.default.slotLock.deleteMany({
                             where: {
-                                fieldId,
+                                fieldId: fieldId1,
                                 date: bookingDate,
-                                startTime: { in: acquiredLocks },
+                                startTime: {
+                                    in: acquiredLocks
+                                },
                                 userId
                             }
                         });
@@ -381,61 +412,66 @@ class PaymentController {
             const timeSlotsKey = normalizedTimeSlots.sort().join('_');
             const repeatBookingKey = repeatBooking || 'none';
             // Create a hash of the booking parameters for idempotency
-            const idempotencyBase = `${userId}_${fieldId}_${date}_${timeSlotsKey}_${repeatBookingKey}_${numberOfDogs}_${Date.now()}`;
+            const idempotencyBase = `${userId}_${fieldId1}_${date}_${timeSlotsKey}_${repeatBookingKey}_${numberOfDogs}_${Date.now()}`;
             const idempotencyKey = `booking_${crypto.createHash('sha256').update(idempotencyBase).digest('hex').substring(0, 32)}`;
             // Check if bookings already exist for any of the selected time slots
-            const existingBookings = await database_1.default.booking.findMany({
+            const existingBookings = await _database.default.booking.findMany({
                 where: {
                     userId,
-                    fieldId,
+                    fieldId: fieldId1,
                     date: new Date(date),
-                    timeSlot: { in: normalizedTimeSlots },
+                    timeSlot: {
+                        in: normalizedTimeSlots
+                    },
                     status: {
-                        notIn: ['CANCELLED']
+                        notIn: [
+                            'CANCELLED'
+                        ]
                     }
                 }
             });
             if (existingBookings.length > 0) {
-                const existingSlots = existingBookings.map(b => b.timeSlot);
+                const existingSlots = existingBookings.map((b)=>b.timeSlot);
                 console.log('Duplicate booking attempt detected:', {
                     userId,
-                    fieldId,
+                    fieldId: fieldId1,
                     date,
                     existingSlots,
-                    existingBookingIds: existingBookings.map(b => b.id),
-                    existingStatuses: existingBookings.map(b => ({ status: b.status, paymentStatus: b.paymentStatus }))
+                    existingBookingIds: existingBookings.map((b)=>b.id),
+                    existingStatuses: existingBookings.map((b)=>({
+                            status: b.status,
+                            paymentStatus: b.paymentStatus
+                        }))
                 });
                 // Check if all existing bookings are already paid
-                const allPaid = existingBookings.every(b => b.paymentStatus === 'PAID' && b.status === 'CONFIRMED');
-                const anyPending = existingBookings.some(b => b.paymentStatus === 'PENDING');
+                const allPaid = existingBookings.every((b)=>b.paymentStatus === 'PAID' && b.status === 'CONFIRMED');
+                const anyPending = existingBookings.some((b)=>b.paymentStatus === 'PENDING');
                 // Check if booking was created very recently (within last 30 seconds) - likely a duplicate request
-                const recentlyCreated = existingBookings.some(b => {
+                const recentlyCreated = existingBookings.some((b)=>{
                     const createdAt = new Date(b.createdAt);
                     const now = new Date();
-                    return (now.getTime() - createdAt.getTime()) < 30000; // 30 seconds
+                    return now.getTime() - createdAt.getTime() < 30000; // 30 seconds
                 });
                 if (allPaid && existingBookings.length === normalizedTimeSlots.length) {
                     // All slots are already booked and confirmed
                     return res.status(200).json({
                         paymentSucceeded: true,
                         bookingId: existingBookings[0].id,
-                        bookingIds: existingBookings.map(b => b.id),
+                        bookingIds: existingBookings.map((b)=>b.id),
                         message: 'Booking already exists and is confirmed',
                         isDuplicate: true
                     });
-                }
-                else if (anyPending || recentlyCreated) {
+                } else if (anyPending || recentlyCreated) {
                     // Either pending payment or just created - prevent duplicate
                     return res.status(200).json({
                         paymentSucceeded: false,
                         bookingId: existingBookings[0].id,
-                        bookingIds: existingBookings.map(b => b.id),
+                        bookingIds: existingBookings.map((b)=>b.id),
                         message: 'A booking for one or more slots is already being processed',
                         isDuplicate: true,
                         isPending: true
                     });
-                }
-                else {
+                } else {
                     // Existing bookings that aren't paid and weren't recently created - still prevent duplicates
                     // These are likely failed or incomplete bookings
                     console.log('Found existing non-paid bookings, preventing duplicate creation');
@@ -447,12 +483,14 @@ class PaymentController {
                 }
             }
             if (!user) {
-                return res.status(404).json({ error: 'User not found' });
+                return res.status(404).json({
+                    error: 'User not found'
+                });
             }
             // Calculate amount in cents (Stripe uses smallest currency unit)
             const amountInCents = Math.round(amount * 100);
             // Calculate platform commission dynamically using commission utils
-            const { fieldOwnerAmount, platformCommission, commissionRate, isCustomCommission, defaultCommissionRate } = await (0, commission_utils_1.calculatePayoutAmounts)(amount, field.ownerId || '');
+            const { fieldOwnerAmount, platformCommission, commissionRate, isCustomCommission, defaultCommissionRate } = await (0, _commissionutils.calculatePayoutAmounts)(amount, field.ownerId || '');
             // Prepare payment intent parameters
             // Payment goes to platform account (admin) first
             // ============================================================
@@ -465,44 +503,44 @@ class PaymentController {
             const fieldOwnerAmountPerSlot = fieldOwnerAmount / normalizedTimeSlots.length;
             const basePaymentIntentParams = {
                 currency: 'gbp',
-                receipt_email: req.user?.email,
+                receipt_email: req.user?.email
             };
             // If a payment method is provided, use it
             if (paymentMethodId) {
                 // Verify the payment method belongs to this user
-                const paymentMethod = await database_1.default.paymentMethod.findFirst({
+                const paymentMethod = await _database.default.paymentMethod.findFirst({
                     where: {
                         id: paymentMethodId,
                         userId: userId
                     }
                 });
                 if (!paymentMethod) {
-                    return res.status(400).json({ error: 'Invalid payment method' });
+                    return res.status(400).json({
+                        error: 'Invalid payment method'
+                    });
                 }
                 // Ensure user has a valid Stripe customer ID
                 let customerId = user.stripeCustomerId;
                 // Verify customer exists in Stripe
                 if (customerId) {
                     try {
-                        const customer = await stripe_config_1.stripe.customers.retrieve(customerId);
+                        const customer = await _stripeconfig.stripe.customers.retrieve(customerId);
                         if (customer.deleted) {
                             console.log(`Stripe customer ${customerId} was deleted, creating new one`);
                             customerId = null; // Force recreation
                         }
-                    }
-                    catch (error) {
+                    } catch (error) {
                         if (error.statusCode === 404 || error.code === 'resource_missing') {
                             console.log(`Stripe customer ${customerId} not found, creating new one`);
                             customerId = null; // Force recreation
-                        }
-                        else {
+                        } else {
                             throw error; // Re-throw other errors
                         }
                     }
                 }
                 // Create customer if doesn't exist or was invalid
                 if (!customerId) {
-                    const customer = await stripe_config_1.stripe.customers.create({
+                    const customer = await _stripeconfig.stripe.customers.create({
                         email: user.email,
                         name: user.name || undefined,
                         metadata: {
@@ -511,27 +549,34 @@ class PaymentController {
                     });
                     customerId = customer.id;
                     // Save customer ID
-                    await database_1.default.user.update({
-                        where: { id: userId },
-                        data: { stripeCustomerId: customerId }
+                    await _database.default.user.update({
+                        where: {
+                            id: userId
+                        },
+                        data: {
+                            stripeCustomerId: customerId
+                        }
                     });
                 }
                 try {
                     // Verify the payment method still exists in Stripe
-                    const stripePaymentMethod = await stripe_config_1.stripe.paymentMethods.retrieve(paymentMethod.stripePaymentMethodId);
+                    const stripePaymentMethod = await _stripeconfig.stripe.paymentMethods.retrieve(paymentMethod.stripePaymentMethodId);
                     // Check if payment method is attached to the customer
                     if (stripePaymentMethod.customer !== customerId) {
                         // Attach payment method to customer if not already attached
-                        await stripe_config_1.stripe.paymentMethods.attach(paymentMethod.stripePaymentMethodId, { customer: customerId });
+                        await _stripeconfig.stripe.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
+                            customer: customerId
+                        });
                     }
-                }
-                catch (stripeError) {
+                } catch (stripeError) {
                     console.error('Stripe payment method error:', stripeError);
                     // Payment method doesn't exist or is invalid
                     if (stripeError.code === 'resource_missing' || stripeError.statusCode === 404) {
                         // Remove invalid payment method from database
-                        await database_1.default.paymentMethod.delete({
-                            where: { id: paymentMethodId }
+                        await _database.default.paymentMethod.delete({
+                            where: {
+                                id: paymentMethodId
+                            }
                         });
                         return res.status(400).json({
                             error: 'Payment method no longer valid. Please add a new payment method.',
@@ -547,29 +592,28 @@ class PaymentController {
                 basePaymentIntentParams.customer = customerId;
                 basePaymentIntentParams.payment_method = paymentMethod.stripePaymentMethodId;
                 basePaymentIntentParams.confirm = true;
-                basePaymentIntentParams.return_url = `${constants_1.FRONTEND_URL}/user/my-bookings`;
+                basePaymentIntentParams.return_url = `${_constants.FRONTEND_URL}/user/my-bookings`;
                 basePaymentIntentParams.automatic_payment_methods = {
                     enabled: true,
                     allow_redirects: 'always'
                 };
-            }
-            else {
+            } else {
                 basePaymentIntentParams.automatic_payment_methods = {
-                    enabled: true,
+                    enabled: true
                 };
             }
             // Create one PaymentIntent per slot
             const paymentIntents = [];
             try {
-                for (let i = 0; i < normalizedTimeSlots.length; i++) {
+                for(let i = 0; i < normalizedTimeSlots.length; i++){
                     const slot = normalizedTimeSlots[i];
                     const slotIdempotencyKey = `${idempotencyKey}_slot_${i}`;
-                    const slotPaymentIntent = await stripe_config_1.stripe.paymentIntents.create({
+                    const slotPaymentIntent = await _stripeconfig.stripe.paymentIntents.create({
                         ...basePaymentIntentParams,
                         amount: pricePerSlotCents,
                         metadata: {
                             userId,
-                            fieldId,
+                            fieldId: fieldId1,
                             fieldOwnerId: field.ownerId || '',
                             numberOfDogs: numberOfDogs.toString(),
                             date,
@@ -585,21 +629,19 @@ class PaymentController {
                             isCustomCommission: isCustomCommission.toString(),
                             defaultCommissionRate: defaultCommissionRate.toString()
                         },
-                        description: `Booking for ${field.name} on ${date} - ${slot}`,
+                        description: `Booking for ${field.name} on ${date} - ${slot}`
                     }, {
                         idempotencyKey: slotIdempotencyKey
                     });
                     paymentIntents.push(slotPaymentIntent);
                 }
-            }
-            catch (stripeError) {
+            } catch (stripeError) {
                 console.error('Error creating payment intent:', stripeError);
                 // Rollback: cancel any already-created payment intents
-                for (const pi of paymentIntents) {
+                for (const pi of paymentIntents){
                     try {
-                        await stripe_config_1.stripe.paymentIntents.cancel(pi.id);
-                    }
-                    catch (e) { /* best effort */ }
+                        await _stripeconfig.stripe.paymentIntents.cancel(pi.id);
+                    } catch (e) {}
                 }
                 if (stripeError.type === 'StripeInvalidRequestError') {
                     if (stripeError.message.includes('No such PaymentMethod')) {
@@ -624,23 +666,20 @@ class PaymentController {
             // Parse the first time slot to extract start and end times for subscription
             // Expected format: "4:00PM - 4:55PM" (display time with 5-min buffer)
             const firstTimeSlot = normalizedTimeSlots[0];
-            const [startTimeStr, displayEndTimeStr] = firstTimeSlot.split(' - ').map((t) => t.trim());
+            const [startTimeStr, displayEndTimeStr] = firstTimeSlot.split(' - ').map((t)=>t.trim());
             // Helper function to parse time string to minutes (for subscription end time calculation)
-            const parseTimeForSubscription = (timeStr) => {
+            const parseTimeForSubscription = (timeStr)=>{
                 const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
-                if (!match)
-                    return 0;
+                if (!match) return 0;
                 let hours = parseInt(match[1]);
                 const minutes = parseInt(match[2]);
                 const period = match[3].toUpperCase();
-                if (period === 'PM' && hours !== 12)
-                    hours += 12;
-                if (period === 'AM' && hours === 12)
-                    hours = 0;
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
                 return hours * 60 + minutes;
             };
             // Helper function to convert minutes to time string (for subscription end time calculation)
-            const minutesToTimeForSubscription = (totalMinutes) => {
+            const minutesToTimeForSubscription = (totalMinutes)=>{
                 const hours = Math.floor(totalMinutes / 60);
                 const minutes = totalMinutes % 60;
                 const period = hours >= 12 ? 'PM' : 'AM';
@@ -654,16 +693,18 @@ class PaymentController {
             const endTimeStr = minutesToTimeForSubscription(subscriptionActualEndMinutes);
             // Determine booking status from the first payment intent (all share the same card/status)
             const primaryPaymentIntent = paymentIntents[0];
-            const allSucceeded = paymentIntents.every(pi => pi.status === 'succeeded');
-            const anyRequiresAction = paymentIntents.some(pi => pi.status === 'requires_action');
+            const allSucceeded = paymentIntents.every((pi)=>pi.status === 'succeeded');
+            const anyRequiresAction = paymentIntents.some((pi)=>pi.status === 'requires_action');
             const bookingStatus = allSucceeded ? 'CONFIRMED' : 'PENDING';
             const paymentStatus = allSucceeded ? 'PAID' : 'PENDING';
             // Check if field owner has a connected Stripe account
-            const fieldOwnerStripeAccount = await database_1.default.stripeAccount.findUnique({
-                where: { userId: field.ownerId }
+            const fieldOwnerStripeAccount = await _database.default.stripeAccount.findUnique({
+                where: {
+                    userId: field.ownerId
+                }
             });
             // Get system settings for payout release schedule
-            const systemSettings = await (0, settings_cache_1.getSystemSettings)();
+            const systemSettings = await (0, _settingscache.getSystemSettings)();
             const payoutReleaseSchedule = systemSettings?.payoutReleaseSchedule || 'after_cancellation_window';
             // Determine payout status based on Stripe account connection and release schedule
             let payoutStatus = 'PENDING';
@@ -673,30 +714,36 @@ class PaymentController {
                     // Hold the payout if field owner doesn't have a connected Stripe account
                     payoutStatus = 'HELD';
                     payoutHeldReason = 'NO_STRIPE_ACCOUNT';
-                }
-                else if (payoutReleaseSchedule === 'on_weekend') {
+                } else if (payoutReleaseSchedule === 'on_weekend') {
                     // Check if today is weekend
                     const today = new Date().getDay();
-                    if (today === 5 || today === 6 || today === 0) { // Friday, Saturday, Sunday
+                    if (today === 5 || today === 6 || today === 0) {
                         payoutStatus = 'PENDING';
-                    }
-                    else {
+                    } else {
                         payoutStatus = 'HELD';
                         payoutHeldReason = 'WAITING_FOR_WEEKEND';
                     }
-                }
-                else { // after_cancellation_window
+                } else {
                     payoutStatus = 'HELD';
                     payoutHeldReason = 'WITHIN_CANCELLATION_WINDOW';
                 }
             }
             // Get field owner details for snapshot
-            const fieldOwner = await database_1.default.user.findUnique({
-                where: { id: field.ownerId },
-                select: { name: true, email: true }
+            const fieldOwner = await _database.default.user.findUnique({
+                where: {
+                    id: field.ownerId
+                },
+                select: {
+                    name: true,
+                    email: true
+                }
             });
             // Check if this is a recurring booking - subscriptions will be created per-slot inside the booking loop
-            const recurringOptions = ['everyday', 'weekly', 'monthly'];
+            const recurringOptions = [
+                'everyday',
+                'weekly',
+                'monthly'
+            ];
             const normalizedRepeatBooking = repeatBooking?.toLowerCase();
             const isRecurringBooking = repeatBooking && recurringOptions.includes(normalizedRepeatBooking);
             console.log('🔍 REPEAT BOOKING CHECK:', {
@@ -710,40 +757,37 @@ class PaymentController {
             let skippedDates = [];
             if (isRecurringBooking) {
                 const bookingDate = new Date(date);
-                const conflictCheck = await booking_model_1.default.checkRecurringSubscriptionConflicts(fieldId, bookingDate, startTimeStr, endTimeStr, normalizedRepeatBooking);
+                const conflictCheck = await _bookingmodel.default.checkRecurringSubscriptionConflicts(fieldId1, bookingDate, startTimeStr, endTimeStr, normalizedRepeatBooking);
                 if (conflictCheck.hasConflict) {
                     // Store conflicts as skipped dates - these will be automatically skipped by subscription service
-                    skippedDates = conflictCheck.conflictingDates.map(c => ({
-                        date: c.date.toISOString(),
-                        formattedDate: c.date.toLocaleDateString('en-GB', {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                            timeZone: 'Europe/London'
-                        }),
-                        bookedBy: c.existingBooking.user?.name || 'Another user'
-                    }));
-                    console.log(`📅 Recurring booking will skip ${skippedDates.length} conflicting dates:`, skippedDates.map(s => s.formattedDate).join(', '));
+                    skippedDates = conflictCheck.conflictingDates.map((c)=>({
+                            date: c.date.toISOString(),
+                            formattedDate: c.date.toLocaleDateString('en-GB', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                                timeZone: 'Europe/London'
+                            }),
+                            bookedBy: c.existingBooking.user?.name || 'Another user'
+                        }));
+                    console.log(`📅 Recurring booking will skip ${skippedDates.length} conflicting dates:`, skippedDates.map((s)=>s.formattedDate).join(', '));
                 }
             }
             // Create a booking for each selected time slot
             // Per-slot amounts already calculated above (pricePerSlot, platformCommissionPerSlot, fieldOwnerAmountPerSlot)
             // Helper function to parse time string to minutes
-            const parseTimeToMinutes = (timeStr) => {
+            const parseTimeToMinutes = (timeStr)=>{
                 const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
-                if (!match)
-                    return 0;
+                if (!match) return 0;
                 let hours = parseInt(match[1]);
                 const minutes = parseInt(match[2]);
                 const period = match[3].toUpperCase();
-                if (period === 'PM' && hours !== 12)
-                    hours += 12;
-                if (period === 'AM' && hours === 12)
-                    hours = 0;
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
                 return hours * 60 + minutes;
             };
             // Helper function to convert minutes back to time string
-            const minutesToTimeStr = (totalMinutes) => {
+            const minutesToTimeStr = (totalMinutes)=>{
                 const hours = Math.floor(totalMinutes / 60);
                 const minutes = totalMinutes % 60;
                 const period = hours >= 12 ? 'PM' : 'AM';
@@ -758,20 +802,22 @@ class PaymentController {
             // ============================================================
             let bookings;
             try {
-                bookings = await database_1.default.$transaction(async (tx) => {
+                bookings = await _database.default.$transaction(async (tx)=>{
                     // Re-check availability inside transaction for each slot
-                    for (const slot of normalizedTimeSlots) {
-                        const [slotStart] = slot.split(' - ').map((t) => t.trim());
+                    for (const slot of normalizedTimeSlots){
+                        const [slotStart] = slot.split(' - ').map((t)=>t.trim());
                         const startMinutes = parseTimeToMinutes(slotStart);
                         const actualEndMinutes = startMinutes + slotDuration;
                         const actualSlotEnd = minutesToTimeStr(actualEndMinutes);
                         // Check for conflicting bookings within transaction
                         const conflictingBookings = await tx.booking.findMany({
                             where: {
-                                fieldId,
+                                fieldId: fieldId1,
                                 date: new Date(date),
                                 status: {
-                                    notIn: ['CANCELLED']
+                                    notIn: [
+                                        'CANCELLED'
+                                    ]
                                 }
                             },
                             select: {
@@ -782,12 +828,10 @@ class PaymentController {
                             }
                         });
                         // Check for time overlap with existing bookings
-                        for (const existingBooking of conflictingBookings) {
+                        for (const existingBooking of conflictingBookings){
                             const existingStart = parseTimeToMinutes(existingBooking.startTime);
                             const existingEnd = parseTimeToMinutes(existingBooking.endTime);
-                            const hasOverlap = (startMinutes >= existingStart && startMinutes < existingEnd) ||
-                                (actualEndMinutes > existingStart && actualEndMinutes <= existingEnd) ||
-                                (startMinutes <= existingStart && actualEndMinutes >= existingEnd);
+                            const hasOverlap = startMinutes >= existingStart && startMinutes < existingEnd || actualEndMinutes > existingStart && actualEndMinutes <= existingEnd || startMinutes <= existingStart && actualEndMinutes >= existingEnd;
                             if (hasOverlap) {
                                 throw new Error(`SLOT_CONFLICT:${slot}:${existingBooking.timeSlot}`);
                             }
@@ -797,10 +841,13 @@ class PaymentController {
                     // For recurring bookings, create a SEPARATE subscription for each slot
                     const createdBookings = [];
                     const bookingDate = new Date(date);
-                    const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Europe/London' });
+                    const dayOfWeek = bookingDate.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        timeZone: 'Europe/London'
+                    });
                     const dayOfMonth = bookingDate.getDate();
-                    for (const slot of normalizedTimeSlots) {
-                        const [slotStart, displaySlotEnd] = slot.split(' - ').map((t) => t.trim());
+                    for (const slot of normalizedTimeSlots){
+                        const [slotStart, displaySlotEnd] = slot.split(' - ').map((t)=>t.trim());
                         const startMinutes = parseTimeToMinutes(slotStart);
                         const actualEndMinutes = startMinutes + slotDuration;
                         const actualSlotEnd = minutesToTimeStr(actualEndMinutes);
@@ -815,13 +862,11 @@ class PaymentController {
                                     // Get next valid booking date, skipping days when field doesn't operate
                                     nextBillingDate = getNextValidBookingDate(bookingDate, field.operatingDays);
                                     currentPeriodEnd = new Date(nextBillingDate);
-                                }
-                                else if (normalizedRepeatBooking === 'weekly') {
+                                } else if (normalizedRepeatBooking === 'weekly') {
                                     nextBillingDate = new Date(bookingDate);
                                     nextBillingDate.setDate(bookingDate.getDate() + 7);
                                     currentPeriodEnd = new Date(nextBillingDate);
-                                }
-                                else {
+                                } else {
                                     // Monthly
                                     const targetMonth = bookingDate.getMonth() + 1;
                                     const targetYear = bookingDate.getFullYear() + (targetMonth > 11 ? 1 : 0);
@@ -839,7 +884,7 @@ class PaymentController {
                                     },
                                     create: {
                                         userId,
-                                        fieldId,
+                                        fieldId: fieldId1,
                                         stripeSubscriptionId: subscriptionStripeId,
                                         stripeCustomerId: user.stripeCustomerId || '',
                                         status: 'active',
@@ -848,7 +893,9 @@ class PaymentController {
                                         currentPeriodStart: bookingDate,
                                         currentPeriodEnd: currentPeriodEnd,
                                         timeSlot: slot,
-                                        timeSlots: [slot],
+                                        timeSlots: [
+                                            slot
+                                        ],
                                         dayOfWeek: normalizedRepeatBooking === 'weekly' ? dayOfWeek : null,
                                         dayOfMonth: normalizedRepeatBooking === 'monthly' ? dayOfMonth : null,
                                         startTime: slotStart,
@@ -873,17 +920,16 @@ class PaymentController {
                                     pricePerSlot,
                                     interval: normalizedRepeatBooking
                                 });
-                            }
-                            catch (subscriptionError) {
+                            } catch (subscriptionError) {
                                 console.error(`Error creating subscription for slot ${slot}:`, subscriptionError);
-                                // Continue with booking creation even if subscription fails
+                            // Continue with booking creation even if subscription fails
                             }
                         }
                         // Each slot gets its own PaymentIntent
                         const slotPaymentIntent = paymentIntents[normalizedTimeSlots.indexOf(slot)];
                         const newBooking = await tx.booking.create({
                             data: {
-                                fieldId,
+                                fieldId: fieldId1,
                                 userId,
                                 date: new Date(date),
                                 startTime: slotStart,
@@ -893,10 +939,10 @@ class PaymentController {
                                 totalPrice: pricePerSlot,
                                 platformCommission: platformCommissionPerSlot,
                                 fieldOwnerAmount: fieldOwnerAmountPerSlot,
-                                bookingId: await booking_model_1.default.generateBookingId(),
+                                bookingId: await _bookingmodel.default.generateBookingId(),
                                 status: bookingStatus,
                                 paymentStatus: paymentStatus,
-                                paymentIntentId: slotPaymentIntent.id, // Each booking has its own PaymentIntent
+                                paymentIntentId: slotPaymentIntent.id,
                                 payoutStatus,
                                 payoutHeldReason,
                                 repeatBooking: normalizedRepeatBooking || repeatBooking || 'none',
@@ -909,10 +955,8 @@ class PaymentController {
                     return createdBookings;
                 }, {
                     timeout: 10000 // 10 second timeout for the transaction
-                    // Note: MongoDB doesn't support isolation levels, but transactions still provide atomicity
                 });
-            }
-            catch (txError) {
+            } catch (txError) {
                 // Handle slot conflict error from transaction
                 if (txError.message?.startsWith('SLOT_CONFLICT:')) {
                     const parts = txError.message.split(':');
@@ -936,35 +980,36 @@ class PaymentController {
             // ============================================================
             // RELEASE SLOT LOCKS - Booking was successfully created
             // ============================================================
-            if (slotLockingEnabled && database_1.default.slotLock) {
+            if (slotLockingEnabled && _database.default.slotLock) {
                 try {
-                    await database_1.default.slotLock.deleteMany({
+                    await _database.default.slotLock.deleteMany({
                         where: {
-                            fieldId,
+                            fieldId: fieldId1,
                             date: bookingDate,
                             userId
                         }
                     });
                     console.log('[PaymentController] Released slot locks after successful booking creation');
-                }
-                catch (lockCleanupError) {
+                } catch (lockCleanupError) {
                     // Non-critical error - locks will expire anyway
                     console.warn('[PaymentController] Failed to cleanup slot locks:', lockCleanupError);
                 }
             }
             // ============================================================
             const booking = bookings[0]; // Primary booking for notifications
-            const allBookingIds = bookings.map(b => b.id);
+            const allBookingIds = bookings.map((b)=>b.id);
             // If payment was auto-confirmed with saved card, create payment + transaction records per booking
             if (allSucceeded) {
-                const fieldOwnerStripeAccount = await database_1.default.stripeAccount.findFirst({
-                    where: { userId: field.ownerId }
+                const fieldOwnerStripeAccount = await _database.default.stripeAccount.findFirst({
+                    where: {
+                        userId: field.ownerId
+                    }
                 });
                 // Create one Payment record and one Transaction record per booking/slot
-                for (let i = 0; i < bookings.length; i++) {
+                for(let i = 0; i < bookings.length; i++){
                     const slotBooking = bookings[i];
                     const slotPI = paymentIntents[i];
-                    await database_1.default.payment.create({
+                    await _database.default.payment.create({
                         data: {
                             bookingId: slotBooking.id,
                             userId,
@@ -976,11 +1021,13 @@ class PaymentController {
                             processedAt: new Date()
                         }
                     });
-                    const existingTxn = await database_1.default.transaction.findFirst({
-                        where: { stripePaymentIntentId: slotPI.id }
+                    const existingTxn = await _database.default.transaction.findFirst({
+                        where: {
+                            stripePaymentIntentId: slotPI.id
+                        }
                     });
                     if (!existingTxn) {
-                        await database_1.default.transaction.create({
+                        await _database.default.transaction.create({
                             data: {
                                 bookingId: slotBooking.id,
                                 userId,
@@ -1005,48 +1052,57 @@ class PaymentController {
                 console.log(`[PaymentController] Created ${bookings.length} payment + transaction records for ${bookings.length} slots`);
                 // Send notifications and emails in background (non-blocking)
                 // Payment is already confirmed — don't delay the response
-                const slotsDisplay = normalizedTimeSlots.length === 1
-                    ? normalizedTimeSlots[0]
-                    : `${normalizedTimeSlots.length} time slots`;
+                const slotsDisplay = normalizedTimeSlots.length === 1 ? normalizedTimeSlots[0] : `${normalizedTimeSlots.length} time slots`;
                 // Fire and forget — notifications and emails happen asynchronously
                 // Each step is independent so one failure doesn't block the others
-                (async () => {
+                (async ()=>{
                     // 1. In-app notifications (independent of emails)
                     try {
-                        await (0, notification_controller_1.createNotification)({
+                        await (0, _notificationcontroller.createNotification)({
                             userId,
                             type: 'BOOKING_CONFIRMATION',
                             title: 'Booking Confirmed',
                             message: `Your booking for ${field.name} on ${date} (${slotsDisplay}) has been confirmed.`,
-                            data: { bookingId: booking.id, bookingIds: allBookingIds, fieldId }
+                            data: {
+                                bookingId: booking.id,
+                                bookingIds: allBookingIds,
+                                fieldId: fieldId1
+                            }
                         });
-                    }
-                    catch (err) {
+                    } catch (err) {
                         console.error('[Payment] Failed to send dog owner notification:', err);
                     }
                     try {
                         if (field.ownerId && field.ownerId !== userId) {
-                            await (0, notification_controller_1.createNotification)({
+                            await (0, _notificationcontroller.createNotification)({
                                 userId: field.ownerId,
                                 type: 'NEW_BOOKING',
                                 title: 'New Booking',
                                 message: `You have a new booking for ${field.name} on ${date} (${slotsDisplay}).`,
-                                data: { bookingId: booking.id, bookingIds: allBookingIds, fieldId }
+                                data: {
+                                    bookingId: booking.id,
+                                    bookingIds: allBookingIds,
+                                    fieldId: fieldId1
+                                }
                             });
                         }
-                    }
-                    catch (err) {
+                    } catch (err) {
                         console.error('[Payment] Failed to send field owner notification:', err);
                     }
                     // 2. Email notifications (independent of in-app notifications)
                     try {
-                        const fieldOwner = await database_1.default.user.findUnique({
-                            where: { id: field.ownerId },
-                            select: { name: true, email: true }
+                        const fieldOwner = await _database.default.user.findUnique({
+                            where: {
+                                id: field.ownerId
+                            },
+                            select: {
+                                name: true,
+                                email: true
+                            }
                         });
                         if (user.email) {
                             console.log(`[Payment] Sending booking confirmation email to dog owner: ${user.email}`);
-                            await email_service_1.emailService.sendBookingConfirmationToDogOwner({
+                            await _emailservice.emailService.sendBookingConfirmationToDogOwner({
                                 email: user.email,
                                 userName: user.name || 'Valued Customer',
                                 bookingId: booking.bookingId || booking.id,
@@ -1061,13 +1117,12 @@ class PaymentController {
                                 entryCode: field.entryCode || undefined
                             });
                             console.log(`[Payment] Dog owner booking email sent to ${user.email}`);
-                        }
-                        else {
+                        } else {
                             console.log('[Payment] Dog owner has no email, skipping confirmation email');
                         }
                         if (fieldOwner?.email) {
                             console.log(`[Payment] Sending new booking notification email to field owner: ${fieldOwner.email}`);
-                            await email_service_1.emailService.sendNewBookingNotificationToFieldOwner({
+                            await _emailservice.emailService.sendNewBookingNotificationToFieldOwner({
                                 email: fieldOwner.email,
                                 ownerName: fieldOwner.name || 'Field Owner',
                                 bookingId: booking.bookingId || booking.id,
@@ -1083,12 +1138,10 @@ class PaymentController {
                                 entryCode: field.entryCode || undefined
                             });
                             console.log(`[Payment] Field owner booking email sent to ${fieldOwner.email}`);
-                        }
-                        else {
+                        } else {
                             console.log('[Payment] Field owner has no email, skipping notification email');
                         }
-                    }
-                    catch (emailErr) {
+                    } catch (emailErr) {
                         console.error('[Payment] Failed to send booking emails:', emailErr);
                     }
                 })();
@@ -1097,35 +1150,32 @@ class PaymentController {
                 // Primary client secret (first slot) — for single-slot bookings this is the only one
                 clientSecret: primaryPaymentIntent.client_secret,
                 // All client secrets — frontend confirms each one for multi-slot bookings
-                clientSecrets: paymentIntents.map(pi => pi.client_secret),
-                paymentIntentIds: paymentIntents.map(pi => pi.id),
+                clientSecrets: paymentIntents.map((pi)=>pi.client_secret),
+                paymentIntentIds: paymentIntents.map((pi)=>pi.id),
                 bookingId: booking.id,
                 bookingIds: allBookingIds,
                 slotsCount: normalizedTimeSlots.length,
                 paymentSucceeded: allSucceeded,
                 requiresAction: anyRequiresAction,
-                publishableKey: process.env.STRIPE_PRODUCTION_MODE === 'true'
-                    ? process.env.STRIPE_LIVE_PUBLISHABLE_KEY
-                    : process.env.STRIPE_TEST_PUBLISHABLE_KEY,
+                publishableKey: process.env.STRIPE_PRODUCTION_MODE === 'true' ? process.env.STRIPE_LIVE_PUBLISHABLE_KEY : process.env.STRIPE_TEST_PUBLISHABLE_KEY,
                 // Include skipped dates for recurring bookings (these dates will be automatically skipped)
-                ...(skippedDates.length > 0 && {
+                ...skippedDates.length > 0 && {
                     skippedDates,
-                    skippedDatesWarning: `Note: ${skippedDates.length} future date(s) will be skipped due to existing bookings: ${skippedDates.slice(0, 3).map(s => s.formattedDate).join(', ')}${skippedDates.length > 3 ? ` and ${skippedDates.length - 3} more` : ''}`
-                })
+                    skippedDatesWarning: `Note: ${skippedDates.length} future date(s) will be skipped due to existing bookings: ${skippedDates.slice(0, 3).map((s)=>s.formattedDate).join(', ')}${skippedDates.length > 3 ? ` and ${skippedDates.length - 3} more` : ''}`
+                }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error creating payment intent:', error);
             // Try to release any slot locks on error (only if slotLock model exists)
             // Use the outer `fieldId` (already resolved to MongoDB ObjectID) instead of re-reading raw req.body
-            if (database_1.default.slotLock) {
+            if (_database.default.slotLock) {
                 try {
                     const userId = req.user?.id;
                     const { date } = req.body;
                     if (userId && fieldId && date) {
                         const bookingDate = new Date(date);
                         bookingDate.setHours(0, 0, 0, 0);
-                        await database_1.default.slotLock.deleteMany({
+                        await _database.default.slotLock.deleteMany({
                             where: {
                                 fieldId,
                                 date: bookingDate,
@@ -1134,8 +1184,7 @@ class PaymentController {
                         });
                         console.log('[PaymentController] Released slot locks on error');
                     }
-                }
-                catch (lockCleanupError) {
+                } catch (lockCleanupError) {
                     // Non-critical - locks will expire anyway
                     console.warn('[PaymentController] Failed to cleanup locks on error:', lockCleanupError);
                 }
@@ -1151,11 +1200,13 @@ class PaymentController {
         try {
             const { paymentIntentId, bookingId } = req.body;
             // Retrieve the payment intent from Stripe
-            const paymentIntent = await stripe_config_1.stripe.paymentIntents.retrieve(paymentIntentId);
-            if (paymentIntent.status === 'succeeded') {
+            const paymentIntent1 = await _stripeconfig.stripe.paymentIntents.retrieve(paymentIntentId);
+            if (paymentIntent1.status === 'succeeded') {
                 // Update booking status
-                const booking = await database_1.default.booking.update({
-                    where: { id: bookingId },
+                const booking = await _database.default.booking.update({
+                    where: {
+                        id: bookingId
+                    },
                     data: {
                         status: 'CONFIRMED',
                         paymentStatus: 'PAID'
@@ -1166,16 +1217,18 @@ class PaymentController {
                     }
                 });
                 // Get field owner details first
-                const field = await database_1.default.field.findUnique({
-                    where: { id: booking.fieldId },
+                const field = await _database.default.field.findUnique({
+                    where: {
+                        id: booking.fieldId
+                    },
                     include: {
                         owner: true
                     }
                 });
                 // Calculate commission amounts
-                const { fieldOwnerAmount, platformFeeAmount, commissionRate, isCustomCommission, defaultCommissionRate } = await (0, commission_utils_1.calculatePayoutAmounts)(booking.totalPrice, field?.ownerId || '');
+                const { fieldOwnerAmount, platformFeeAmount, commissionRate, isCustomCommission, defaultCommissionRate } = await (0, _commissionutils.calculatePayoutAmounts)(booking.totalPrice, field?.ownerId || '');
                 // Create transaction record with commission details and lifecycle tracking
-                await database_1.default.transaction.create({
+                await _database.default.transaction.create({
                     data: {
                         bookingId: booking.id,
                         userId: booking.userId,
@@ -1202,7 +1255,7 @@ class PaymentController {
                     message: 'Payment confirmed successfully'
                 });
                 // Send notifications and emails in background (non-blocking, after response)
-                (async () => {
+                (async ()=>{
                     // 1. In-app notifications
                     try {
                         if (field?.ownerId && field.ownerId !== booking.userId) {
@@ -1214,14 +1267,14 @@ class PaymentController {
                             });
                             const bookingTimeLabel = `${booking.startTime} - ${booking.endTime}`;
                             const customerName = booking.user.name || booking.user.email || 'A dog owner';
-                            const amountDisplay = typeof booking.totalPrice === 'number'
-                                ? booking.totalPrice.toFixed(2)
-                                : booking.totalPrice;
-                            await notification_service_1.NotificationService.createNotification({
+                            const amountDisplay = typeof booking.totalPrice === 'number' ? booking.totalPrice.toFixed(2) : booking.totalPrice;
+                            await _notificationservice.NotificationService.createNotification({
                                 userId: field.ownerId,
                                 type: 'booking_received',
                                 title: 'New Booking Received!',
-                                message: `You have a new booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} at ${booking.startTime}`,
+                                message: `You have a new booking for ${field.name} on ${new Date(booking.date).toLocaleDateString('en-GB', {
+                                    timeZone: 'Europe/London'
+                                })} at ${booking.startTime}`,
                                 adminTitle: 'New booking scheduled',
                                 adminMessage: `${customerName} booked "${field.name}" for ${bookingDateLabel} at ${bookingTimeLabel}. Total £${amountDisplay}.`,
                                 data: {
@@ -1236,16 +1289,17 @@ class PaymentController {
                                 }
                             }, true);
                         }
-                    }
-                    catch (err) {
+                    } catch (err) {
                         console.error('[ConfirmPayment] Failed to send field owner notification:', err);
                     }
                     try {
-                        await (0, notification_controller_1.createNotification)({
+                        await (0, _notificationcontroller.createNotification)({
                             userId: booking.userId,
                             type: 'booking_confirmed',
                             title: 'Booking Confirmed!',
-                            message: `Your booking for ${field?.name || 'the field'} on ${new Date(booking.date).toLocaleDateString('en-GB', { timeZone: 'Europe/London' })} at ${booking.startTime} has been confirmed.`,
+                            message: `Your booking for ${field?.name || 'the field'} on ${new Date(booking.date).toLocaleDateString('en-GB', {
+                                timeZone: 'Europe/London'
+                            })} at ${booking.startTime} has been confirmed.`,
                             data: {
                                 bookingId: booking.id,
                                 fieldId: booking.fieldId,
@@ -1256,15 +1310,14 @@ class PaymentController {
                                 paymentIntentId
                             }
                         });
-                    }
-                    catch (err) {
+                    } catch (err) {
                         console.error('[ConfirmPayment] Failed to send dog owner notification:', err);
                     }
                     // 2. Email notifications
                     try {
                         if (booking.user?.email) {
                             console.log(`[ConfirmPayment] Sending booking confirmation email to dog owner: ${booking.user.email}`);
-                            await email_service_1.emailService.sendBookingConfirmationToDogOwner({
+                            await _emailservice.emailService.sendBookingConfirmationToDogOwner({
                                 email: booking.user.email,
                                 userName: booking.user.name || 'Valued Customer',
                                 bookingId: booking.bookingId || booking.id,
@@ -1279,14 +1332,13 @@ class PaymentController {
                                 entryCode: field?.entryCode || undefined
                             });
                             console.log(`[ConfirmPayment] Dog owner booking email sent to ${booking.user.email}`);
-                        }
-                        else {
+                        } else {
                             console.log('[ConfirmPayment] Dog owner has no email, skipping confirmation email');
                         }
                         if (field?.owner?.email) {
                             console.log(`[ConfirmPayment] Sending new booking notification email to field owner: ${field.owner.email}`);
-                            const { fieldOwnerAmount: foAmount, platformFeeAmount: pfAmount } = await (0, commission_utils_1.calculatePayoutAmounts)(booking.totalPrice, field.ownerId || '');
-                            await email_service_1.emailService.sendNewBookingNotificationToFieldOwner({
+                            const { fieldOwnerAmount: foAmount, platformFeeAmount: pfAmount } = await (0, _commissionutils.calculatePayoutAmounts)(booking.totalPrice, field.ownerId || '');
+                            await _emailservice.emailService.sendNewBookingNotificationToFieldOwner({
                                 email: field.owner.email,
                                 ownerName: field.owner.name || 'Field Owner',
                                 bookingId: booking.bookingId || booking.id,
@@ -1302,24 +1354,20 @@ class PaymentController {
                                 entryCode: field?.entryCode || undefined
                             });
                             console.log(`[ConfirmPayment] Field owner booking email sent to ${field.owner.email}`);
-                        }
-                        else {
+                        } else {
                             console.log('[ConfirmPayment] Field owner has no email, skipping notification email');
                         }
-                    }
-                    catch (emailErr) {
+                    } catch (emailErr) {
                         console.error('[ConfirmPayment] Failed to send booking emails:', emailErr);
                     }
                 })();
-            }
-            else {
+            } else {
                 res.status(400).json({
                     error: 'Payment not successful',
-                    status: paymentIntent.status
+                    status: paymentIntent1.status
                 });
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error confirming payment:', error);
             res.status(500).json({
                 error: 'Failed to confirm payment',
@@ -1330,11 +1378,13 @@ class PaymentController {
     // Handle Stripe webhooks
     async handleWebhook(req, res) {
         const sig = req.headers['stripe-signature'];
-        const webhookSecret = stripe_config_1.STRIPE_PAYMENT_WEBHOOK_SECRET;
-        const connectWebhookSecret = stripe_config_1.STRIPE_CONNECT_WEBHOOK_SECRET;
+        const webhookSecret = _stripeconfig.STRIPE_PAYMENT_WEBHOOK_SECRET;
+        const connectWebhookSecret = _stripeconfig.STRIPE_CONNECT_WEBHOOK_SECRET;
         if (!webhookSecret && !connectWebhookSecret) {
             console.error('Stripe webhook secret not configured');
-            return res.status(500).json({ error: 'Webhook secret not configured' });
+            return res.status(500).json({
+                error: 'Webhook secret not configured'
+            });
         }
         let event;
         // Try to verify with the main webhook secret first, then try connect webhook secret
@@ -1343,26 +1393,21 @@ class PaymentController {
             // First, try the main webhook secret
             if (webhookSecret) {
                 try {
-                    event = stripe_config_1.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-                }
-                catch (err) {
+                    event = _stripeconfig.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+                } catch (err) {
                     // If main secret fails and we have a connect secret, try that
                     if (connectWebhookSecret) {
-                        event = stripe_config_1.stripe.webhooks.constructEvent(req.body, sig, connectWebhookSecret);
-                    }
-                    else {
+                        event = _stripeconfig.stripe.webhooks.constructEvent(req.body, sig, connectWebhookSecret);
+                    } else {
                         throw err;
                     }
                 }
-            }
-            else if (connectWebhookSecret) {
-                event = stripe_config_1.stripe.webhooks.constructEvent(req.body, sig, connectWebhookSecret);
-            }
-            else {
+            } else if (connectWebhookSecret) {
+                event = _stripeconfig.stripe.webhooks.constructEvent(req.body, sig, connectWebhookSecret);
+            } else {
                 throw new Error('No webhook secret configured');
             }
-        }
-        catch (err) {
+        } catch (err) {
             console.error('Webhook signature verification failed:', err);
             return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
@@ -1373,19 +1418,21 @@ class PaymentController {
         }
         // Handle the event
         try {
-            switch (event.type) {
+            switch(event.type){
                 case 'payment_intent.succeeded':
-                    const paymentIntent = event.data.object;
+                    const paymentIntent1 = event.data.object;
                     // Use transaction to prevent duplicate booking updates
-                    await database_1.default.$transaction(async (tx) => {
+                    await _database.default.$transaction(async (tx)=>{
                         // Check if booking exists
                         const booking = await tx.booking.findFirst({
-                            where: { paymentIntentId: paymentIntent.id }
+                            where: {
+                                paymentIntentId: paymentIntent1.id
+                            }
                         });
                         if (!booking) {
                             // If no booking exists with this payment intent ID, check metadata
                             // This handles edge cases where webhook arrives before booking creation
-                            const metadata = paymentIntent.metadata;
+                            const metadata = paymentIntent1.metadata;
                             if (metadata.userId && metadata.fieldId && metadata.date && metadata.timeSlot) {
                                 // Check if a booking already exists for this exact combination
                                 const existingBooking = await tx.booking.findFirst({
@@ -1395,18 +1442,22 @@ class PaymentController {
                                         date: new Date(metadata.date),
                                         timeSlot: metadata.timeSlot,
                                         status: {
-                                            notIn: ['CANCELLED']
+                                            notIn: [
+                                                'CANCELLED'
+                                            ]
                                         }
                                     }
                                 });
                                 if (existingBooking) {
-                                    console.log('Webhook: Duplicate booking prevented for payment intent:', paymentIntent.id);
+                                    console.log('Webhook: Duplicate booking prevented for payment intent:', paymentIntent1.id);
                                     // Update existing booking's payment intent if needed
                                     if (!existingBooking.paymentIntentId) {
                                         await tx.booking.update({
-                                            where: { id: existingBooking.id },
+                                            where: {
+                                                id: existingBooking.id
+                                            },
                                             data: {
-                                                paymentIntentId: paymentIntent.id,
+                                                paymentIntentId: paymentIntent1.id,
                                                 status: 'CONFIRMED',
                                                 paymentStatus: 'PAID'
                                             }
@@ -1415,7 +1466,7 @@ class PaymentController {
                                     return; // Exit early to prevent duplicate
                                 }
                                 // Create new booking from webhook if it doesn't exist
-                                const [startTimeStr, endTimeStr] = metadata.timeSlot.split(' - ').map((t) => t.trim());
+                                const [startTimeStr, endTimeStr] = metadata.timeSlot.split(' - ').map((t)=>t.trim());
                                 const platformCommission = parseFloat(metadata.platformCommission || '0');
                                 const fieldOwnerAmount = parseFloat(metadata.fieldOwnerAmount || '0');
                                 const newBooking = await tx.booking.create({
@@ -1427,37 +1478,41 @@ class PaymentController {
                                         endTime: endTimeStr,
                                         timeSlot: metadata.timeSlot,
                                         numberOfDogs: parseInt(metadata.numberOfDogs || '1'),
-                                        totalPrice: paymentIntent.amount / 100, // Convert from cents
+                                        totalPrice: paymentIntent1.amount / 100,
                                         platformCommission,
                                         fieldOwnerAmount,
-                                        bookingId: await booking_model_1.default.generateBookingId(),
+                                        bookingId: await _bookingmodel.default.generateBookingId(),
                                         status: 'CONFIRMED',
                                         paymentStatus: 'PAID',
-                                        paymentIntentId: paymentIntent.id,
+                                        paymentIntentId: paymentIntent1.id,
                                         payoutStatus: 'PENDING',
                                         repeatBooking: metadata.repeatBooking || 'none'
                                     }
                                 });
                                 // Get field owner for commission calculation
                                 const field = await tx.field.findUnique({
-                                    where: { id: metadata.fieldId },
-                                    select: { ownerId: true }
+                                    where: {
+                                        id: metadata.fieldId
+                                    },
+                                    select: {
+                                        ownerId: true
+                                    }
                                 });
                                 // Calculate commission amounts
-                                const payoutAmounts = await (0, commission_utils_1.calculatePayoutAmounts)(paymentIntent.amount / 100, field?.ownerId || '');
+                                const payoutAmounts = await (0, _commissionutils.calculatePayoutAmounts)(paymentIntent1.amount / 100, field?.ownerId || '');
                                 // Create transaction record with commission details and lifecycle tracking
                                 await tx.transaction.create({
                                     data: {
                                         bookingId: newBooking.id,
                                         userId: metadata.userId,
                                         fieldOwnerId: field?.ownerId || null,
-                                        amount: paymentIntent.amount / 100,
+                                        amount: paymentIntent1.amount / 100,
                                         netAmount: payoutAmounts.fieldOwnerAmount,
                                         platformFee: payoutAmounts.platformFeeAmount,
                                         commissionRate: payoutAmounts.commissionRate,
                                         type: 'PAYMENT',
                                         status: 'COMPLETED',
-                                        stripePaymentIntentId: paymentIntent.id,
+                                        stripePaymentIntentId: paymentIntent1.id,
                                         // Lifecycle tracking
                                         lifecycleStage: 'PAYMENT_RECEIVED',
                                         paymentReceivedAt: new Date(),
@@ -1466,11 +1521,12 @@ class PaymentController {
                                 });
                                 console.log('Webhook: Created new booking from payment intent:', newBooking.id);
                             }
-                        }
-                        else if (booking.status !== 'CONFIRMED' || booking.paymentStatus !== 'PAID') {
+                        } else if (booking.status !== 'CONFIRMED' || booking.paymentStatus !== 'PAID') {
                             // Update existing booking status
                             await tx.booking.update({
-                                where: { id: booking.id },
+                                where: {
+                                    id: booking.id
+                                },
                                 data: {
                                     status: 'CONFIRMED',
                                     paymentStatus: 'PAID'
@@ -1479,17 +1535,21 @@ class PaymentController {
                             // Check if transaction already exists
                             const existingTransaction = await tx.transaction.findFirst({
                                 where: {
-                                    stripePaymentIntentId: paymentIntent.id
+                                    stripePaymentIntentId: paymentIntent1.id
                                 }
                             });
                             if (!existingTransaction) {
                                 // Get field for commission calculation
                                 const field = await tx.field.findUnique({
-                                    where: { id: booking.fieldId },
-                                    select: { ownerId: true }
+                                    where: {
+                                        id: booking.fieldId
+                                    },
+                                    select: {
+                                        ownerId: true
+                                    }
                                 });
                                 // Calculate commission amounts
-                                const payoutAmounts = await (0, commission_utils_1.calculatePayoutAmounts)(booking.totalPrice, field?.ownerId || '');
+                                const payoutAmounts = await (0, _commissionutils.calculatePayoutAmounts)(booking.totalPrice, field?.ownerId || '');
                                 // Create transaction record with commission details and lifecycle tracking
                                 await tx.transaction.create({
                                     data: {
@@ -1502,7 +1562,7 @@ class PaymentController {
                                         commissionRate: payoutAmounts.commissionRate,
                                         type: 'PAYMENT',
                                         status: 'COMPLETED',
-                                        stripePaymentIntentId: paymentIntent.id,
+                                        stripePaymentIntentId: paymentIntent1.id,
                                         // Lifecycle tracking
                                         lifecycleStage: 'PAYMENT_RECEIVED',
                                         paymentReceivedAt: new Date(),
@@ -1516,12 +1576,16 @@ class PaymentController {
                 case 'payment_intent.payment_failed':
                     const failedPayment = event.data.object;
                     // Update booking status to failed
-                    const failedBooking = await database_1.default.booking.findFirst({
-                        where: { paymentIntentId: failedPayment.id }
+                    const failedBooking = await _database.default.booking.findFirst({
+                        where: {
+                            paymentIntentId: failedPayment.id
+                        }
                     });
                     if (failedBooking) {
-                        await database_1.default.booking.update({
-                            where: { id: failedBooking.id },
+                        await _database.default.booking.update({
+                            where: {
+                                id: failedBooking.id
+                            },
                             data: {
                                 status: 'CANCELLED',
                                 paymentStatus: 'FAILED'
@@ -1546,12 +1610,16 @@ class PaymentController {
                     console.log('Charge refunded:', refundedCharge.id);
                     // Find booking associated with this charge
                     if (refundedCharge.payment_intent) {
-                        const refundedBooking = await database_1.default.booking.findFirst({
-                            where: { paymentIntentId: refundedCharge.payment_intent }
+                        const refundedBooking = await _database.default.booking.findFirst({
+                            where: {
+                                paymentIntentId: refundedCharge.payment_intent
+                            }
                         });
                         if (refundedBooking) {
-                            await database_1.default.booking.update({
-                                where: { id: refundedBooking.id },
+                            await _database.default.booking.update({
+                                where: {
+                                    id: refundedBooking.id
+                                },
                                 data: {
                                     status: 'CANCELLED',
                                     paymentStatus: 'REFUNDED'
@@ -1570,8 +1638,6 @@ class PaymentController {
                 case 'payment_intent.created':
                     const createdIntent = event.data.object;
                     console.log('Payment intent created:', createdIntent.id);
-                    // We generally don't need to do anything here as the booking is created 
-                    // via API before the intent is confirmed, or via webhook on success
                     break;
                 case 'transfer.created':
                 case 'transfer.paid':
@@ -1587,11 +1653,14 @@ class PaymentController {
                 default:
                     console.log(`Unhandled event type ${event.type}`);
             }
-            res.json({ received: true });
-        }
-        catch (error) {
+            res.json({
+                received: true
+            });
+        } catch (error) {
             console.error('Error processing webhook:', error);
-            res.status(500).json({ error: 'Webhook processing failed' });
+            res.status(500).json({
+                error: 'Webhook processing failed'
+            });
         }
     }
     // Get payment methods for user
@@ -1603,19 +1672,20 @@ class PaymentController {
             res.json({
                 paymentMethods: []
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error fetching payment methods:', error);
-            res.status(500).json({ error: 'Failed to fetch payment methods' });
+            res.status(500).json({
+                error: 'Failed to fetch payment methods'
+            });
         }
     }
 }
-exports.PaymentController = PaymentController;
 function extractBookingIdsFromMetadata(metadata) {
-    if (!metadata)
-        return [];
+    if (!metadata) return [];
     if (metadata.bookingId) {
-        return [metadata.bookingId];
+        return [
+            metadata.bookingId
+        ];
     }
     if (metadata.bookingIds) {
         try {
@@ -1623,10 +1693,9 @@ function extractBookingIdsFromMetadata(metadata) {
             if (Array.isArray(parsed)) {
                 return parsed.filter(Boolean);
             }
-        }
-        catch (error) {
+        } catch (error) {
             // bookingIds might be a comma separated list
-            return metadata.bookingIds.split(',').map(id => id.trim()).filter(Boolean);
+            return metadata.bookingIds.split(',').map((id)=>id.trim()).filter(Boolean);
         }
     }
     return [];
@@ -1650,14 +1719,20 @@ async function syncStripePayoutEvent(event) {
     if (!connectedAccountId) {
         console.log('[StripeWebhook] No connected account ID in event, attempting to find account from payout metadata or existing record');
         // Check if we have an existing payout record
-        const existingPayout = await database_1.default.payout.findFirst({
-            where: { stripePayoutId: payoutObject.id },
-            include: { stripeAccount: true }
+        const existingPayout = await _database.default.payout.findFirst({
+            where: {
+                stripePayoutId: payoutObject.id
+            },
+            include: {
+                stripeAccount: true
+            }
         });
         if (existingPayout) {
             console.log(`[StripeWebhook] Found existing payout record, updating status to: ${payoutObject.status}`);
-            await database_1.default.payout.update({
-                where: { id: existingPayout.id },
+            await _database.default.payout.update({
+                where: {
+                    id: existingPayout.id
+                },
                 data: {
                     status: payoutObject.status,
                     arrivalDate: payoutObject.arrival_date ? new Date(payoutObject.arrival_date * 1000) : null,
@@ -1671,22 +1746,28 @@ async function syncStripePayoutEvent(event) {
         return;
     }
     console.log(`[StripeWebhook] Processing payout event for account: ${connectedAccountId}`);
-    let stripeAccount = await database_1.default.stripeAccount.findFirst({
-        where: { stripeAccountId: connectedAccountId }
+    let stripeAccount = await _database.default.stripeAccount.findFirst({
+        where: {
+            stripeAccountId: connectedAccountId
+        }
     });
     if (!stripeAccount) {
         console.warn(`[StripeWebhook] Account ${connectedAccountId} not found in DB. Attempting self-healing...`);
         try {
             // Fetch account from Stripe to check metadata
-            const account = await stripe_config_1.stripe.accounts.retrieve(connectedAccountId);
+            const account = await _stripeconfig.stripe.accounts.retrieve(connectedAccountId);
             const userId = account.metadata?.userId;
             if (userId) {
                 // Verify user exists
-                const user = await database_1.default.user.findUnique({ where: { id: userId } });
+                const user = await _database.default.user.findUnique({
+                    where: {
+                        id: userId
+                    }
+                });
                 if (user) {
                     console.log(`[StripeWebhook] Found user ${userId} for orphaned account ${connectedAccountId}. Re-linking...`);
                     // Create missing StripeAccount record
-                    stripeAccount = await database_1.default.stripeAccount.create({
+                    stripeAccount = await _database.default.stripeAccount.create({
                         data: {
                             userId,
                             stripeAccountId: connectedAccountId,
@@ -1700,21 +1781,18 @@ async function syncStripePayoutEvent(event) {
                         }
                     });
                     console.log(`[StripeWebhook] Successfully re-linked account ${connectedAccountId} to user ${userId}`);
-                }
-                else {
+                } else {
                     console.error(`[StripeWebhook] User ${userId} from Stripe metadata not found in DB.`);
                 }
-            }
-            else {
+            } else {
                 console.warn(`[StripeWebhook] No userId in metadata for account ${connectedAccountId}. Cannot self-heal.`);
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`[StripeWebhook] Failed to fetch account ${connectedAccountId} from Stripe:`, error);
         }
     }
     if (!stripeAccount) {
-        console.warn(`[StripeWebhook] Received payout event for unknown account: ${connectedAccountId}. Available accounts count: ${await database_1.default.stripeAccount.count()}`);
+        console.warn(`[StripeWebhook] Received payout event for unknown account: ${connectedAccountId}. Available accounts count: ${await _database.default.stripeAccount.count()}`);
         return;
     }
     console.log(`[StripeWebhook] Found matching internal account: ${stripeAccount.id} for Stripe account: ${connectedAccountId}`);
@@ -1729,22 +1807,25 @@ async function syncStripePayoutEvent(event) {
         failureCode: payoutObject.failure_code || null,
         failureMessage: payoutObject.failure_message || null
     };
-    const existingPayout = payoutObject.id
-        ? await database_1.default.payout.findUnique({
-            where: { stripePayoutId: payoutObject.id }
-        })
-        : null;
+    const existingPayout = payoutObject.id ? await _database.default.payout.findUnique({
+        where: {
+            stripePayoutId: payoutObject.id
+        }
+    }) : null;
     if (existingPayout) {
-        await database_1.default.payout.update({
-            where: { id: existingPayout.id },
+        await _database.default.payout.update({
+            where: {
+                id: existingPayout.id
+            },
             data: {
                 ...payoutData,
-                ...(bookingIds.length && !existingPayout.bookingIds.length ? { bookingIds } : {})
+                ...bookingIds.length && !existingPayout.bookingIds.length ? {
+                    bookingIds
+                } : {}
             }
         });
-    }
-    else {
-        await database_1.default.payout.create({
+    } else {
+        await _database.default.payout.create({
             data: {
                 stripeAccountId: stripeAccount.id,
                 stripePayoutId: payoutObject.id,
@@ -1757,21 +1838,30 @@ async function syncStripePayoutEvent(event) {
         let payoutStatus = 'PROCESSING';
         if (payoutObject.status === 'paid') {
             payoutStatus = 'COMPLETED';
-        }
-        else if (payoutObject.status === 'failed' || payoutObject.status === 'canceled') {
+        } else if (payoutObject.status === 'failed' || payoutObject.status === 'canceled') {
             payoutStatus = 'FAILED';
         }
-        await database_1.default.booking.updateMany({
-            where: { id: { in: bookingIds } },
+        await _database.default.booking.updateMany({
+            where: {
+                id: {
+                    in: bookingIds
+                }
+            },
             data: {
                 payoutStatus,
-                ...(payoutStatus === 'COMPLETED' ? { payoutReleasedAt: new Date() } : {})
+                ...payoutStatus === 'COMPLETED' ? {
+                    payoutReleasedAt: new Date()
+                } : {}
             }
         });
         // Update Transaction lifecycle when payout completes
         if (payoutStatus === 'COMPLETED' && bookingIds.length > 0) {
-            await database_1.default.transaction.updateMany({
-                where: { bookingId: { in: bookingIds } },
+            await _database.default.transaction.updateMany({
+                where: {
+                    bookingId: {
+                        in: bookingIds
+                    }
+                },
                 data: {
                     lifecycleStage: 'PAYOUT_COMPLETED',
                     stripePayoutId: payoutObject.id,
@@ -1779,10 +1869,13 @@ async function syncStripePayoutEvent(event) {
                 }
             });
             console.log(`[StripeWebhook] Updated transaction lifecycle to PAYOUT_COMPLETED for bookings: ${bookingIds.join(', ')}`);
-        }
-        else if (payoutStatus === 'PROCESSING' && bookingIds.length > 0) {
-            await database_1.default.transaction.updateMany({
-                where: { bookingId: { in: bookingIds } },
+        } else if (payoutStatus === 'PROCESSING' && bookingIds.length > 0) {
+            await _database.default.transaction.updateMany({
+                where: {
+                    bookingId: {
+                        in: bookingIds
+                    }
+                },
                 data: {
                     lifecycleStage: 'PAYOUT_INITIATED',
                     stripePayoutId: payoutObject.id,
@@ -1794,8 +1887,7 @@ async function syncStripePayoutEvent(event) {
 }
 /**
  * Sync Stripe transfer events to update booking and transaction records
- */
-async function syncStripeTransferEvent(event) {
+ */ async function syncStripeTransferEvent(event) {
     const transfer = event.data.object;
     console.log(`[StripeWebhook] Processing ${event.type} event:`, {
         eventId: event.id,
@@ -1814,8 +1906,12 @@ async function syncStripeTransferEvent(event) {
         // Transfer created - funds are being moved to connected account
         console.log(`[StripeWebhook] Transfer created for bookings: ${bookingIds.join(', ')}`);
         // Update transaction lifecycle
-        await database_1.default.transaction.updateMany({
-            where: { bookingId: { in: bookingIds } },
+        await _database.default.transaction.updateMany({
+            where: {
+                bookingId: {
+                    in: bookingIds
+                }
+            },
             data: {
                 lifecycleStage: 'TRANSFERRED',
                 stripeTransferId: transfer.id,
@@ -1823,33 +1919,47 @@ async function syncStripeTransferEvent(event) {
                 connectedAccountId: typeof transfer.destination === 'string' ? transfer.destination : transfer.destination?.id
             }
         });
-    }
-    else if (event.type === 'transfer.paid') {
+    } else if (event.type === 'transfer.paid') {
         // Transfer completed successfully
         console.log(`[StripeWebhook] Transfer paid for bookings: ${bookingIds.join(', ')}`);
         // Mark transfer as complete in booking (if not already processing payout)
-        await database_1.default.booking.updateMany({
+        await _database.default.booking.updateMany({
             where: {
-                id: { in: bookingIds },
-                payoutStatus: { in: ['PENDING', 'HELD', null] }
+                id: {
+                    in: bookingIds
+                },
+                payoutStatus: {
+                    in: [
+                        'PENDING',
+                        'HELD',
+                        null
+                    ]
+                }
             },
             data: {
                 payoutStatus: 'PROCESSING'
             }
         });
-    }
-    else if (event.type === 'transfer.failed' || event.type === 'transfer.reversed') {
+    } else if (event.type === 'transfer.failed' || event.type === 'transfer.reversed') {
         // Transfer failed or was reversed
         console.log(`[StripeWebhook] Transfer ${event.type} for bookings: ${bookingIds.join(', ')}`);
-        await database_1.default.booking.updateMany({
-            where: { id: { in: bookingIds } },
+        await _database.default.booking.updateMany({
+            where: {
+                id: {
+                    in: bookingIds
+                }
+            },
             data: {
                 payoutStatus: 'FAILED'
             }
         });
         // Update transaction with failure info
-        await database_1.default.transaction.updateMany({
-            where: { bookingId: { in: bookingIds } },
+        await _database.default.transaction.updateMany({
+            where: {
+                bookingId: {
+                    in: bookingIds
+                }
+            },
             data: {
                 lifecycleStage: 'TRANSFER_FAILED',
                 failureCode: event.type === 'transfer.reversed' ? 'REVERSED' : 'FAILED',
@@ -1857,11 +1967,13 @@ async function syncStripeTransferEvent(event) {
             }
         });
         // Notify admins about failed transfer
-        const adminUsers = await database_1.default.user.findMany({
-            where: { role: 'ADMIN' }
+        const adminUsers = await _database.default.user.findMany({
+            where: {
+                role: 'ADMIN'
+            }
         });
-        for (const admin of adminUsers) {
-            await database_1.default.notification.create({
+        for (const admin of adminUsers){
+            await _database.default.notification.create({
                 data: {
                     userId: admin.id,
                     type: 'PAYOUT_FAILED',
@@ -1879,8 +1991,7 @@ async function syncStripeTransferEvent(event) {
 }
 /**
  * Sync Stripe refund events to update booking and transaction records
- */
-async function syncStripeRefundEvent(event) {
+ */ async function syncStripeRefundEvent(event) {
     const refund = event.data.object;
     console.log(`[StripeWebhook] Processing ${event.type} event:`, {
         eventId: event.id,
@@ -1891,18 +2002,28 @@ async function syncStripeRefundEvent(event) {
         metadata: refund.metadata
     });
     // Find booking by payment intent
-    const paymentIntentId = typeof refund.payment_intent === 'string'
-        ? refund.payment_intent
-        : refund.payment_intent?.id;
+    const paymentIntentId = typeof refund.payment_intent === 'string' ? refund.payment_intent : refund.payment_intent?.id;
     if (!paymentIntentId) {
         console.log('[StripeWebhook] No payment intent found in refund');
         return;
     }
-    const booking = await database_1.default.booking.findFirst({
-        where: { paymentIntentId },
+    const booking = await _database.default.booking.findFirst({
+        where: {
+            paymentIntentId
+        },
         include: {
-            field: { select: { ownerId: true, name: true } },
-            user: { select: { name: true, email: true } }
+            field: {
+                select: {
+                    ownerId: true,
+                    name: true
+                }
+            },
+            user: {
+                select: {
+                    name: true,
+                    email: true
+                }
+            }
         }
     });
     if (!booking) {
@@ -1912,13 +2033,18 @@ async function syncStripeRefundEvent(event) {
     const refundAmount = refund.amount / 100;
     if (event.type === 'refund.created' || event.type === 'refund.updated') {
         // Update transaction record
-        const existingTransaction = await database_1.default.transaction.findFirst({
-            where: { bookingId: booking.id, type: 'REFUND' }
+        const existingTransaction = await _database.default.transaction.findFirst({
+            where: {
+                bookingId: booking.id,
+                type: 'REFUND'
+            }
         });
         if (existingTransaction) {
             // Update existing refund transaction
-            await database_1.default.transaction.update({
-                where: { id: existingTransaction.id },
+            await _database.default.transaction.update({
+                where: {
+                    id: existingTransaction.id
+                },
                 data: {
                     status: refund.status === 'succeeded' ? 'COMPLETED' : refund.status === 'failed' ? 'FAILED' : 'PROCESSING',
                     stripeRefundId: refund.id,
@@ -1927,10 +2053,9 @@ async function syncStripeRefundEvent(event) {
                     failureMessage: refund.failure_reason || null
                 }
             });
-        }
-        else {
+        } else {
             // Create new refund transaction record
-            await database_1.default.transaction.create({
+            await _database.default.transaction.create({
                 data: {
                     bookingId: booking.id,
                     userId: booking.userId,
@@ -1948,8 +2073,11 @@ async function syncStripeRefundEvent(event) {
             });
         }
         // Also update the original payment transaction
-        await database_1.default.transaction.updateMany({
-            where: { bookingId: booking.id, type: 'PAYMENT' },
+        await _database.default.transaction.updateMany({
+            where: {
+                bookingId: booking.id,
+                type: 'PAYMENT'
+            },
             data: {
                 lifecycleStage: 'REFUNDED',
                 stripeRefundId: refund.id,
@@ -1958,8 +2086,10 @@ async function syncStripeRefundEvent(event) {
         });
         // Update booking status
         if (refund.status === 'succeeded') {
-            await database_1.default.booking.update({
-                where: { id: booking.id },
+            await _database.default.booking.update({
+                where: {
+                    id: booking.id
+                },
                 data: {
                     status: 'CANCELLED',
                     paymentStatus: 'REFUNDED',
@@ -1968,11 +2098,13 @@ async function syncStripeRefundEvent(event) {
             });
             console.log(`[StripeWebhook] Booking ${booking.id} marked as refunded`);
         }
-    }
-    else if (event.type === 'refund.failed') {
+    } else if (event.type === 'refund.failed') {
         // Update transaction with failure
-        await database_1.default.transaction.updateMany({
-            where: { bookingId: booking.id, type: 'REFUND' },
+        await _database.default.transaction.updateMany({
+            where: {
+                bookingId: booking.id,
+                type: 'REFUND'
+            },
             data: {
                 status: 'FAILED',
                 failureCode: refund.failure_reason || 'UNKNOWN',
@@ -1980,11 +2112,13 @@ async function syncStripeRefundEvent(event) {
             }
         });
         // Notify admins about failed refund
-        const adminUsers = await database_1.default.user.findMany({
-            where: { role: 'ADMIN' }
+        const adminUsers = await _database.default.user.findMany({
+            where: {
+                role: 'ADMIN'
+            }
         });
-        for (const admin of adminUsers) {
-            await database_1.default.notification.create({
+        for (const admin of adminUsers){
+            await _database.default.notification.create({
                 data: {
                     userId: admin.id,
                     type: 'REFUND_FAILED',
@@ -2001,3 +2135,5 @@ async function syncStripeRefundEvent(event) {
         }
     }
 }
+
+//# sourceMappingURL=payment.controller.js.map

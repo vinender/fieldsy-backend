@@ -1,70 +1,75 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.prisma = void 0;
 //@ts-nocheck
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const helmet_1 = __importDefault(require("helmet"));
-const morgan_1 = __importDefault(require("morgan"));
-const compression_1 = __importDefault(require("compression"));
-const cookie_parser_1 = __importDefault(require("cookie-parser"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const client_1 = require("@prisma/client");
-// Import API documentation
-const api_documentation_1 = require("./utils/api-documentation");
-const api_docs_template_1 = require("./utils/api-docs-template");
-// Import routes
-const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
-const auth_otp_routes_1 = __importDefault(require("./routes/auth.otp.routes"));
-const user_routes_1 = __importDefault(require("./routes/user.routes"));
-const field_routes_1 = __importDefault(require("./routes/field.routes"));
-const booking_routes_1 = __importDefault(require("./routes/booking.routes"));
-const earnings_routes_1 = __importDefault(require("./routes/earnings.routes"));
-const stripe_connect_routes_1 = __importDefault(require("./routes/stripe-connect.routes"));
-const payout_routes_1 = __importDefault(require("./routes/payout.routes"));
-const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
-const commission_routes_1 = __importDefault(require("./routes/commission.routes"));
-const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
-const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
-const amenity_routes_1 = __importDefault(require("./routes/amenity.routes"));
-const field_properties_routes_1 = __importDefault(require("./routes/field-properties.routes"));
-const contact_query_routes_1 = __importDefault(require("./routes/contact-query.routes"));
-const docs_routes_1 = __importDefault(require("./routes/docs.routes"));
-const faq_routes_1 = __importDefault(require("./routes/faq.routes"));
-const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
-const terms_routes_1 = __importDefault(require("./routes/terms.routes"));
-const privacy_policy_routes_1 = __importDefault(require("./routes/privacy-policy.routes"));
-const about_page_routes_1 = __importDefault(require("./routes/about-page.routes"));
-const offer_routes_1 = __importDefault(require("./routes/offer.routes"));
-const discount_routes_1 = __importDefault(require("./routes/discount.routes"));
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "prisma", {
+    enumerable: true,
+    get: function() {
+        return prisma;
+    }
+});
+const _express = /*#__PURE__*/ _interop_require_default(require("express"));
+const _cors = /*#__PURE__*/ _interop_require_default(require("cors"));
+const _helmet = /*#__PURE__*/ _interop_require_default(require("helmet"));
+const _morgan = /*#__PURE__*/ _interop_require_default(require("morgan"));
+const _compression = /*#__PURE__*/ _interop_require_default(require("compression"));
+const _cookieparser = /*#__PURE__*/ _interop_require_default(require("cookie-parser"));
+const _dotenv = /*#__PURE__*/ _interop_require_default(require("dotenv"));
+const _client = require("@prisma/client");
+const _apidocumentation = require("./utils/api-documentation");
+const _apidocstemplate = require("./utils/api-docs-template");
+const _authroutes = /*#__PURE__*/ _interop_require_default(require("./routes/auth.routes"));
+const _authotproutes = /*#__PURE__*/ _interop_require_default(require("./routes/auth.otp.routes"));
+const _userroutes = /*#__PURE__*/ _interop_require_default(require("./routes/user.routes"));
+const _fieldroutes = /*#__PURE__*/ _interop_require_default(require("./routes/field.routes"));
+const _bookingroutes = /*#__PURE__*/ _interop_require_default(require("./routes/booking.routes"));
+const _earningsroutes = /*#__PURE__*/ _interop_require_default(require("./routes/earnings.routes"));
+const _stripeconnectroutes = /*#__PURE__*/ _interop_require_default(require("./routes/stripe-connect.routes"));
+const _payoutroutes = /*#__PURE__*/ _interop_require_default(require("./routes/payout.routes"));
+const _paymentroutes = /*#__PURE__*/ _interop_require_default(require("./routes/payment.routes"));
+const _commissionroutes = /*#__PURE__*/ _interop_require_default(require("./routes/commission.routes"));
+const _adminroutes = /*#__PURE__*/ _interop_require_default(require("./routes/admin.routes"));
+const _chatroutes = /*#__PURE__*/ _interop_require_default(require("./routes/chat.routes"));
+const _amenityroutes = /*#__PURE__*/ _interop_require_default(require("./routes/amenity.routes"));
+const _fieldpropertiesroutes = /*#__PURE__*/ _interop_require_default(require("./routes/field-properties.routes"));
+const _contactqueryroutes = /*#__PURE__*/ _interop_require_default(require("./routes/contact-query.routes"));
+const _docsroutes = /*#__PURE__*/ _interop_require_default(require("./routes/docs.routes"));
+const _faqroutes = /*#__PURE__*/ _interop_require_default(require("./routes/faq.routes"));
+const _settingsroutes = /*#__PURE__*/ _interop_require_default(require("./routes/settings.routes"));
+const _termsroutes = /*#__PURE__*/ _interop_require_default(require("./routes/terms.routes"));
+const _privacypolicyroutes = /*#__PURE__*/ _interop_require_default(require("./routes/privacy-policy.routes"));
+const _aboutpageroutes = /*#__PURE__*/ _interop_require_default(require("./routes/about-page.routes"));
+const _offerroutes = /*#__PURE__*/ _interop_require_default(require("./routes/offer.routes"));
+const _discountroutes = /*#__PURE__*/ _interop_require_default(require("./routes/discount.routes"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 // Note: Slot lock cleanup is initialized in server.ts (the main entry point)
 // Load environment variables
-dotenv_1.default.config();
+_dotenv.default.config();
 // Initialize Express app
-const app = (0, express_1.default)();
+const app = (0, _express.default)();
 const PORT = process.env.PORT || 5000;
-// Initialize Prisma
-exports.prisma = new client_1.PrismaClient();
+const prisma = new _client.PrismaClient();
 // Middleware
 app.set('trust proxy', 1);
-app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)({
-    origin: function (origin, callback) {
+app.use((0, _helmet.default)());
+app.use((0, _cors.default)({
+    origin: function(origin, callback) {
         // Allow requests with no origin (mobile apps, Postman, etc.)
-        if (!origin)
-            return callback(null, true);
+        if (!origin) return callback(null, true);
         // List of allowed origins
         const allowedOrigins = [
-            process.env.FRONTEND_URL || "http://localhost:3000", // Frontend development
-            "http://localhost:3001", // Frontend alternate port
-            "http://localhost:3002", // Frontend alternate port
-            "http://localhost:3003", // Admin dashboard development
-            "http://localhost:8081", // Expo web
-            "http://localhost:19006", // Expo web alternate port
-            "exp://localhost:8081", // Expo development
+            process.env.FRONTEND_URL || "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:3002",
+            "http://localhost:3003",
+            "http://localhost:8081",
+            "http://localhost:19006",
+            "exp://localhost:8081",
             // Production domains - fieldsy.co.uk
             "https://fieldsy.co.uk",
             "https://www.fieldsy.co.uk",
@@ -75,41 +80,46 @@ app.use((0, cors_1.default)({
             "http://admin.fieldsy.co.uk",
             "http://api.fieldsy.co.uk",
             // Legacy production domains - indiitserver.in
-            "https://fieldsy.indiitserver.in", // Production frontend
-            "https://fieldsy-admin.indiitserver.in", // Production admin
-            "https://fieldsy-api.indiitserver.in", // Production API (for self-referential calls)
-            "http://fieldsy.indiitserver.in", // Allow HTTP as fallback
-            "http://fieldsy-admin.indiitserver.in", // Allow HTTP as fallback
-            "http://fieldsy-api.indiitserver.in", // Allow HTTP API as fallback
+            "https://fieldsy.indiitserver.in",
+            "https://fieldsy-admin.indiitserver.in",
+            "https://fieldsy-api.indiitserver.in",
+            "http://fieldsy.indiitserver.in",
+            "http://fieldsy-admin.indiitserver.in",
+            "http://fieldsy-api.indiitserver.in"
         ];
         // Check if the origin is in the allowed list or is a local development URL
-        if (allowedOrigins.includes(origin) ||
-            origin.includes('localhost') ||
-            origin.includes('127.0.0.1') ||
-            origin.includes('192.168.') || // Local network IPs for physical devices
-            origin.includes('10.0.') // Local network IPs
+        if (allowedOrigins.includes(origin) || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('192.168.') || // Local network IPs for physical devices
+        origin.includes('10.0.') // Local network IPs
         ) {
             callback(null, true);
-        }
-        else {
+        } else {
             callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma', 'Expires'],
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Cache-Control',
+        'Pragma',
+        'Expires'
+    ]
 }));
-app.use((0, compression_1.default)());
-app.use((0, morgan_1.default)("dev"));
-app.use(express_1.default.json());
-app.use(express_1.default.urlencoded({ extended: true }));
-app.use((0, cookie_parser_1.default)());
+app.use((0, _compression.default)());
+app.use((0, _morgan.default)("dev"));
+app.use(_express.default.json());
+app.use(_express.default.urlencoded({
+    extended: true
+}));
+app.use((0, _cookieparser.default)());
 // Prevent Chrome HTTP cache from serving stale API responses (causes ghost sessions after logout)
 // Disable ETag globally to prevent 304 "Not Modified" responses
 app.set('etag', false);
-app.use((req, res, next) => {
+app.use((req, res, next)=>{
     // Intercept writeHead to inject no-cache headers right before response is sent
     const originalWriteHead = res.writeHead.bind(res);
-    res.writeHead = function (statusCode, ...args) {
+    res.writeHead = function(statusCode, ...args) {
         if (req.headers.authorization || req.path.startsWith('/api/auth')) {
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
             res.setHeader('Pragma', 'no-cache');
@@ -122,14 +132,13 @@ app.use((req, res, next) => {
     next();
 });
 // API Documentation - Root route for production
-app.get("/", (req, res) => {
+app.get("/", (req, res)=>{
     const acceptHeader = req.headers.accept || '';
     if (acceptHeader.includes('text/html')) {
         // Serve HTML documentation for browsers
         res.setHeader('Content-Type', 'text/html');
-        res.send((0, api_docs_template_1.generateApiDocsHTML)(api_documentation_1.apiDocumentation));
-    }
-    else {
+        res.send((0, _apidocstemplate.generateApiDocsHTML)(_apidocumentation.apiDocumentation));
+    } else {
         // Serve JSON for API clients
         res.json({
             success: true,
@@ -144,20 +153,19 @@ app.get("/", (req, res) => {
                 reviews: '/api/reviews',
                 notifications: '/api/notifications',
                 payments: '/api/payments',
-                chat: '/api/chat',
-            },
+                chat: '/api/chat'
+            }
         });
     }
 });
 // API Documentation - Also available at /api
-app.get("/api", (req, res) => {
+app.get("/api", (req, res)=>{
     const acceptHeader = req.headers.accept || '';
     if (acceptHeader.includes('text/html')) {
         // Serve HTML documentation for browsers
         res.setHeader('Content-Type', 'text/html');
-        res.send((0, api_docs_template_1.generateApiDocsHTML)(api_documentation_1.apiDocumentation));
-    }
-    else {
+        res.send((0, _apidocstemplate.generateApiDocsHTML)(_apidocumentation.apiDocumentation));
+    } else {
         // Serve JSON for API clients
         res.json({
             success: true,
@@ -174,12 +182,12 @@ app.get("/api", (req, res) => {
                 payments: '/api/payments',
                 chat: '/api/chat',
                 socketDocs: '/api/socket-docs'
-            },
+            }
         });
     }
 });
 // Socket Documentation for Mobile Developers
-app.get("/api/socket-docs", (req, res) => {
+app.get("/api/socket-docs", (req, res)=>{
     const fs = require('fs');
     const path = require('path');
     const marked = require('marked');
@@ -416,8 +424,7 @@ app.get("/api/socket-docs", (req, res) => {
     `;
         res.setHeader('Content-Type', 'text/html');
         res.send(styledHTML);
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error serving socket docs:', error);
         res.status(500).json({
             success: false,
@@ -427,36 +434,39 @@ app.get("/api/socket-docs", (req, res) => {
     }
 });
 // Routes
-app.use("/api/auth", auth_routes_1.default);
-app.use("/api/auth-otp", auth_otp_routes_1.default);
-app.use("/api/users", user_routes_1.default);
-app.use("/api/fields", field_routes_1.default);
-app.use("/api/bookings", booking_routes_1.default);
-app.use("/api/earnings", earnings_routes_1.default);
-app.use("/api/stripe-connect", stripe_connect_routes_1.default);
-app.use("/api/payouts", payout_routes_1.default);
-app.use("/api/payment", payment_routes_1.default);
-app.use("/api/commission", commission_routes_1.default);
-app.use('/api/admin', admin_routes_1.default);
-app.use('/api/chat', chat_routes_1.default);
-app.use('/api/amenities', amenity_routes_1.default);
-app.use('/api/field-properties', field_properties_routes_1.default);
-app.use('/api/contact-queries', contact_query_routes_1.default);
-app.use('/api/docs', docs_routes_1.default);
-app.use('/api/faqs', faq_routes_1.default);
-app.use('/api/settings', settings_routes_1.default);
+app.use("/api/auth", _authroutes.default);
+app.use("/api/auth-otp", _authotproutes.default);
+app.use("/api/users", _userroutes.default);
+app.use("/api/fields", _fieldroutes.default);
+app.use("/api/bookings", _bookingroutes.default);
+app.use("/api/earnings", _earningsroutes.default);
+app.use("/api/stripe-connect", _stripeconnectroutes.default);
+app.use("/api/payouts", _payoutroutes.default);
+app.use("/api/payment", _paymentroutes.default);
+app.use("/api/commission", _commissionroutes.default);
+app.use('/api/admin', _adminroutes.default);
+app.use('/api/chat', _chatroutes.default);
+app.use('/api/amenities', _amenityroutes.default);
+app.use('/api/field-properties', _fieldpropertiesroutes.default);
+app.use('/api/contact-queries', _contactqueryroutes.default);
+app.use('/api/docs', _docsroutes.default);
+app.use('/api/faqs', _faqroutes.default);
+app.use('/api/settings', _settingsroutes.default);
 console.log('Registering terms routes...');
-app.use('/api/terms', terms_routes_1.default);
-app.use('/api/privacy-policy', privacy_policy_routes_1.default);
-app.use('/api/about-page', about_page_routes_1.default);
-app.use('/api/offers', offer_routes_1.default);
-app.use('/api/discounts', discount_routes_1.default);
+app.use('/api/terms', _termsroutes.default);
+app.use('/api/privacy-policy', _privacypolicyroutes.default);
+app.use('/api/about-page', _aboutpageroutes.default);
+app.use('/api/offers', _offerroutes.default);
+app.use('/api/discounts', _discountroutes.default);
 // Health check endpoint
-app.get("/health", (req, res) => {
-    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/health", (req, res)=>{
+    res.status(200).json({
+        status: "ok",
+        timestamp: new Date().toISOString()
+    });
 });
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, next)=>{
     console.error(err.stack);
     const statusCode = err.statusCode || err.status || 500;
     const status = err.status || (statusCode >= 400 && statusCode < 500 ? 'fail' : 'error');
@@ -471,26 +481,30 @@ app.use((err, req, res, next) => {
         success: false,
         status,
         message: err.message || "Internal Server Error",
-        ...(process.env.NODE_ENV === "development" && {
+        ...process.env.NODE_ENV === "development" && {
             stack: err.stack,
             error: err
-        }),
+        }
     });
 });
 // 404 handler
-app.use((req, res) => {
-    res.status(404).json({ message: "Route not found" });
+app.use((req, res)=>{
+    res.status(404).json({
+        message: "Route not found"
+    });
 });
 // Start server
 // Note: This file is NOT the main entry point. server.ts is the main entry point.
 // If running this file directly (for testing), the server will start here.
-app.listen(PORT, () => {
+app.listen(PORT, ()=>{
     console.log(`Server is running on port ${PORT}`);
-    // Slot lock cleanup is handled in server.ts
+// Slot lock cleanup is handled in server.ts
 });
 // Graceful shutdown
-process.on("SIGTERM", async () => {
+process.on("SIGTERM", async ()=>{
     console.log("SIGTERM signal received: closing HTTP server");
-    await exports.prisma.$disconnect();
+    await prisma.$disconnect();
     process.exit(0);
 });
+
+//# sourceMappingURL=app.js.map

@@ -1,29 +1,39 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.initializeSocket = void 0;
-const socket_io_1 = require("socket.io");
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
-const initializeSocket = (server) => {
-    const io = new socket_io_1.Server(server, {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "initializeSocket", {
+    enumerable: true,
+    get: function() {
+        return initializeSocket;
+    }
+});
+const _socketio = require("socket.io");
+const _jsonwebtoken = /*#__PURE__*/ _interop_require_default(require("jsonwebtoken"));
+const _client = require("@prisma/client");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const prisma = new _client.PrismaClient();
+const initializeSocket = (server)=>{
+    const io = new _socketio.Server(server, {
         cors: {
             // origin: process.env.FRONTEND_URL || 'http://localhost:3001',
             origin: '*',
-            credentials: true,
-        },
+            credentials: true
+        }
     });
     // Authentication middleware
-    io.use(async (socket, next) => {
+    io.use(async (socket, next)=>{
         try {
             const token = socket.handshake.auth.token;
             if (!token) {
                 return next(new Error('Authentication required'));
             }
-            const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
+            const decoded = _jsonwebtoken.default.verify(token, process.env.JWT_SECRET);
             console.log('WebSocket Auth - Decoded token:', {
                 id: decoded.id,
                 userId: decoded.userId,
@@ -38,8 +48,15 @@ const initializeSocket = (server) => {
             }
             // Verify user exists
             const user = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { id: true, role: true, name: true, email: true }
+                where: {
+                    id: userId
+                },
+                select: {
+                    id: true,
+                    role: true,
+                    name: true,
+                    email: true
+                }
             });
             if (!user) {
                 return next(new Error('User not found'));
@@ -48,13 +65,12 @@ const initializeSocket = (server) => {
             socket.userRole = user.role;
             socket.userEmail = user.email;
             next();
-        }
-        catch (error) {
+        } catch (error) {
             next(new Error('Invalid token'));
         }
     });
     // Connection handler
-    io.on('connection', async (socket) => {
+    io.on('connection', async (socket)=>{
         console.log('=== WebSocket Connection ===');
         console.log('User connected:');
         console.log('  - ID (ObjectId):', socket.userId);
@@ -78,20 +94,21 @@ const initializeSocket = (server) => {
                         has: socket.userId
                     }
                 },
-                select: { id: true }
+                select: {
+                    id: true
+                }
             });
-            conversations.forEach(conv => {
+            conversations.forEach((conv)=>{
                 const convRoom = `conversation:${conv.id}`;
                 socket.join(convRoom);
                 console.log(`  - Auto-joined conversation room: ${convRoom}`);
             });
             console.log(`  - Total conversation rooms joined: ${conversations.length}`);
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error auto-joining conversations:', error);
         }
         // Also handle explicit join-conversations event
-        socket.on('join-conversations', async () => {
+        socket.on('join-conversations', async ()=>{
             try {
                 const conversations = await prisma.conversation.findMany({
                     where: {
@@ -99,38 +116,41 @@ const initializeSocket = (server) => {
                             has: socket.userId
                         }
                     },
-                    select: { id: true }
+                    select: {
+                        id: true
+                    }
                 });
-                conversations.forEach(conv => {
+                conversations.forEach((conv)=>{
                     socket.join(`conversation:${conv.id}`);
                 });
                 console.log(`[join-conversations] User ${socket.userId} joined ${conversations.length} conversation rooms`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error joining conversations:', error);
             }
         });
         // Handle joining a specific conversation
-        socket.on('join-conversation', (conversationId) => {
+        socket.on('join-conversation', (conversationId)=>{
             socket.join(`conversation:${conversationId}`);
         });
         // Handle leaving a conversation
-        socket.on('leave-conversation', (conversationId) => {
+        socket.on('leave-conversation', (conversationId)=>{
             socket.leave(`conversation:${conversationId}`);
         });
         // Handle typing indicator
-        socket.on('typing', ({ conversationId, isTyping }) => {
+        socket.on('typing', ({ conversationId, isTyping })=>{
             socket.to(`conversation:${conversationId}`).emit('user-typing', {
                 userId: socket.userId,
                 isTyping
             });
         });
         // Handle message read
-        socket.on('mark-as-read', async ({ messageIds }) => {
+        socket.on('mark-as-read', async ({ messageIds })=>{
             try {
                 await prisma.message.updateMany({
                     where: {
-                        id: { in: messageIds },
+                        id: {
+                            in: messageIds
+                        },
                         receiverId: socket.userId
                     },
                     data: {
@@ -140,22 +160,28 @@ const initializeSocket = (server) => {
                 });
                 // Notify sender that message was read
                 const messages = await prisma.message.findMany({
-                    where: { id: { in: messageIds } },
-                    select: { senderId: true, conversationId: true }
+                    where: {
+                        id: {
+                            in: messageIds
+                        }
+                    },
+                    select: {
+                        senderId: true,
+                        conversationId: true
+                    }
                 });
-                messages.forEach(msg => {
+                messages.forEach((msg)=>{
                     io.to(`user-${msg.senderId}`).emit('message-read', {
                         messageIds,
                         conversationId: msg.conversationId
                     });
                 });
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error marking messages as read:', error);
             }
         });
         // Handle fetching messages for a conversation
-        socket.on('fetch-messages', async ({ conversationId, page = 1, limit = 50 }) => {
+        socket.on('fetch-messages', async ({ conversationId, page = 1, limit = 50 })=>{
             try {
                 console.log(`[fetch-messages] User ${socket.userId} fetching messages for conversation ${conversationId}`);
                 // Verify user has access to this conversation
@@ -205,12 +231,14 @@ const initializeSocket = (server) => {
                 });
                 // Get total count for pagination
                 const totalCount = await prisma.message.count({
-                    where: { conversationId }
+                    where: {
+                        conversationId
+                    }
                 });
                 // Emit messages back to the requesting socket
                 socket.emit('messages-fetched', {
                     conversationId,
-                    messages: messages.reverse(), // Reverse to get chronological order
+                    messages: messages.reverse(),
                     pagination: {
                         page,
                         limit,
@@ -220,8 +248,7 @@ const initializeSocket = (server) => {
                     }
                 });
                 console.log(`[fetch-messages] Sent ${messages.length} messages to user ${socket.userId}`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error fetching messages:', error);
                 socket.emit('messages-error', {
                     error: 'Failed to fetch messages'
@@ -229,7 +256,7 @@ const initializeSocket = (server) => {
             }
         });
         // Handle fetching notifications
-        socket.on('fetch-notifications', async ({ page = 1, limit = 20 }) => {
+        socket.on('fetch-notifications', async ({ page = 1, limit = 20 })=>{
             try {
                 console.log(`[fetch-notifications] User ${socket.userId} fetching notifications`);
                 const skip = (page - 1) * limit;
@@ -270,8 +297,7 @@ const initializeSocket = (server) => {
                     }
                 });
                 console.log(`[fetch-notifications] Sent ${notifications.length} notifications to user ${socket.userId}`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error fetching notifications:', error);
                 socket.emit('notifications-error', {
                     error: 'Failed to fetch notifications'
@@ -279,7 +305,7 @@ const initializeSocket = (server) => {
             }
         });
         // Handle marking notifications as read
-        socket.on('mark-notification-read', async ({ notificationId }) => {
+        socket.on('mark-notification-read', async ({ notificationId })=>{
             try {
                 await prisma.notification.update({
                     where: {
@@ -304,13 +330,12 @@ const initializeSocket = (server) => {
                     unreadCount
                 });
                 console.log(`[mark-notification-read] Notification ${notificationId} marked as read`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error marking notification as read:', error);
             }
         });
         // Handle marking all notifications as read
-        socket.on('mark-all-notifications-read', async () => {
+        socket.on('mark-all-notifications-read', async ()=>{
             try {
                 await prisma.notification.updateMany({
                     where: {
@@ -327,16 +352,16 @@ const initializeSocket = (server) => {
                     unreadCount: 0
                 });
                 console.log(`[mark-all-notifications-read] All notifications marked as read for user ${socket.userId}`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error marking all notifications as read:', error);
             }
         });
         // Handle disconnect
-        socket.on('disconnect', () => {
+        socket.on('disconnect', ()=>{
             console.log(`User ${socket.userId} disconnected`);
         });
     });
     return io;
 };
-exports.initializeSocket = initializeSocket;
+
+//# sourceMappingURL=socket.js.map

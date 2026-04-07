@@ -1,21 +1,31 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const marked_1 = require("marked");
-const router = (0, express_1.Router)();
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _fs = /*#__PURE__*/ _interop_require_default(require("fs"));
+const _path = /*#__PURE__*/ _interop_require_default(require("path"));
+const _marked = require("marked");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = (0, _express.Router)();
 // Serve Socket.IO documentation
-router.get('/socket-docs', (req, res) => {
+router.get('/socket-docs', (req, res)=>{
     try {
         // Read the markdown file
-        const markdownPath = path_1.default.join(process.cwd(), '..', 'NOTIFICATION_SOCKET_INTEGRATION_GUIDE.md');
-        const markdownContent = fs_1.default.readFileSync(markdownPath, 'utf-8');
+        const markdownPath = _path.default.join(process.cwd(), '..', 'NOTIFICATION_SOCKET_INTEGRATION_GUIDE.md');
+        const markdownContent = _fs.default.readFileSync(markdownPath, 'utf-8');
         // Convert markdown to HTML
-        const htmlContent = (0, marked_1.marked)(markdownContent);
+        const htmlContent = (0, _marked.marked)(markdownContent);
         // Create a styled HTML page
         const htmlPage = `
 <!DOCTYPE html>
@@ -310,7 +320,9 @@ router.get('/socket-docs', (req, res) => {
         </div>
 
         <div class="footer">
-            <p>Fieldsy API Documentation • Last Updated: ${new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/London' })}</p>
+            <p>Fieldsy API Documentation • Last Updated: ${new Date().toLocaleDateString('en-GB', {
+            timeZone: 'Europe/London'
+        })}</p>
             <p>For support, contact the backend team</p>
         </div>
     </div>
@@ -350,8 +362,7 @@ router.get('/socket-docs', (req, res) => {
     `;
         res.setHeader('Content-Type', 'text/html');
         res.send(htmlPage);
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error serving documentation:', error);
         res.status(500).json({
             success: false,
@@ -361,7 +372,7 @@ router.get('/socket-docs', (req, res) => {
     }
 });
 // API reference endpoint (JSON format)
-router.get('/api-reference', (req, res) => {
+router.get('/api-reference', (req, res)=>{
     const apiReference = {
         version: '1.0.0',
         baseUrl: process.env.API_URL || 'http://localhost:5000',
@@ -374,12 +385,17 @@ router.get('/api-reference', (req, res) => {
             client: {
                 'fetch-notifications': {
                     description: 'Fetch notification history',
-                    payload: { page: 'number', limit: 'number' },
+                    payload: {
+                        page: 'number',
+                        limit: 'number'
+                    },
                     response: 'notifications-fetched'
                 },
                 'mark-notification-read': {
                     description: 'Mark a notification as read',
-                    payload: { notificationId: 'string' },
+                    payload: {
+                        notificationId: 'string'
+                    },
                     response: 'notification-read'
                 },
                 'mark-all-notifications-read': {
@@ -451,4 +467,6 @@ router.get('/api-reference', (req, res) => {
         data: apiReference
     });
 });
-exports.default = router;
+const _default = router;
+
+//# sourceMappingURL=docs.routes.js.map

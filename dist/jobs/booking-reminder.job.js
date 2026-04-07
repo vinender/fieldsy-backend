@@ -1,56 +1,75 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.initBookingReminderJobs = void 0;
-exports.triggerBookingReminders = triggerBookingReminders;
 //@ts-nocheck
-const node_cron_1 = __importDefault(require("node-cron"));
-const database_1 = __importDefault(require("../config/database"));
-const notification_controller_1 = require("../controllers/notification.controller");
-const ukTime_1 = require("../utils/ukTime");
-/**
- * Scheduled job to send booking reminders
- * Runs every 30 minutes to check for upcoming bookings
- * Sends reminder 2 hours before booking time, or immediately if less than 2 hours away
- */
-const initBookingReminderJobs = () => {
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get initBookingReminderJobs () {
+        return initBookingReminderJobs;
+    },
+    get triggerBookingReminders () {
+        return triggerBookingReminders;
+    }
+});
+const _nodecron = /*#__PURE__*/ _interop_require_default(require("node-cron"));
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _notificationcontroller = require("../controllers/notification.controller");
+const _ukTime = require("../utils/ukTime");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
+const initBookingReminderJobs = ()=>{
     // Run every 30 minutes to check for upcoming bookings
-    node_cron_1.default.schedule('*/30 * * * *', async () => {
+    _nodecron.default.schedule('*/30 * * * *', async ()=>{
         console.log('📧 Running booking reminder check...');
         try {
             const results = await sendBookingReminders();
@@ -58,8 +77,7 @@ const initBookingReminderJobs = () => {
             console.log(`   - Reminders sent: ${results.sent}`);
             console.log(`   - Already sent: ${results.skipped}`);
             console.log(`   - Failed: ${results.failed}`);
-        }
-        catch (error) {
+        } catch (error) {
             console.error('❌ Booking reminder job error:', error);
         }
     });
@@ -67,20 +85,18 @@ const initBookingReminderJobs = () => {
     console.log('   - Runs every 30 minutes');
     console.log('   - Sends reminder 2 hours before booking time');
 };
-exports.initBookingReminderJobs = initBookingReminderJobs;
 /**
  * Send booking reminders for upcoming bookings
- */
-async function sendBookingReminders() {
+ */ async function sendBookingReminders() {
     const results = {
         sent: 0,
         skipped: 0,
         failed: 0
     };
     try {
-        const now = (0, ukTime_1.getNowUK)();
+        const now = (0, _ukTime.getNowUK)();
         // Find all confirmed bookings that are in the future (using UK time)
-        const upcomingBookings = await database_1.default.booking.findMany({
+        const upcomingBookings = await _database.default.booking.findMany({
             where: {
                 status: 'CONFIRMED',
                 date: {
@@ -107,7 +123,7 @@ async function sendBookingReminders() {
             }
         });
         console.log(`📊 Found ${upcomingBookings.length} upcoming confirmed bookings`);
-        for (const booking of upcomingBookings) {
+        for (const booking of upcomingBookings){
             try {
                 // Parse booking date and time
                 const bookingDate = new Date(booking.date);
@@ -115,10 +131,8 @@ async function sendBookingReminders() {
                 let startHour = parseInt(startHourStr.split(':')[0]);
                 const startMinute = parseInt(startHourStr.split(':')[1] || '0');
                 // Convert to 24-hour format
-                if (startPeriod === 'PM' && startHour !== 12)
-                    startHour += 12;
-                if (startPeriod === 'AM' && startHour === 12)
-                    startHour = 0;
+                if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
+                if (startPeriod === 'AM' && startHour === 12) startHour = 0;
                 // Create booking datetime
                 const bookingDateTime = new Date(bookingDate);
                 bookingDateTime.setHours(startHour, startMinute, 0, 0);
@@ -152,12 +166,14 @@ async function sendBookingReminders() {
                 console.log(`📧 Sending ${reminderReason} for booking ${booking.id} (${hoursUntilBooking}h away)`);
                 // Mark reminder as sent FIRST to prevent race conditions with concurrent job runs
                 // Use updateMany with a condition to ensure atomic update (only updates if not already sent)
-                const updateResult = await database_1.default.booking.updateMany({
+                const updateResult = await _database.default.booking.updateMany({
                     where: {
                         id: booking.id,
                         reminderSent: false // Only update if not already sent
                     },
-                    data: { reminderSent: true }
+                    data: {
+                        reminderSent: true
+                    }
                 });
                 // If no rows were updated, another process already sent the reminder
                 if (updateResult.count === 0) {
@@ -166,7 +182,7 @@ async function sendBookingReminders() {
                     continue;
                 }
                 // Send in-app notification
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: booking.userId,
                     type: 'booking_reminder',
                     title: 'Upcoming Booking Reminder',
@@ -182,7 +198,7 @@ async function sendBookingReminders() {
                 });
                 // Send email reminder
                 try {
-                    const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
+                    const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
                     await emailService.sendBookingReminderEmail({
                         email: booking.user.email,
                         userName: booking.user.name || 'Valued Customer',
@@ -197,31 +213,27 @@ async function sendBookingReminders() {
                         address: booking.field.address || booking.field.location || 'Address not available',
                         hoursUntilBooking
                     });
-                }
-                catch (emailError) {
+                } catch (emailError) {
                     console.error('Failed to send reminder email:', emailError);
                 }
                 results.sent++;
                 console.log(`✅ Sent reminder for booking ${booking.id} to ${booking.user.email}`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error(`❌ Failed to process booking ${booking.id}:`, error);
                 results.failed++;
             }
         }
-    }
-    catch (error) {
+    } catch (error) {
         console.error('❌ Error in sendBookingReminders:', error);
         throw error;
     }
     return results;
 }
-/**
- * Manual trigger for testing
- */
 async function triggerBookingReminders() {
     console.log('🔧 Manually triggering booking reminders...');
     const results = await sendBookingReminders();
     console.log('✅ Manual trigger completed:', results);
     return results;
 }
+
+//# sourceMappingURL=booking-reminder.job.js.map

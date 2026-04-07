@@ -1,17 +1,38 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateAboutSection = exports.updateAboutPage = exports.getAboutPage = void 0;
-const database_1 = __importDefault(require("../config/database"));
-const getAboutPage = async (req, res) => {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get getAboutPage () {
+        return getAboutPage;
+    },
+    get updateAboutPage () {
+        return updateAboutPage;
+    },
+    get updateAboutSection () {
+        return updateAboutSection;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const getAboutPage = async (req, res)=>{
     try {
         // Get the first (and should be only) about page record
-        let aboutPage = await database_1.default.aboutPage.findFirst();
+        let aboutPage = await _database.default.aboutPage.findFirst();
         // If no about page exists, create one with default values
         if (!aboutPage) {
-            aboutPage = await database_1.default.aboutPage.create({
+            aboutPage = await _database.default.aboutPage.create({
                 data: {
                     heroSectionTitle: 'About Us',
                     heroMainTitle: 'Safe, Private Fields Where Every Dog Can Run Free',
@@ -19,10 +40,26 @@ const getAboutPage = async (req, res) => {
                     heroButtonText: 'Download the App',
                     heroImage: 'https://fieldsy-s3.s3.eu-west-2.amazonaws.com/defaults/about/dog2.webp',
                     heroStats: [
-                        { value: '500+', label: 'Dog Owners Signed Up', order: 1 },
-                        { value: '200+', label: 'Private Fields Listed', order: 2 },
-                        { value: '50+', label: 'Towns & Cities Across the UK', order: 3 },
-                        { value: '100%', label: 'Secure, Fenced Spaces', order: 4 }
+                        {
+                            value: '500+',
+                            label: 'Dog Owners Signed Up',
+                            order: 1
+                        },
+                        {
+                            value: '200+',
+                            label: 'Private Fields Listed',
+                            order: 2
+                        },
+                        {
+                            value: '50+',
+                            label: 'Towns & Cities Across the UK',
+                            order: 3
+                        },
+                        {
+                            value: '100%',
+                            label: 'Secure, Fenced Spaces',
+                            order: 4
+                        }
                     ]
                 }
             });
@@ -77,8 +114,7 @@ const getAboutPage = async (req, res) => {
             success: true,
             data: transformedData
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching about page:', error);
         res.status(500).json({
             success: false,
@@ -87,74 +123,54 @@ const getAboutPage = async (req, res) => {
         });
     }
 };
-exports.getAboutPage = getAboutPage;
-const updateAboutPage = async (req, res) => {
+const updateAboutPage = async (req, res)=>{
     try {
         const updates = req.body;
         // Transform nested structure to flat structure for database
         const dbUpdates = {};
         if (updates.heroSection) {
-            if (updates.heroSection.sectionTitle !== undefined)
-                dbUpdates.heroSectionTitle = updates.heroSection.sectionTitle;
-            if (updates.heroSection.mainTitle !== undefined)
-                dbUpdates.heroMainTitle = updates.heroSection.mainTitle;
-            if (updates.heroSection.subtitle !== undefined)
-                dbUpdates.heroSubtitle = updates.heroSection.subtitle;
-            if (updates.heroSection.description !== undefined)
-                dbUpdates.heroDescription = updates.heroSection.description;
-            if (updates.heroSection.buttonText !== undefined)
-                dbUpdates.heroButtonText = updates.heroSection.buttonText;
-            if (updates.heroSection.image !== undefined)
-                dbUpdates.heroImage = updates.heroSection.image;
-            if (updates.heroSection.stats !== undefined)
-                dbUpdates.heroStats = updates.heroSection.stats;
+            if (updates.heroSection.sectionTitle !== undefined) dbUpdates.heroSectionTitle = updates.heroSection.sectionTitle;
+            if (updates.heroSection.mainTitle !== undefined) dbUpdates.heroMainTitle = updates.heroSection.mainTitle;
+            if (updates.heroSection.subtitle !== undefined) dbUpdates.heroSubtitle = updates.heroSection.subtitle;
+            if (updates.heroSection.description !== undefined) dbUpdates.heroDescription = updates.heroSection.description;
+            if (updates.heroSection.buttonText !== undefined) dbUpdates.heroButtonText = updates.heroSection.buttonText;
+            if (updates.heroSection.image !== undefined) dbUpdates.heroImage = updates.heroSection.image;
+            if (updates.heroSection.stats !== undefined) dbUpdates.heroStats = updates.heroSection.stats;
         }
         if (updates.missionSection) {
-            if (updates.missionSection.title !== undefined)
-                dbUpdates.missionTitle = updates.missionSection.title;
-            if (updates.missionSection.description !== undefined)
-                dbUpdates.missionDescription = updates.missionSection.description;
-            if (updates.missionSection.buttonText !== undefined)
-                dbUpdates.missionButtonText = updates.missionSection.buttonText;
-            if (updates.missionSection.image !== undefined)
-                dbUpdates.missionImage = updates.missionSection.image;
+            if (updates.missionSection.title !== undefined) dbUpdates.missionTitle = updates.missionSection.title;
+            if (updates.missionSection.description !== undefined) dbUpdates.missionDescription = updates.missionSection.description;
+            if (updates.missionSection.buttonText !== undefined) dbUpdates.missionButtonText = updates.missionSection.buttonText;
+            if (updates.missionSection.image !== undefined) dbUpdates.missionImage = updates.missionSection.image;
         }
         if (updates.whoWeAreSection) {
-            if (updates.whoWeAreSection.title !== undefined)
-                dbUpdates.whoWeAreTitle = updates.whoWeAreSection.title;
-            if (updates.whoWeAreSection.description !== undefined)
-                dbUpdates.whoWeAreDescription = updates.whoWeAreSection.description;
-            if (updates.whoWeAreSection.features !== undefined)
-                dbUpdates.whoWeAreFeatures = updates.whoWeAreSection.features;
+            if (updates.whoWeAreSection.title !== undefined) dbUpdates.whoWeAreTitle = updates.whoWeAreSection.title;
+            if (updates.whoWeAreSection.description !== undefined) dbUpdates.whoWeAreDescription = updates.whoWeAreSection.description;
+            if (updates.whoWeAreSection.features !== undefined) dbUpdates.whoWeAreFeatures = updates.whoWeAreSection.features;
         }
         if (updates.whatWeDoSection) {
-            if (updates.whatWeDoSection.title !== undefined)
-                dbUpdates.whatWeDoTitle = updates.whatWeDoSection.title;
-            if (updates.whatWeDoSection.subtitle !== undefined)
-                dbUpdates.whatWeDoSubtitle = updates.whatWeDoSection.subtitle;
-            if (updates.whatWeDoSection.description !== undefined)
-                dbUpdates.whatWeDoDescription = updates.whatWeDoSection.description;
-            if (updates.whatWeDoSection.image !== undefined)
-                dbUpdates.whatWeDoImage = updates.whatWeDoSection.image;
-            if (updates.whatWeDoSection.features !== undefined)
-                dbUpdates.whatWeDoFeatures = updates.whatWeDoSection.features;
+            if (updates.whatWeDoSection.title !== undefined) dbUpdates.whatWeDoTitle = updates.whatWeDoSection.title;
+            if (updates.whatWeDoSection.subtitle !== undefined) dbUpdates.whatWeDoSubtitle = updates.whatWeDoSection.subtitle;
+            if (updates.whatWeDoSection.description !== undefined) dbUpdates.whatWeDoDescription = updates.whatWeDoSection.description;
+            if (updates.whatWeDoSection.image !== undefined) dbUpdates.whatWeDoImage = updates.whatWeDoSection.image;
+            if (updates.whatWeDoSection.features !== undefined) dbUpdates.whatWeDoFeatures = updates.whatWeDoSection.features;
         }
         if (updates.whyFieldsySection) {
-            if (updates.whyFieldsySection.title !== undefined)
-                dbUpdates.whyFieldsyTitle = updates.whyFieldsySection.title;
-            if (updates.whyFieldsySection.subtitle !== undefined)
-                dbUpdates.whyFieldsySubtitle = updates.whyFieldsySection.subtitle;
-            if (updates.whyFieldsySection.features !== undefined)
-                dbUpdates.whyFieldsyFeatures = updates.whyFieldsySection.features;
+            if (updates.whyFieldsySection.title !== undefined) dbUpdates.whyFieldsyTitle = updates.whyFieldsySection.title;
+            if (updates.whyFieldsySection.subtitle !== undefined) dbUpdates.whyFieldsySubtitle = updates.whyFieldsySection.subtitle;
+            if (updates.whyFieldsySection.features !== undefined) dbUpdates.whyFieldsyFeatures = updates.whyFieldsySection.features;
         }
         // Get existing about page or create new one
-        let aboutPage = await database_1.default.aboutPage.findFirst();
+        let aboutPage = await _database.default.aboutPage.findFirst();
         if (!aboutPage) {
-            aboutPage = await database_1.default.aboutPage.create({ data: dbUpdates });
-        }
-        else {
-            aboutPage = await database_1.default.aboutPage.update({
-                where: { id: aboutPage.id },
+            aboutPage = await _database.default.aboutPage.create({
+                data: dbUpdates
+            });
+        } else {
+            aboutPage = await _database.default.aboutPage.update({
+                where: {
+                    id: aboutPage.id
+                },
                 data: dbUpdates
             });
         }
@@ -163,8 +179,7 @@ const updateAboutPage = async (req, res) => {
             message: 'About page updated successfully',
             data: aboutPage
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating about page:', error);
         res.status(500).json({
             success: false,
@@ -173,13 +188,17 @@ const updateAboutPage = async (req, res) => {
         });
     }
 };
-exports.updateAboutPage = updateAboutPage;
-// Update specific section
-const updateAboutSection = async (req, res) => {
+const updateAboutSection = async (req, res)=>{
     try {
         const { section } = req.params;
         const updates = req.body;
-        const validSections = ['heroSection', 'missionSection', 'whoWeAreSection', 'whatWeDoSection', 'whyFieldsySection'];
+        const validSections = [
+            'heroSection',
+            'missionSection',
+            'whoWeAreSection',
+            'whatWeDoSection',
+            'whyFieldsySection'
+        ];
         if (!validSections.includes(section)) {
             return res.status(400).json({
                 success: false,
@@ -187,10 +206,10 @@ const updateAboutSection = async (req, res) => {
             });
         }
         // Get existing about page or create new one
-        let aboutPage = await database_1.default.aboutPage.findFirst();
+        let aboutPage = await _database.default.aboutPage.findFirst();
         const updateData = {};
         // Build the update data based on section
-        switch (section) {
+        switch(section){
             case 'heroSection':
                 updateData.heroSectionTitle = updates.sectionTitle;
                 updateData.heroMainTitle = updates.mainTitle;
@@ -233,11 +252,14 @@ const updateAboutSection = async (req, res) => {
                 break;
         }
         if (!aboutPage) {
-            aboutPage = await database_1.default.aboutPage.create({ data: updateData });
-        }
-        else {
-            aboutPage = await database_1.default.aboutPage.update({
-                where: { id: aboutPage.id },
+            aboutPage = await _database.default.aboutPage.create({
+                data: updateData
+            });
+        } else {
+            aboutPage = await _database.default.aboutPage.update({
+                where: {
+                    id: aboutPage.id
+                },
                 data: updateData
             });
         }
@@ -246,8 +268,7 @@ const updateAboutSection = async (req, res) => {
             message: `${section} updated successfully`,
             data: aboutPage
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating about section:', error);
         res.status(500).json({
             success: false,
@@ -256,4 +277,5 @@ const updateAboutSection = async (req, res) => {
         });
     }
 };
-exports.updateAboutSection = updateAboutSection;
+
+//# sourceMappingURL=about-page.controller.js.map

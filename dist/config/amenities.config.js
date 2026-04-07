@@ -1,16 +1,37 @@
-"use strict";
 /**
  * Amenities Configuration
  * Maps amenity slugs to their display labels and icon URLs
- */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AMENITIES_CONFIG = void 0;
-exports.getAmenityBySlug = getAmenityBySlug;
-exports.getAmenityIcon = getAmenityIcon;
-exports.getAmenityLabel = getAmenityLabel;
-exports.normalizeAmenitySlug = normalizeAmenitySlug;
-exports.transformAmenities = transformAmenities;
-exports.AMENITIES_CONFIG = [
+ */ "use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get AMENITIES_CONFIG () {
+        return AMENITIES_CONFIG;
+    },
+    get getAmenityBySlug () {
+        return getAmenityBySlug;
+    },
+    get getAmenityIcon () {
+        return getAmenityIcon;
+    },
+    get getAmenityLabel () {
+        return getAmenityLabel;
+    },
+    get normalizeAmenitySlug () {
+        return normalizeAmenitySlug;
+    },
+    get transformAmenities () {
+        return transformAmenities;
+    }
+});
+const AMENITIES_CONFIG = [
     // Safety & Security
     {
         slug: 'secure-fencing-180cm',
@@ -122,62 +143,31 @@ exports.AMENITIES_CONFIG = [
         label: 'Toilets',
         iconUrl: '/field-details/home.svg',
         category: 'facilities'
-    },
+    }
 ];
-/**
- * Get amenity configuration by slug
- */
 function getAmenityBySlug(slug) {
-    if (!slug)
-        return undefined;
+    if (!slug) return undefined;
     // Normalize slug for lookup
     const normalizedSlug = normalizeAmenitySlug(slug);
-    return exports.AMENITIES_CONFIG.find(amenity => amenity.slug === slug ||
-        amenity.slug === normalizedSlug ||
-        amenity.slug.replace(/-/g, '') === normalizedSlug.replace(/-/g, ''));
+    return AMENITIES_CONFIG.find((amenity)=>amenity.slug === slug || amenity.slug === normalizedSlug || amenity.slug.replace(/-/g, '') === normalizedSlug.replace(/-/g, ''));
 }
-/**
- * Get amenity icon URL by slug
- */
 function getAmenityIcon(slug, defaultIcon = '/field-details/shield.svg') {
     const amenity = getAmenityBySlug(slug);
     return amenity?.iconUrl || defaultIcon;
 }
-/**
- * Get amenity label by slug
- */
 function getAmenityLabel(slug) {
     const amenity = getAmenityBySlug(slug);
-    if (amenity)
-        return amenity.label;
+    if (amenity) return amenity.label;
     // Fallback: format the slug
-    return slug
-        .replace(/[-_]/g, ' ')
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
-        .replace(/\b\w/g, char => char.toUpperCase());
+    return slug.replace(/[-_]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, (char)=>char.toUpperCase());
 }
-/**
- * Normalize amenity slug for consistent lookup
- */
 function normalizeAmenitySlug(slug) {
-    if (!slug)
-        return '';
-    return slug
-        .toString()
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/_/g, '-');
+    if (!slug) return '';
+    return slug.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
 }
-/**
- * Transform amenities array to include icon URLs and labels
- */
 function transformAmenities(amenities) {
-    if (!Array.isArray(amenities))
-        return [];
-    return amenities
-        .filter(amenity => amenity)
-        .map(amenity => {
+    if (!Array.isArray(amenities)) return [];
+    return amenities.filter((amenity)=>amenity).map((amenity)=>{
         const config = getAmenityBySlug(amenity);
         return {
             label: config?.label || getAmenityLabel(amenity),
@@ -185,3 +175,5 @@ function transformAmenities(amenities) {
         };
     });
 }
+
+//# sourceMappingURL=amenities.config.js.map

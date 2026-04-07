@@ -1,70 +1,94 @@
+//@ts-nocheck
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
+Object.defineProperty(exports, "__esModule", {
+    value: true
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _asyncHandler = require("../utils/asyncHandler");
+const _AppError = require("../utils/AppError");
+const _stripeconfig = require("../config/stripe.config");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
         };
-        return ownKeys(o);
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
     };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const database_1 = __importDefault(require("../config/database"));
-const asyncHandler_1 = require("../utils/asyncHandler");
-const AppError_1 = require("../utils/AppError");
-const stripe_config_1 = require("../config/stripe.config");
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
 class OfferController {
     // Create an offer for a field (field owner only)
-    createOffer = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    createOffer = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         const { fieldId, purchaseSlots, freeSlots, validity } = req.body;
         if (!fieldId || !purchaseSlots || !freeSlots || !validity) {
-            throw new AppError_1.AppError('fieldId, purchaseSlots, freeSlots, and validity are required', 400);
+            throw new _AppError.AppError('fieldId, purchaseSlots, freeSlots, and validity are required', 400);
         }
-        if (!['1 Week', '1 Month'].includes(validity)) {
-            throw new AppError_1.AppError('Validity must be "1 Week" or "1 Month"', 400);
+        if (![
+            '1 Week',
+            '1 Month'
+        ].includes(validity)) {
+            throw new _AppError.AppError('Validity must be "1 Week" or "1 Month"', 400);
         }
         if (purchaseSlots < 1 || freeSlots < 1) {
-            throw new AppError_1.AppError('purchaseSlots and freeSlots must be at least 1', 400);
+            throw new _AppError.AppError('purchaseSlots and freeSlots must be at least 1', 400);
         }
         // Verify field exists and user is the owner
-        const field = await database_1.default.field.findUnique({
-            where: { id: fieldId }
+        const field = await _database.default.field.findUnique({
+            where: {
+                id: fieldId
+            }
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
         if (field.ownerId !== userId) {
-            throw new AppError_1.AppError('You are not the owner of this field', 403);
+            throw new _AppError.AppError('You are not the owner of this field', 403);
         }
-        const offer = await database_1.default.offer.create({
+        const offer = await _database.default.offer.create({
             data: {
                 fieldId,
                 purchaseSlots,
@@ -79,17 +103,23 @@ class OfferController {
         });
     });
     // Get all offers for a field (public)
-    getFieldOffers = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getFieldOffers = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { fieldId } = req.params;
-        const field = await database_1.default.field.findUnique({
-            where: { id: fieldId }
+        const field = await _database.default.field.findUnique({
+            where: {
+                id: fieldId
+            }
         });
         if (!field) {
-            throw new AppError_1.AppError('Field not found', 404);
+            throw new _AppError.AppError('Field not found', 404);
         }
-        const offers = await database_1.default.offer.findMany({
-            where: { fieldId },
-            orderBy: { createdAt: 'desc' }
+        const offers = await _database.default.offer.findMany({
+            where: {
+                fieldId
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
         });
         res.json({
             success: true,
@@ -97,22 +127,30 @@ class OfferController {
         });
     });
     // Toggle offer enabled/disabled (field owner only)
-    toggleOffer = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    toggleOffer = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         const { offerId } = req.params;
-        const offer = await database_1.default.offer.findUnique({
-            where: { id: offerId },
-            include: { field: true }
+        const offer = await _database.default.offer.findUnique({
+            where: {
+                id: offerId
+            },
+            include: {
+                field: true
+            }
         });
         if (!offer) {
-            throw new AppError_1.AppError('Offer not found', 404);
+            throw new _AppError.AppError('Offer not found', 404);
         }
         if (offer.field.ownerId !== userId) {
-            throw new AppError_1.AppError('You are not the owner of this field', 403);
+            throw new _AppError.AppError('You are not the owner of this field', 403);
         }
-        const updatedOffer = await database_1.default.offer.update({
-            where: { id: offerId },
-            data: { enabled: !offer.enabled }
+        const updatedOffer = await _database.default.offer.update({
+            where: {
+                id: offerId
+            },
+            data: {
+                enabled: !offer.enabled
+            }
         });
         res.json({
             success: true,
@@ -121,21 +159,27 @@ class OfferController {
         });
     });
     // Delete an offer (field owner only)
-    deleteOffer = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    deleteOffer = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         const { offerId } = req.params;
-        const offer = await database_1.default.offer.findUnique({
-            where: { id: offerId },
-            include: { field: true }
+        const offer = await _database.default.offer.findUnique({
+            where: {
+                id: offerId
+            },
+            include: {
+                field: true
+            }
         });
         if (!offer) {
-            throw new AppError_1.AppError('Offer not found', 404);
+            throw new _AppError.AppError('Offer not found', 404);
         }
         if (offer.field.ownerId !== userId) {
-            throw new AppError_1.AppError('You are not the owner of this field', 403);
+            throw new _AppError.AppError('You are not the owner of this field', 403);
         }
-        await database_1.default.offer.delete({
-            where: { id: offerId }
+        await _database.default.offer.delete({
+            where: {
+                id: offerId
+            }
         });
         res.json({
             success: true,
@@ -143,46 +187,63 @@ class OfferController {
         });
     });
     // Purchase an offer - creates Stripe payment intent (dog owner)
-    purchaseOffer = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    purchaseOffer = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         const { offerId } = req.params;
-        const offer = await database_1.default.offer.findUnique({
-            where: { id: offerId },
-            include: { field: true }
+        const offer = await _database.default.offer.findUnique({
+            where: {
+                id: offerId
+            },
+            include: {
+                field: true
+            }
         });
         if (!offer) {
-            throw new AppError_1.AppError('Offer not found', 404);
+            throw new _AppError.AppError('Offer not found', 404);
         }
         if (!offer.enabled) {
-            throw new AppError_1.AppError('This offer is currently disabled', 400);
+            throw new _AppError.AppError('This offer is currently disabled', 400);
         }
         // Check if user already has an active (non-expired) credit for this offer's field
-        const existingActiveCredit = await database_1.default.slotCredit.findFirst({
+        const existingActiveCredit = await _database.default.slotCredit.findFirst({
             where: {
                 userId,
                 fieldId: offer.fieldId,
                 status: 'active',
-                remainingSlots: { gt: 0 },
-                expiresAt: { gt: new Date() }
+                remainingSlots: {
+                    gt: 0
+                },
+                expiresAt: {
+                    gt: new Date()
+                }
             }
         });
         if (existingActiveCredit) {
-            throw new AppError_1.AppError(`You already have an active slot pack for this field with ${existingActiveCredit.remainingSlots} slots remaining. You can buy again after it expires or all slots are used.`, 400);
+            throw new _AppError.AppError(`You already have an active slot pack for this field with ${existingActiveCredit.remainingSlots} slots remaining. You can buy again after it expires or all slots are used.`, 400);
         }
         // Calculate the price based on purchase slots and field price
         const pricePerSlot = offer.field.price1hr || offer.field.price30min || 0;
         if (pricePerSlot === 0) {
-            throw new AppError_1.AppError('Field does not have a valid price configured', 400);
+            throw new _AppError.AppError('Field does not have a valid price configured', 400);
         }
         const totalAmount = Math.round(offer.purchaseSlots * pricePerSlot * 100); // Convert to pence/cents for Stripe
         // Find user's default saved card
-        const user = await database_1.default.user.findUnique({ where: { id: userId } });
-        const defaultCard = await database_1.default.paymentMethod.findFirst({
-            where: { userId, isDefault: true }
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            }
+        });
+        const defaultCard = await _database.default.paymentMethod.findFirst({
+            where: {
+                userId,
+                isDefault: true
+            }
         });
         // Fallback to any saved card if no default
-        const savedCard = defaultCard || await database_1.default.paymentMethod.findFirst({
-            where: { userId }
+        const savedCard = defaultCard || await _database.default.paymentMethod.findFirst({
+            where: {
+                userId
+            }
         });
         // Build payment intent params
         const paymentIntentParams = {
@@ -209,11 +270,12 @@ class OfferController {
                 enabled: true,
                 allow_redirects: 'always'
             };
+        } else {
+            paymentIntentParams.automatic_payment_methods = {
+                enabled: true
+            };
         }
-        else {
-            paymentIntentParams.automatic_payment_methods = { enabled: true };
-        }
-        const paymentIntent = await stripe_config_1.stripe.paymentIntents.create(paymentIntentParams);
+        const paymentIntent = await _stripeconfig.stripe.paymentIntents.create(paymentIntentParams);
         res.json({
             success: true,
             data: {
@@ -233,31 +295,35 @@ class OfferController {
         });
     });
     // Confirm offer purchase after Stripe payment success (dog owner)
-    confirmOfferPurchase = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    confirmOfferPurchase = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         const { offerId } = req.params;
         const { paymentIntentId } = req.body;
         if (!paymentIntentId) {
-            throw new AppError_1.AppError('paymentIntentId is required', 400);
+            throw new _AppError.AppError('paymentIntentId is required', 400);
         }
-        const offer = await database_1.default.offer.findUnique({
-            where: { id: offerId }
+        const offer = await _database.default.offer.findUnique({
+            where: {
+                id: offerId
+            }
         });
         if (!offer) {
-            throw new AppError_1.AppError('Offer not found', 404);
+            throw new _AppError.AppError('Offer not found', 404);
         }
         // Verify payment intent with Stripe
-        const paymentIntent = await stripe_config_1.stripe.paymentIntents.retrieve(paymentIntentId);
+        const paymentIntent = await _stripeconfig.stripe.paymentIntents.retrieve(paymentIntentId);
         if (paymentIntent.status !== 'succeeded') {
-            throw new AppError_1.AppError('Payment has not been completed', 400);
+            throw new _AppError.AppError('Payment has not been completed', 400);
         }
         // Verify the payment intent metadata matches
         if (paymentIntent.metadata.offerId !== offerId || paymentIntent.metadata.userId !== userId) {
-            throw new AppError_1.AppError('Payment intent does not match this offer purchase', 400);
+            throw new _AppError.AppError('Payment intent does not match this offer purchase', 400);
         }
         // Check if a SlotCredit already exists for this payment intent (prevent duplicates)
-        const existingCredit = await database_1.default.slotCredit.findFirst({
-            where: { paymentIntentId }
+        const existingCredit = await _database.default.slotCredit.findFirst({
+            where: {
+                paymentIntentId
+            }
         });
         if (existingCredit) {
             return res.json({
@@ -271,12 +337,11 @@ class OfferController {
         const expiresAt = new Date(now);
         if (offer.validity === '1 Week') {
             expiresAt.setDate(expiresAt.getDate() + 7);
-        }
-        else if (offer.validity === '1 Month') {
+        } else if (offer.validity === '1 Month') {
             expiresAt.setMonth(expiresAt.getMonth() + 1);
         }
         const totalSlots = offer.purchaseSlots + offer.freeSlots;
-        const slotCredit = await database_1.default.slotCredit.create({
+        const slotCredit = await _database.default.slotCredit.create({
             data: {
                 userId,
                 fieldId: offer.fieldId,
@@ -296,28 +361,59 @@ class OfferController {
         });
     });
     // Get active credits for a specific field (dog owner)
-    getFieldCredits = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getFieldCredits = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         let { fieldId } = req.params;
         // Resolve human-readable fieldId (e.g. "F2266") to ObjectId
         const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
         if (!isObjectId) {
-            const field = await database_1.default.field.findFirst({ where: { fieldId: fieldId }, select: { id: true } });
-            if (field)
-                fieldId = field.id;
-            else
-                return res.json({ success: true, data: { credits: [], totalRemaining: 0, hasCredits: false, bestCredit: null } });
+            const field = await _database.default.field.findFirst({
+                where: {
+                    fieldId: fieldId
+                },
+                select: {
+                    id: true
+                }
+            });
+            if (field) fieldId = field.id;
+            else return res.json({
+                success: true,
+                data: {
+                    credits: [],
+                    totalRemaining: 0,
+                    hasCredits: false,
+                    bestCredit: null
+                }
+            });
         }
         // Auto-expire
-        await database_1.default.slotCredit.updateMany({
-            where: { userId, fieldId, status: 'active', expiresAt: { lt: new Date() } },
-            data: { status: 'expired' }
+        await _database.default.slotCredit.updateMany({
+            where: {
+                userId,
+                fieldId,
+                status: 'active',
+                expiresAt: {
+                    lt: new Date()
+                }
+            },
+            data: {
+                status: 'expired'
+            }
         });
-        const credits = await database_1.default.slotCredit.findMany({
-            where: { userId, fieldId, status: 'active', remainingSlots: { gt: 0 } },
-            orderBy: { expiresAt: 'asc' }
+        const credits = await _database.default.slotCredit.findMany({
+            where: {
+                userId,
+                fieldId,
+                status: 'active',
+                remainingSlots: {
+                    gt: 0
+                }
+            },
+            orderBy: {
+                expiresAt: 'asc'
+            }
         });
-        const totalRemaining = credits.reduce((sum, c) => sum + c.remainingSlots, 0);
+        const totalRemaining = credits.reduce((sum, c)=>sum + c.remainingSlots, 0);
         res.json({
             success: true,
             data: {
@@ -330,19 +426,25 @@ class OfferController {
         });
     });
     // Get current user's active slot credits (dog owner)
-    getMyCredits = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getMyCredits = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         // Auto-expire any credits that have passed their expiry date
-        await database_1.default.slotCredit.updateMany({
+        await _database.default.slotCredit.updateMany({
             where: {
                 userId,
                 status: 'active',
-                expiresAt: { lt: new Date() }
+                expiresAt: {
+                    lt: new Date()
+                }
             },
-            data: { status: 'expired' }
+            data: {
+                status: 'expired'
+            }
         });
-        const credits = await database_1.default.slotCredit.findMany({
-            where: { userId },
+        const credits = await _database.default.slotCredit.findMany({
+            where: {
+                userId
+            },
             include: {
                 offer: {
                     include: {
@@ -356,7 +458,9 @@ class OfferController {
                     }
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: {
+                createdAt: 'desc'
+            }
         });
         res.json({
             success: true,
@@ -364,69 +468,80 @@ class OfferController {
         });
     });
     // Use slot credits for booking — creates bookings without payment (dog owner)
-    useCredit = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    useCredit = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         let { slotCreditId, fieldId, date, timeSlots, numberOfDogs, duration } = req.body;
         if (!slotCreditId || !fieldId) {
-            throw new AppError_1.AppError('slotCreditId and fieldId are required', 400);
+            throw new _AppError.AppError('slotCreditId and fieldId are required', 400);
         }
         // Resolve human-readable fieldId to ObjectId
         const isObjectId = fieldId.length === 24 && /^[0-9a-fA-F]+$/.test(fieldId);
         if (!isObjectId) {
-            const field = await database_1.default.field.findFirst({ where: { fieldId: fieldId }, select: { id: true } });
-            if (field)
-                fieldId = field.id;
-            else
-                throw new AppError_1.AppError('Field not found', 404);
+            const field = await _database.default.field.findFirst({
+                where: {
+                    fieldId: fieldId
+                },
+                select: {
+                    id: true
+                }
+            });
+            if (field) fieldId = field.id;
+            else throw new _AppError.AppError('Field not found', 404);
         }
-        const credit = await database_1.default.slotCredit.findUnique({
-            where: { id: slotCreditId }
+        const credit = await _database.default.slotCredit.findUnique({
+            where: {
+                id: slotCreditId
+            }
         });
         if (!credit) {
-            throw new AppError_1.AppError('Slot credit not found', 404);
+            throw new _AppError.AppError('Slot credit not found', 404);
         }
         if (credit.userId !== userId) {
-            throw new AppError_1.AppError('This slot credit does not belong to you', 403);
+            throw new _AppError.AppError('This slot credit does not belong to you', 403);
         }
         if (credit.fieldId !== fieldId) {
-            throw new AppError_1.AppError('This slot credit is not valid for this field', 400);
+            throw new _AppError.AppError('This slot credit is not valid for this field', 400);
         }
         if (credit.status !== 'active') {
-            throw new AppError_1.AppError(`This slot credit is ${credit.status}`, 400);
+            throw new _AppError.AppError(`This slot credit is ${credit.status}`, 400);
         }
         if (credit.expiresAt < new Date()) {
-            await database_1.default.slotCredit.update({
-                where: { id: slotCreditId },
-                data: { status: 'expired' }
+            await _database.default.slotCredit.update({
+                where: {
+                    id: slotCreditId
+                },
+                data: {
+                    status: 'expired'
+                }
             });
-            throw new AppError_1.AppError('This slot credit has expired', 400);
+            throw new _AppError.AppError('This slot credit has expired', 400);
         }
         // Validate slots
         const slotsNeeded = timeSlots?.length || 1;
         if (credit.remainingSlots < slotsNeeded) {
-            throw new AppError_1.AppError(`Not enough credits. You need ${slotsNeeded} slots but only have ${credit.remainingSlots} remaining.`, 400);
+            throw new _AppError.AppError(`Not enough credits. You need ${slotsNeeded} slots but only have ${credit.remainingSlots} remaining.`, 400);
         }
         // If booking details provided, create the bookings
         const createdBookings = [];
         if (date && timeSlots && timeSlots.length > 0) {
-            const field = await database_1.default.field.findUnique({ where: { id: fieldId } });
-            if (!field)
-                throw new AppError_1.AppError('Field not found', 404);
+            const field = await _database.default.field.findUnique({
+                where: {
+                    id: fieldId
+                }
+            });
+            if (!field) throw new _AppError.AppError('Field not found', 404);
             const slotDuration = duration === '30min' ? 30 : 60;
-            const { default: BookingModel } = await Promise.resolve().then(() => __importStar(require('../models/booking.model')));
-            for (const slot of timeSlots) {
-                const [slotStart] = slot.split(' - ').map((t) => t.trim());
+            const { default: BookingModel } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../models/booking.model")));
+            for (const slot of timeSlots){
+                const [slotStart] = slot.split(' - ').map((t)=>t.trim());
                 // Parse start time to calculate end time
                 const match = slotStart.match(/(\d{1,2}):(\d{2})(AM|PM)?/i);
-                if (!match)
-                    continue;
+                if (!match) continue;
                 let hours = parseInt(match[1]);
                 const mins = parseInt(match[2]);
                 const period = match[3]?.toUpperCase();
-                if (period === 'PM' && hours !== 12)
-                    hours += 12;
-                if (period === 'AM' && hours === 12)
-                    hours = 0;
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
                 const startMinutes = hours * 60 + mins;
                 const endMinutes = startMinutes + slotDuration;
                 const endH = Math.floor(endMinutes / 60);
@@ -435,7 +550,7 @@ class OfferController {
                 const endDisplay = endH === 0 ? 12 : endH > 12 ? endH - 12 : endH;
                 const endTime = `${endDisplay}:${String(endM).padStart(2, '0')}${endPeriod}`;
                 const pricePerSlot = field.price1hr || field.price30min || 0;
-                const booking = await database_1.default.booking.create({
+                const booking = await _database.default.booking.create({
                     data: {
                         fieldId,
                         userId,
@@ -444,7 +559,7 @@ class OfferController {
                         endTime: endTime,
                         timeSlot: slot,
                         numberOfDogs: parseInt(numberOfDogs) || 1,
-                        totalPrice: 0, // Credit-based booking, no charge
+                        totalPrice: 0,
                         platformCommission: 0,
                         fieldOwnerAmount: 0,
                         bookingId: await BookingModel.generateBookingId(),
@@ -461,8 +576,10 @@ class OfferController {
         const newRemainingSlots = credit.remainingSlots - slotsNeeded;
         const newUsedSlots = credit.usedSlots + slotsNeeded;
         const newStatus = newRemainingSlots === 0 ? 'exhausted' : 'active';
-        const updatedCredit = await database_1.default.slotCredit.update({
-            where: { id: slotCreditId },
+        const updatedCredit = await _database.default.slotCredit.update({
+            where: {
+                id: slotCreditId
+            },
             data: {
                 remainingSlots: newRemainingSlots,
                 usedSlots: newUsedSlots,
@@ -471,15 +588,15 @@ class OfferController {
         });
         res.json({
             success: true,
-            message: newStatus === 'exhausted'
-                ? `${slotsNeeded} slot(s) used. All credits exhausted.`
-                : `${slotsNeeded} slot(s) used. ${newRemainingSlots} remaining.`,
+            message: newStatus === 'exhausted' ? `${slotsNeeded} slot(s) used. All credits exhausted.` : `${slotsNeeded} slot(s) used. ${newRemainingSlots} remaining.`,
             data: {
                 credit: updatedCredit,
                 bookings: createdBookings,
-                bookingIds: createdBookings.map(b => b.id)
+                bookingIds: createdBookings.map((b)=>b.id)
             }
         });
     });
 }
-exports.default = new OfferController();
+const _default = new OfferController();
+
+//# sourceMappingURL=offer.controller.js.map

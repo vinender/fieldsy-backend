@@ -1,13 +1,22 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.notifyError = notifyError;
 //@ts-nocheck
-const nodemailer_1 = __importDefault(require("nodemailer"));
-const dotenv_1 = require("dotenv");
-(0, dotenv_1.config)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "notifyError", {
+    enumerable: true,
+    get: function() {
+        return notifyError;
+    }
+});
+const _nodemailer = /*#__PURE__*/ _interop_require_default(require("nodemailer"));
+const _dotenv = require("dotenv");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+(0, _dotenv.config)();
 const DEVELOPER_EMAIL = 'chandel.vinender@gmail.com';
 const EMAIL_HOST = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com';
 const EMAIL_PORT = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587');
@@ -18,11 +27,14 @@ const EMAIL_FROM = process.env.EMAIL_FROM || '"Fieldsy" <noreply@fieldsy.com>';
 const APP_ENV = process.env.NODE_ENV || 'development';
 let transporter = null;
 if (EMAIL_USER && EMAIL_PASS) {
-    transporter = nodemailer_1.default.createTransport({
+    transporter = _nodemailer.default.createTransport({
         host: EMAIL_HOST,
         port: EMAIL_PORT,
         secure: EMAIL_SECURE,
-        auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+        auth: {
+            user: EMAIL_USER,
+            pass: EMAIL_PASS
+        }
     });
 }
 // Throttle: max 1 email per error type per 5 minutes to avoid flooding
@@ -40,9 +52,8 @@ function isThrottled(key) {
     // Clean old entries periodically
     if (recentErrors.size > 200) {
         const now = Date.now();
-        for (const [k, v] of recentErrors) {
-            if (now - v > THROTTLE_MS)
-                recentErrors.delete(k);
+        for (const [k, v] of recentErrors){
+            if (now - v > THROTTLE_MS) recentErrors.delete(k);
         }
     }
     return false;
@@ -109,31 +120,37 @@ async function notifyError(error, context) {
             from: EMAIL_FROM,
             to: DEVELOPER_EMAIL,
             subject: `[Fieldsy ${APP_ENV.toUpperCase()}] ${context?.type || 'ERROR'}: ${error.message?.substring(0, 80)}`,
-            html,
+            html
         });
-    }
-    catch (emailErr) {
+    } catch (emailErr) {
         console.error('[ErrorNotifier] Failed to send error email:', emailErr.message);
     }
 }
 function escapeHtml(str) {
-    if (!str)
-        return '';
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function sanitizeBody(body) {
-    if (!body || typeof body !== 'object')
-        return body;
-    const sanitized = { ...body };
-    const sensitiveKeys = ['password', 'token', 'secret', 'card', 'cvv', 'cvc', 'authorization', 'cookie'];
-    for (const key of Object.keys(sanitized)) {
-        if (sensitiveKeys.some(s => key.toLowerCase().includes(s))) {
+    if (!body || typeof body !== 'object') return body;
+    const sanitized = {
+        ...body
+    };
+    const sensitiveKeys = [
+        'password',
+        'token',
+        'secret',
+        'card',
+        'cvv',
+        'cvc',
+        'authorization',
+        'cookie'
+    ];
+    for (const key of Object.keys(sanitized)){
+        if (sensitiveKeys.some((s)=>key.toLowerCase().includes(s))) {
             sanitized[key] = '[REDACTED]';
         }
     }
     return sanitized;
 }
+
+//# sourceMappingURL=error-notifier.service.js.map

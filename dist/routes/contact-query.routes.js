@@ -1,15 +1,25 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const contact_query_controller_1 = require("../controllers/contact-query.controller");
-const admin_middleware_1 = require("../middleware/admin.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _contactquerycontroller = require("../controllers/contact-query.controller");
+const _adminmiddleware = require("../middleware/admin.middleware");
+const router = (0, _express.Router)();
 // Public route - anyone can submit a contact query
-router.post('/', contact_query_controller_1.createContactQuery);
+router.post('/', _contactquerycontroller.createContactQuery);
 // Admin only routes
-router.get('/', admin_middleware_1.authenticateAdmin, contact_query_controller_1.getAllContactQueries);
-router.get('/:id', admin_middleware_1.authenticateAdmin, contact_query_controller_1.getContactQueryById);
-router.put('/:id', admin_middleware_1.authenticateAdmin, contact_query_controller_1.updateContactQuery);
-router.delete('/:id', admin_middleware_1.authenticateAdmin, contact_query_controller_1.deleteContactQuery);
-exports.default = router;
+router.get('/', _adminmiddleware.authenticateAdmin, _contactquerycontroller.getAllContactQueries);
+router.get('/:id', _adminmiddleware.authenticateAdmin, _contactquerycontroller.getContactQueryById);
+router.put('/:id', _adminmiddleware.authenticateAdmin, _contactquerycontroller.updateContactQuery);
+router.delete('/:id', _adminmiddleware.authenticateAdmin, _contactquerycontroller.deleteContactQuery);
+const _default = router;
+
+//# sourceMappingURL=contact-query.routes.js.map

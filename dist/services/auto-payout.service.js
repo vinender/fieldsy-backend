@@ -1,70 +1,89 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.automaticPayoutService = exports.AutomaticPayoutService = void 0;
 //@ts-nocheck
-const client_1 = require("@prisma/client");
-const notification_controller_1 = require("../controllers/notification.controller");
-const stripe_config_1 = require("../config/stripe.config");
-const stripe_payout_helper_1 = require("../utils/stripe-payout.helper");
-const stripe_balance_helper_1 = require("../utils/stripe-balance.helper");
-const prisma = new client_1.PrismaClient();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get AutomaticPayoutService () {
+        return AutomaticPayoutService;
+    },
+    get automaticPayoutService () {
+        return automaticPayoutService;
+    }
+});
+const _client = require("@prisma/client");
+const _notificationcontroller = require("../controllers/notification.controller");
+const _stripeconfig = require("../config/stripe.config");
+const _stripepayouthelper = require("../utils/stripe-payout.helper");
+const _stripebalancehelper = require("../utils/stripe-balance.helper");
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
+const prisma = new _client.PrismaClient();
 // Stripe fee structure (2.9% + 30 cents per transaction)
 const STRIPE_PERCENTAGE_FEE = 0.029;
 const STRIPE_FIXED_FEE_CENTS = 30;
 class AutomaticPayoutService {
     /**
-     * Calculate Stripe fee for a given amount
-     */
-    calculateStripeFee(amountInCents) {
+   * Calculate Stripe fee for a given amount
+   */ calculateStripeFee(amountInCents) {
         return Math.round(amountInCents * STRIPE_PERCENTAGE_FEE + STRIPE_FIXED_FEE_CENTS);
     }
     /**
-     * Check if booking has passed the cancellation window (configurable hours before booking time)
-     */
-    hasCancellationWindowPassed(booking, cancellationWindowHours = 24) {
+   * Check if booking has passed the cancellation window (configurable hours before booking time)
+   */ hasCancellationWindowPassed(booking, cancellationWindowHours = 24) {
         const now = new Date();
         const bookingDateTime = new Date(booking.date);
         // Parse the start time and add it to the booking date
         const [time, period] = booking.startTime.split(/(?=[AP]M)/);
         const [hours, minutes] = time.split(':').map(Number);
         let hour = hours;
-        if (period === 'PM' && hour !== 12)
-            hour += 12;
-        if (period === 'AM' && hour === 12)
-            hour = 0;
+        if (period === 'PM' && hour !== 12) hour += 12;
+        if (period === 'AM' && hour === 12) hour = 0;
         bookingDateTime.setHours(hour, minutes || 0, 0, 0);
         // Subtract configured hours to get the cancellation deadline
         const cancellationDeadline = new Date(bookingDateTime.getTime() - cancellationWindowHours * 60 * 60 * 1000);
@@ -72,9 +91,8 @@ class AutomaticPayoutService {
         return now > cancellationDeadline;
     }
     /**
-     * Check if payout should be released based on admin settings
-     */
-    async shouldReleasePayout(booking, settings) {
+   * Check if payout should be released based on admin settings
+   */ async shouldReleasePayout(booking, settings) {
         const payoutReleaseSchedule = settings?.payoutReleaseSchedule || 'after_cancellation_window';
         const cancellationWindowHours = settings?.cancellationWindowHours || 24;
         if (payoutReleaseSchedule === 'on_weekend') {
@@ -82,18 +100,16 @@ class AutomaticPayoutService {
             const today = new Date().getDay();
             // Friday = 5, Saturday = 6, Sunday = 0
             return today === 5 || today === 6 || today === 0;
-        }
-        else if (payoutReleaseSchedule === 'after_cancellation_window') {
+        } else if (payoutReleaseSchedule === 'after_cancellation_window') {
             // Check if cancellation window has passed
             return this.hasCancellationWindowPassed(booking, cancellationWindowHours);
         }
         return false;
     }
     /**
-     * Process automatic payout for bookings where cancellation window has passed
-     * This should be called by a cron job periodically
-     */
-    async processEligiblePayouts() {
+   * Process automatic payout for bookings where cancellation window has passed
+   * This should be called by a cron job periodically
+   */ async processEligiblePayouts() {
         try {
             console.log('Starting automatic payout processing...');
             // Get system settings for payout release schedule
@@ -108,13 +124,31 @@ class AutomaticPayoutService {
                     status: 'CONFIRMED',
                     paymentStatus: 'PAID',
                     OR: [
-                        { payoutStatus: { isSet: false } },
-                        { payoutStatus: null },
-                        { payoutStatus: 'PENDING' },
-                        { payoutStatus: 'HELD' }
+                        {
+                            payoutStatus: {
+                                isSet: false
+                            }
+                        },
+                        {
+                            payoutStatus: null
+                        },
+                        {
+                            payoutStatus: 'PENDING'
+                        },
+                        {
+                            payoutStatus: 'HELD'
+                        }
                     ],
-                    field: { id: { not: undefined } },
-                    user: { id: { not: undefined } }
+                    field: {
+                        id: {
+                            not: undefined
+                        }
+                    },
+                    user: {
+                        id: {
+                            not: undefined
+                        }
+                    }
                 },
                 include: {
                     field: {
@@ -133,7 +167,7 @@ class AutomaticPayoutService {
                 failed: 0,
                 details: []
             };
-            for (const booking of eligibleBookings) {
+            for (const booking of eligibleBookings){
                 try {
                     // Check if payout should be released based on admin settings
                     if (!await this.shouldReleasePayout(booking, systemSettings)) {
@@ -156,8 +190,7 @@ class AutomaticPayoutService {
                             payoutId: payoutResult.id,
                             amount: payoutResult.amount
                         });
-                    }
-                    else {
+                    } else {
                         results.skipped++;
                         results.details.push({
                             bookingId: booking.id,
@@ -165,8 +198,7 @@ class AutomaticPayoutService {
                             reason: 'Not eligible or already processed'
                         });
                     }
-                }
-                catch (error) {
+                } catch (error) {
                     console.error(`Error processing payout for booking ${booking.id}:`, error);
                     results.failed++;
                     results.details.push({
@@ -178,22 +210,22 @@ class AutomaticPayoutService {
             }
             console.log(`Payout processing complete. Processed: ${results.processed}, Skipped: ${results.skipped}, Failed: ${results.failed}`);
             return results;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error in automatic payout processing:', error);
             throw error;
         }
     }
     /**
-     * Process payout for a specific booking after cancellation window has passed
-     */
-    async processBookingPayoutAfterCancellationWindow(bookingId) {
+   * Process payout for a specific booking after cancellation window has passed
+   */ async processBookingPayoutAfterCancellationWindow(bookingId) {
         try {
             // Get system settings
             const systemSettings = await prisma.systemSettings.findFirst();
             // Get booking with all necessary relations
             const booking = await prisma.booking.findUnique({
-                where: { id: bookingId },
+                where: {
+                    id: bookingId
+                },
                 include: {
                     field: {
                         include: {
@@ -228,19 +260,21 @@ class AutomaticPayoutService {
             }
             // Check if field owner has a connected Stripe account
             const stripeAccount = await prisma.stripeAccount.findUnique({
-                where: { userId: fieldOwner.id }
+                where: {
+                    userId: fieldOwner.id
+                }
             });
             if (!stripeAccount) {
                 console.log(`Field owner ${fieldOwner.id} does not have a Stripe account`);
                 // Calculate field owner amount if not stored
                 let payoutAmount = booking.fieldOwnerAmount;
                 if (!payoutAmount) {
-                    const { calculatePayoutAmounts } = await Promise.resolve().then(() => __importStar(require('../utils/commission.utils')));
+                    const { calculatePayoutAmounts } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../utils/commission.utils")));
                     const calculated = await calculatePayoutAmounts(booking.totalPrice, fieldOwner.id);
                     payoutAmount = calculated.fieldOwnerAmount;
                 }
                 // Notify field owner to set up Stripe account
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: fieldOwner.id,
                     type: 'PAYOUT_PENDING',
                     title: 'Set up payment account for automatic payouts',
@@ -253,8 +287,12 @@ class AutomaticPayoutService {
                 });
                 // Mark payout as pending account setup
                 await prisma.booking.update({
-                    where: { id: bookingId },
-                    data: { payoutStatus: 'PENDING_ACCOUNT' }
+                    where: {
+                        id: bookingId
+                    },
+                    data: {
+                        payoutStatus: 'PENDING_ACCOUNT'
+                    }
                 });
                 return null;
             }
@@ -264,12 +302,12 @@ class AutomaticPayoutService {
                 // Calculate field owner amount if not stored
                 let payoutAmount = booking.fieldOwnerAmount;
                 if (!payoutAmount) {
-                    const { calculatePayoutAmounts } = await Promise.resolve().then(() => __importStar(require('../utils/commission.utils')));
+                    const { calculatePayoutAmounts } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../utils/commission.utils")));
                     const calculated = await calculatePayoutAmounts(booking.totalPrice, fieldOwner.id);
                     payoutAmount = calculated.fieldOwnerAmount;
                 }
                 // Notify field owner to complete Stripe onboarding
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: fieldOwner.id,
                     type: 'PAYOUT_PENDING',
                     title: 'Complete payment account setup',
@@ -282,15 +320,19 @@ class AutomaticPayoutService {
                 });
                 // Mark payout as pending account setup
                 await prisma.booking.update({
-                    where: { id: bookingId },
-                    data: { payoutStatus: 'PENDING_ACCOUNT' }
+                    where: {
+                        id: bookingId
+                    },
+                    data: {
+                        payoutStatus: 'PENDING_ACCOUNT'
+                    }
                 });
                 return null;
             }
             // Get payout amount - use stored value or calculate
             let payoutAmount = booking.fieldOwnerAmount;
             if (!payoutAmount) {
-                const { calculatePayoutAmounts } = await Promise.resolve().then(() => __importStar(require('../utils/commission.utils')));
+                const { calculatePayoutAmounts } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../utils/commission.utils")));
                 const calculated = await calculatePayoutAmounts(booking.totalPrice, fieldOwner.id);
                 payoutAmount = calculated.fieldOwnerAmount;
             }
@@ -301,15 +343,20 @@ class AutomaticPayoutService {
             // ============================================================================
             // Check if funds from the original payment are available
             const transaction = await prisma.transaction.findFirst({
-                where: { bookingId, type: 'PAYMENT' }
+                where: {
+                    bookingId,
+                    type: 'PAYMENT'
+                }
             });
             if (transaction?.stripeChargeId) {
-                const fundsCheck = await (0, stripe_balance_helper_1.checkChargeFundsAvailable)(transaction.stripeChargeId);
+                const fundsCheck = await (0, _stripebalancehelper.checkChargeFundsAvailable)(transaction.stripeChargeId);
                 if (!fundsCheck.isAvailable) {
                     console.log(`[AutoPayout] Funds not yet available for booking ${bookingId}: ${fundsCheck.message}`);
                     // Update booking - will be retried in next cron cycle
                     await prisma.booking.update({
-                        where: { id: bookingId },
+                        where: {
+                            id: bookingId
+                        },
                         data: {
                             payoutStatus: 'PENDING',
                             payoutHeldReason: `Funds pending availability: ${fundsCheck.availableOn?.toISOString() || 'unknown'}`
@@ -317,14 +364,20 @@ class AutomaticPayoutService {
                     });
                     // Update transaction lifecycle
                     await prisma.transaction.updateMany({
-                        where: { bookingId },
-                        data: { lifecycleStage: 'FUNDS_PENDING' }
+                        where: {
+                            bookingId
+                        },
+                        data: {
+                            lifecycleStage: 'FUNDS_PENDING'
+                        }
                     });
                     return null; // Will be processed when funds become available
                 }
                 // Update lifecycle to FUNDS_AVAILABLE
                 await prisma.transaction.updateMany({
-                    where: { bookingId },
+                    where: {
+                        bookingId
+                    },
                     data: {
                         lifecycleStage: 'FUNDS_AVAILABLE',
                         fundsAvailableAt: new Date()
@@ -332,12 +385,14 @@ class AutomaticPayoutService {
                 });
             }
             // Check platform balance can cover this transfer
-            const balanceCheck = await (0, stripe_balance_helper_1.checkPlatformBalance)(payoutAmountInCents, 'gbp');
+            const balanceCheck = await (0, _stripebalancehelper.checkPlatformBalance)(payoutAmountInCents, 'gbp');
             if (!balanceCheck.canTransfer) {
                 console.log(`[AutoPayout] Insufficient platform balance for booking ${bookingId}: ${balanceCheck.message}`);
                 // Keep as PENDING - will be retried in next cron cycle
                 await prisma.booking.update({
-                    where: { id: bookingId },
+                    where: {
+                        id: bookingId
+                    },
                     data: {
                         payoutStatus: 'PENDING',
                         payoutHeldReason: `Insufficient platform balance: ${balanceCheck.availableAmount / 100} GBP available, need ${payoutAmountInCents / 100} GBP`
@@ -347,12 +402,16 @@ class AutomaticPayoutService {
             }
             // Update booking to processing (only after all checks pass)
             await prisma.booking.update({
-                where: { id: bookingId },
-                data: { payoutStatus: 'PROCESSING' }
+                where: {
+                    id: bookingId
+                },
+                data: {
+                    payoutStatus: 'PROCESSING'
+                }
             });
             try {
                 // Create a transfer to the connected account using safe transfer with balance gate
-                const transferResult = await (0, stripe_balance_helper_1.safeTransferWithBalanceGate)({
+                const transferResult = await (0, _stripebalancehelper.safeTransferWithBalanceGate)({
                     amount: payoutAmountInCents,
                     currency: 'gbp',
                     destination: stripeAccount.stripeAccountId,
@@ -370,7 +429,9 @@ class AutomaticPayoutService {
                 if (!transferResult.success && transferResult.shouldDefer) {
                     console.log(`[AutoPayout] Transfer deferred for booking ${bookingId}: ${transferResult.reason}`);
                     await prisma.booking.update({
-                        where: { id: bookingId },
+                        where: {
+                            id: bookingId
+                        },
                         data: {
                             payoutStatus: 'PENDING',
                             payoutHeldReason: transferResult.reason
@@ -384,21 +445,22 @@ class AutomaticPayoutService {
                 const transfer = transferResult.transfer;
                 let stripePayout = null;
                 try {
-                    stripePayout = await (0, stripe_payout_helper_1.createConnectedAccountPayout)({
+                    stripePayout = await (0, _stripepayouthelper.createConnectedAccountPayout)({
                         stripeAccountId: stripeAccount.stripeAccountId,
                         amountInMinorUnits: payoutAmountInCents,
                         description: `Automatic payout for booking ${bookingId} - Cancellation window passed`,
                         metadata: {
                             bookingId,
-                            bookingIds: JSON.stringify([bookingId]),
+                            bookingIds: JSON.stringify([
+                                bookingId
+                            ]),
                             fieldId: field.id,
                             fieldOwnerId: fieldOwner.id,
                             transferId: transfer.id,
                             source: 'auto_payout'
                         }
                     });
-                }
-                catch (payoutError) {
+                } catch (payoutError) {
                     console.error('Stripe payout creation failed:', payoutError);
                 }
                 // Create payout record in database
@@ -411,7 +473,9 @@ class AutomaticPayoutService {
                         status: stripePayout?.status || 'processing',
                         method: stripePayout?.method || 'standard',
                         description: `Automatic payout for booking ${bookingId} - Cancellation window passed`,
-                        bookingIds: [bookingId],
+                        bookingIds: [
+                            bookingId
+                        ],
                         arrivalDate: stripePayout?.arrival_date ? new Date(stripePayout.arrival_date * 1000) : new Date(),
                         failureCode: stripePayout?.failure_code || null,
                         failureMessage: stripePayout?.failure_message || null
@@ -419,7 +483,9 @@ class AutomaticPayoutService {
                 });
                 // Update booking with payout details
                 await prisma.booking.update({
-                    where: { id: bookingId },
+                    where: {
+                        id: bookingId
+                    },
                     data: {
                         payoutStatus: stripePayout?.status === 'paid' ? 'COMPLETED' : 'PROCESSING',
                         payoutId: payout.id
@@ -427,7 +493,9 @@ class AutomaticPayoutService {
                 });
                 // Update Transaction lifecycle to track the transfer and payout
                 await prisma.transaction.updateMany({
-                    where: { bookingId },
+                    where: {
+                        bookingId
+                    },
                     data: {
                         lifecycleStage: stripePayout?.status === 'paid' ? 'PAYOUT_COMPLETED' : 'PAYOUT_INITIATED',
                         stripeTransferId: transfer.id,
@@ -435,7 +503,9 @@ class AutomaticPayoutService {
                         connectedAccountId: stripeAccount.stripeAccountId,
                         transferredAt: new Date(),
                         payoutInitiatedAt: new Date(),
-                        ...(stripePayout?.status === 'paid' ? { payoutCompletedAt: new Date() } : {})
+                        ...stripePayout?.status === 'paid' ? {
+                            payoutCompletedAt: new Date()
+                        } : {}
                     }
                 });
                 // Generate and store invoice details
@@ -446,12 +516,12 @@ class AutomaticPayoutService {
                     customerName: booking.user.name || booking.user.email,
                     fieldName: field.name,
                     totalAmount: booking.totalPrice,
-                    platformFee: booking.platformCommission || (booking.totalPrice * 0.2), // Platform takes ~20% commission
+                    platformFee: booking.platformCommission || booking.totalPrice * 0.2,
                     payoutAmount: payoutAmount,
                     payoutDate: new Date()
                 };
                 // Send notification to field owner with invoice
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: fieldOwner.id,
                     type: 'PAYOUT_PROCESSED',
                     title: '💰 Payment Received!',
@@ -467,20 +537,25 @@ class AutomaticPayoutService {
                 });
                 console.log(`Automatic payout processed successfully for booking ${bookingId}: £${payoutAmount}`);
                 return payout;
-            }
-            catch (stripeError) {
+            } catch (stripeError) {
                 console.error('Stripe transfer error:', stripeError);
                 // Update booking to failed payout
                 await prisma.booking.update({
-                    where: { id: bookingId },
-                    data: { payoutStatus: 'FAILED' }
+                    where: {
+                        id: bookingId
+                    },
+                    data: {
+                        payoutStatus: 'FAILED'
+                    }
                 });
                 // Notify admin about failed payout
                 const adminUsers = await prisma.user.findMany({
-                    where: { role: 'ADMIN' }
+                    where: {
+                        role: 'ADMIN'
+                    }
                 });
-                for (const admin of adminUsers) {
-                    await (0, notification_controller_1.createNotification)({
+                for (const admin of adminUsers){
+                    await (0, _notificationcontroller.createNotification)({
                         userId: admin.id,
                         type: 'PAYOUT_FAILED',
                         title: 'Automatic Payout Failed',
@@ -494,21 +569,23 @@ class AutomaticPayoutService {
                 }
                 throw stripeError;
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error processing automatic payout:', error);
             throw error;
         }
     }
     /**
-     * Handle refund with proper fee management
-     * When a refund is issued, the Stripe fee is deducted from the field owner's account
-     */
-    async processRefundWithFeeAdjustment(bookingId, refundReason) {
+   * Handle refund with proper fee management
+   * When a refund is issued, the Stripe fee is deducted from the field owner's account
+   */ async processRefundWithFeeAdjustment(bookingId, refundReason) {
         try {
             // Support both ObjectId and human-readable bookingId
             const isObjectId = bookingId.length === 24 && /^[0-9a-fA-F]+$/.test(bookingId);
-            const where = isObjectId ? { id: bookingId } : { bookingId: bookingId };
+            const where = isObjectId ? {
+                id: bookingId
+            } : {
+                bookingId: bookingId
+            };
             const booking = await prisma.booking.findFirst({
                 where,
                 include: {
@@ -530,20 +607,22 @@ class AutomaticPayoutService {
             if (booking.payoutStatus === 'COMPLETED' && booking.payoutId) {
                 // Need to reverse the transfer and deduct Stripe fee
                 const fieldOwnerStripeAccount = await prisma.stripeAccount.findUnique({
-                    where: { userId: booking.field.owner.id }
+                    where: {
+                        userId: booking.field.owner.id
+                    }
                 });
                 if (fieldOwnerStripeAccount) {
                     try {
                         // Create a reverse transfer (negative transfer) to recover funds from field owner
                         // This includes the original payout amount plus the Stripe fee
-                        const fieldOwnerAmount = booking.fieldOwnerAmount || (booking.totalPrice * 0.8); // Field owner gets ~80% (platform takes ~20% commission)
+                        const fieldOwnerAmount = booking.fieldOwnerAmount || booking.totalPrice * 0.8; // Field owner gets ~80% (platform takes ~20% commission)
                         const fieldOwnerAmountInCents = Math.round(fieldOwnerAmount * 100);
                         const totalRecoveryAmount = fieldOwnerAmountInCents + stripeFee;
-                        const reverseTransfer = await stripe_config_1.stripe.transfers.create({
+                        const reverseTransfer = await _stripeconfig.stripe.transfers.create({
                             amount: totalRecoveryAmount,
                             currency: 'gbp',
                             destination: fieldOwnerStripeAccount.stripeAccountId,
-                            reverse_transfer: true, // This reverses the original transfer
+                            reverse_transfer: true,
                             metadata: {
                                 bookingId,
                                 type: 'refund_reversal',
@@ -554,7 +633,7 @@ class AutomaticPayoutService {
                             description: `Refund reversal for booking ${bookingId} (includes Stripe fee)`
                         });
                         // Notify field owner about the reversal
-                        await (0, notification_controller_1.createNotification)({
+                        await (0, _notificationcontroller.createNotification)({
                             userId: booking.field.owner.id,
                             type: 'PAYOUT_REVERSED',
                             title: 'Payout Reversed Due to Refund',
@@ -566,15 +645,14 @@ class AutomaticPayoutService {
                                 refundReason
                             }
                         });
-                    }
-                    catch (reversalError) {
+                    } catch (reversalError) {
                         console.error('Error reversing field owner payout:', reversalError);
-                        // Continue with refund even if reversal fails - admin will handle manually
+                    // Continue with refund even if reversal fails - admin will handle manually
                     }
                 }
             }
             // Process the refund to the customer
-            const refund = await stripe_config_1.stripe.refunds.create({
+            const refund = await _stripeconfig.stripe.refunds.create({
                 payment_intent: booking.paymentIntentId,
                 reason: 'requested_by_customer',
                 metadata: {
@@ -584,7 +662,9 @@ class AutomaticPayoutService {
             });
             // Update payment record
             await prisma.payment.update({
-                where: { id: booking.payment.id },
+                where: {
+                    id: booking.payment.id
+                },
                 data: {
                     status: 'refunded',
                     stripeRefundId: refund.id,
@@ -594,7 +674,9 @@ class AutomaticPayoutService {
             });
             // Update booking status
             await prisma.booking.update({
-                where: { id: bookingId },
+                where: {
+                    id: bookingId
+                },
                 data: {
                     status: 'CANCELLED',
                     payoutStatus: 'REFUNDED',
@@ -603,7 +685,7 @@ class AutomaticPayoutService {
                 }
             });
             // Notify customer about refund
-            await (0, notification_controller_1.createNotification)({
+            await (0, _notificationcontroller.createNotification)({
                 userId: booking.userId,
                 type: 'REFUND_PROCESSED',
                 title: 'Refund Processed',
@@ -615,26 +697,30 @@ class AutomaticPayoutService {
                 }
             });
             return refund;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error processing refund with fee adjustment:', error);
             throw error;
         }
     }
     /**
-     * Get payout summary for field owner dashboard
-     */
-    async getPayoutSummary(userId) {
+   * Get payout summary for field owner dashboard
+   */ async getPayoutSummary(userId) {
         try {
             const userFields = await prisma.field.findMany({
-                where: { ownerId: userId },
-                select: { id: true }
+                where: {
+                    ownerId: userId
+                },
+                select: {
+                    id: true
+                }
             });
-            const fieldIds = userFields.map(f => f.id);
+            const fieldIds = userFields.map((f)=>f.id);
             // Get all bookings for user's fields
             const bookings = await prisma.booking.findMany({
                 where: {
-                    fieldId: { in: fieldIds },
+                    fieldId: {
+                        in: fieldIds
+                    },
                     paymentStatus: 'PAID'
                 }
             });
@@ -643,12 +729,12 @@ class AutomaticPayoutService {
                 totalEarnings: 0,
                 pendingPayouts: 0,
                 completedPayouts: 0,
-                upcomingPayouts: 0, // Bookings where cancellation window hasn't passed
+                upcomingPayouts: 0,
                 bookingsInCancellationWindow: []
             };
             // Import commission calculation utility
-            const { calculatePayoutAmounts } = await Promise.resolve().then(() => __importStar(require('../utils/commission.utils')));
-            for (const booking of bookings) {
+            const { calculatePayoutAmounts } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../utils/commission.utils")));
+            for (const booking of bookings){
                 let amount = booking.fieldOwnerAmount;
                 if (!amount) {
                     const calculated = await calculatePayoutAmounts(booking.totalPrice, userId);
@@ -657,26 +743,21 @@ class AutomaticPayoutService {
                 if (booking.payoutStatus === 'COMPLETED') {
                     summary.completedPayouts += amount;
                     summary.totalEarnings += amount;
-                }
-                else if (booking.payoutStatus === 'PROCESSING') {
+                } else if (booking.payoutStatus === 'PROCESSING') {
                     summary.pendingPayouts += amount;
-                }
-                else if (booking.status === 'CONFIRMED') {
+                } else if (booking.status === 'CONFIRMED') {
                     const systemSettings = await prisma.systemSettings.findFirst();
                     if (await this.shouldReleasePayout(booking, systemSettings)) {
                         summary.pendingPayouts += amount;
-                    }
-                    else {
+                    } else {
                         summary.upcomingPayouts += amount;
                         // Calculate when payout will be available
                         const bookingDateTime = new Date(booking.date);
                         const [time, period] = booking.startTime.split(/(?=[AP]M)/);
                         const [hours, minutes] = time.split(':').map(Number);
                         let hour = hours;
-                        if (period === 'PM' && hour !== 12)
-                            hour += 12;
-                        if (period === 'AM' && hour === 12)
-                            hour = 0;
+                        if (period === 'PM' && hour !== 12) hour += 12;
+                        if (period === 'AM' && hour === 12) hour = 0;
                         bookingDateTime.setHours(hour, minutes || 0, 0, 0);
                         const payoutAvailableAt = new Date(bookingDateTime.getTime() - 24 * 60 * 60 * 1000);
                         summary.bookingsInCancellationWindow.push({
@@ -690,12 +771,12 @@ class AutomaticPayoutService {
                 }
             }
             return summary;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error getting payout summary:', error);
             throw error;
         }
     }
 }
-exports.AutomaticPayoutService = AutomaticPayoutService;
-exports.automaticPayoutService = new AutomaticPayoutService();
+const automaticPayoutService = new AutomaticPayoutService();
+
+//# sourceMappingURL=auto-payout.service.js.map

@@ -1,21 +1,31 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const database_1 = __importDefault(require("../config/database"));
-const admin_middleware_1 = require("../middleware/admin.middleware");
-const email_service_1 = require("../services/email.service");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _adminmiddleware = require("../middleware/admin.middleware");
+const _emailservice = require("../services/email.service");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = (0, _express.Router)();
 // Get system commission settings
-router.get('/settings', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/settings', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         // Get or create system settings
-        let settings = await database_1.default.systemSettings.findFirst();
+        let settings = await _database.default.systemSettings.findFirst();
         if (!settings) {
-            settings = await database_1.default.systemSettings.create({
+            settings = await _database.default.systemSettings.create({
                 data: {
                     defaultCommissionRate: 20 // Default 20% commission
                 }
@@ -25,8 +35,7 @@ router.get('/settings', admin_middleware_1.authenticateAdmin, async (req, res) =
             success: true,
             data: settings
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching commission settings:', error);
         res.status(500).json({
             success: false,
@@ -35,7 +44,7 @@ router.get('/settings', admin_middleware_1.authenticateAdmin, async (req, res) =
     }
 });
 // Update default commission rate
-router.put('/settings', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.put('/settings', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { defaultCommissionRate } = req.body;
         // Validate commission rate: must be 1-50%, whole numbers only, no 0
@@ -47,17 +56,22 @@ router.put('/settings', admin_middleware_1.authenticateAdmin, async (req, res) =
             });
         }
         // Get current settings to check previous rate
-        let settings = await database_1.default.systemSettings.findFirst();
+        let settings = await _database.default.systemSettings.findFirst();
         const previousRate = settings?.defaultCommissionRate || 20;
         if (settings) {
-            settings = await database_1.default.systemSettings.update({
-                where: { id: settings.id },
-                data: { defaultCommissionRate }
+            settings = await _database.default.systemSettings.update({
+                where: {
+                    id: settings.id
+                },
+                data: {
+                    defaultCommissionRate
+                }
             });
-        }
-        else {
-            settings = await database_1.default.systemSettings.create({
-                data: { defaultCommissionRate }
+        } else {
+            settings = await _database.default.systemSettings.create({
+                data: {
+                    defaultCommissionRate
+                }
             });
         }
         // Note: No email notifications for default commission rate changes
@@ -67,8 +81,7 @@ router.put('/settings', admin_middleware_1.authenticateAdmin, async (req, res) =
             data: settings,
             message: 'Default commission rate updated successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating commission settings:', error);
         res.status(500).json({
             success: false,
@@ -77,11 +90,13 @@ router.put('/settings', admin_middleware_1.authenticateAdmin, async (req, res) =
     }
 });
 // Get field owner commission rate
-router.get('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/field-owner/:userId', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { userId } = req.params;
-        const user = await database_1.default.user.findUnique({
-            where: { id: userId },
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            },
             select: {
                 id: true,
                 name: true,
@@ -98,7 +113,7 @@ router.get('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
         // Get default commission if user doesn't have custom rate
         let defaultRate = 20;
         if (!user.commissionRate) {
-            const settings = await database_1.default.systemSettings.findFirst();
+            const settings = await _database.default.systemSettings.findFirst();
             if (settings) {
                 defaultRate = settings.defaultCommissionRate;
             }
@@ -111,8 +126,7 @@ router.get('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
                 isUsingDefault: !user.commissionRate
             }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching field owner commission:', error);
         res.status(500).json({
             success: false,
@@ -121,17 +135,24 @@ router.get('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
     }
 });
 // Update field owner commission rate
-router.put('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.put('/field-owner/:userId', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { userId } = req.params;
         const { commissionRate, useDefault } = req.body;
         // Get current user data and system default rate
         const [currentUser, settings] = await Promise.all([
-            database_1.default.user.findUnique({
-                where: { id: userId },
-                select: { id: true, name: true, email: true, commissionRate: true }
+            _database.default.user.findUnique({
+                where: {
+                    id: userId
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    commissionRate: true
+                }
             }),
-            database_1.default.systemSettings.findFirst()
+            _database.default.systemSettings.findFirst()
         ]);
         if (!currentUser) {
             return res.status(404).json({
@@ -144,9 +165,13 @@ router.put('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
         // If useDefault is true, set commission to null to use system default
         // No email notification when switching to default rate
         if (useDefault) {
-            const user = await database_1.default.user.update({
-                where: { id: userId },
-                data: { commissionRate: null }
+            const user = await _database.default.user.update({
+                where: {
+                    id: userId
+                },
+                data: {
+                    commissionRate: null
+                }
             });
             return res.json({
                 success: true,
@@ -162,19 +187,23 @@ router.put('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
                 message: 'Commission rate must be a whole number between 1% and 50%'
             });
         }
-        const user = await database_1.default.user.update({
-            where: { id: userId },
-            data: { commissionRate }
+        const user = await _database.default.user.update({
+            where: {
+                id: userId
+            },
+            data: {
+                commissionRate
+            }
         });
         // Send email notification if rate changed
         if (previousRate !== rate) {
-            email_service_1.emailService.sendCustomCommissionChangeEmail({
+            _emailservice.emailService.sendCustomCommissionChangeEmail({
                 email: currentUser.email,
                 ownerName: currentUser.name || 'Field Owner',
                 previousRate: previousRate,
                 newRate: rate,
                 useDefault: false
-            }).catch(err => {
+            }).catch((err)=>{
                 console.error(`Failed to send commission change email to ${currentUser.email}:`, err);
             });
         }
@@ -183,8 +212,7 @@ router.put('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
             data: user,
             message: 'Field owner commission rate updated successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating field owner commission:', error);
         res.status(500).json({
             success: false,
@@ -193,7 +221,7 @@ router.put('/field-owner/:userId', admin_middleware_1.authenticateAdmin, async (
     }
 });
 // Get all field owners with commission rates
-router.get('/field-owners', admin_middleware_1.authenticateAdmin, async (req, res) => {
+router.get('/field-owners', _adminmiddleware.authenticateAdmin, async (req, res)=>{
     try {
         const { page = 1, limit = 10, search = '' } = req.query;
         const skip = (Number(page) - 1) * Number(limit);
@@ -206,24 +234,50 @@ router.get('/field-owners', admin_middleware_1.authenticateAdmin, async (req, re
             if (isNumeric) {
                 searchFilter = {
                     OR: [
-                        { userId: numericSearch },
-                        { name: { contains: searchStr, mode: 'insensitive' } },
-                        { email: { contains: searchStr, mode: 'insensitive' } }
+                        {
+                            userId: numericSearch
+                        },
+                        {
+                            name: {
+                                contains: searchStr,
+                                mode: 'insensitive'
+                            }
+                        },
+                        {
+                            email: {
+                                contains: searchStr,
+                                mode: 'insensitive'
+                            }
+                        }
                     ]
                 };
-            }
-            else {
+            } else {
                 searchFilter = {
                     OR: [
-                        { name: { contains: searchStr, mode: 'insensitive' } },
-                        { email: { contains: searchStr, mode: 'insensitive' } },
-                        { phone: { contains: searchStr, mode: 'insensitive' } }
+                        {
+                            name: {
+                                contains: searchStr,
+                                mode: 'insensitive'
+                            }
+                        },
+                        {
+                            email: {
+                                contains: searchStr,
+                                mode: 'insensitive'
+                            }
+                        },
+                        {
+                            phone: {
+                                contains: searchStr,
+                                mode: 'insensitive'
+                            }
+                        }
                     ]
                 };
             }
         }
         // Get field owners with commission rates
-        const fieldOwners = await database_1.default.user.findMany({
+        const fieldOwners = await _database.default.user.findMany({
             where: {
                 role: 'FIELD_OWNER',
                 ...searchFilter
@@ -247,25 +301,27 @@ router.get('/field-owners', admin_middleware_1.authenticateAdmin, async (req, re
             },
             skip,
             take: Number(limit),
-            orderBy: { createdAt: 'desc' }
+            orderBy: {
+                createdAt: 'desc'
+            }
         });
         // Get total count
-        const total = await database_1.default.user.count({
+        const total = await _database.default.user.count({
             where: {
                 role: 'FIELD_OWNER',
                 ...searchFilter
             }
         });
         // Get default commission rate
-        const settings = await database_1.default.systemSettings.findFirst();
+        const settings = await _database.default.systemSettings.findFirst();
         const defaultRate = settings?.defaultCommissionRate || 20;
         // Add effective commission rate to each field owner
-        const fieldOwnersWithEffectiveRate = fieldOwners.map(owner => ({
-            ...owner,
-            effectiveCommissionRate: owner.commissionRate || defaultRate,
-            isUsingDefault: !owner.commissionRate,
-            fieldsCount: owner._count.ownedFields
-        }));
+        const fieldOwnersWithEffectiveRate = fieldOwners.map((owner)=>({
+                ...owner,
+                effectiveCommissionRate: owner.commissionRate || defaultRate,
+                isUsingDefault: !owner.commissionRate,
+                fieldsCount: owner._count.ownedFields
+            }));
         res.json({
             success: true,
             data: {
@@ -279,8 +335,7 @@ router.get('/field-owners', admin_middleware_1.authenticateAdmin, async (req, re
                 }
             }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching field owners with commission:', error);
         res.status(500).json({
             success: false,
@@ -288,4 +343,6 @@ router.get('/field-owners', admin_middleware_1.authenticateAdmin, async (req, re
         });
     }
 });
-exports.default = router;
+const _default = router;
+
+//# sourceMappingURL=commission.routes.js.map

@@ -1,8 +1,15 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.apiDocumentation = void 0;
 //@ts-nocheck
-exports.apiDocumentation = {
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "apiDocumentation", {
+    enumerable: true,
+    get: function() {
+        return apiDocumentation;
+    }
+});
+const apiDocumentation = {
     title: "Fieldsy API Documentation",
     version: "1.0.0",
     description: "Complete API reference for Fieldsy platform",
@@ -542,7 +549,10 @@ exports.apiDocumentation = {
                                         description: "Beautiful field",
                                         price: 25,
                                         size: "2 acres",
-                                        amenities: ["fenced", "water"],
+                                        amenities: [
+                                            "fenced",
+                                            "water"
+                                        ],
                                         images: [],
                                         location: {},
                                         owner: {}
@@ -563,16 +573,27 @@ exports.apiDocumentation = {
                         description: "Field description",
                         price: 25,
                         size: "2 acres",
-                        amenities: ["fenced", "water"],
-                        images: ["image_url"],
+                        amenities: [
+                            "fenced",
+                            "water"
+                        ],
+                        images: [
+                            "image_url"
+                        ],
                         location: {
                             address: "123 Main St",
                             latitude: 51.5074,
                             longitude: -0.1278
                         },
                         availability: {
-                            monday: { isAvailable: true, slots: [] },
-                            tuesday: { isAvailable: true, slots: [] }
+                            monday: {
+                                isAvailable: true,
+                                slots: []
+                            },
+                            tuesday: {
+                                isAvailable: true,
+                                slots: []
+                            }
                         }
                     },
                     responses: {
@@ -699,7 +720,9 @@ exports.apiDocumentation = {
                     authorization: "FIELD_OWNER",
                     requestBody: {
                         fieldId: "field_id",
-                        proofDocuments: ["document_url"]
+                        proofDocuments: [
+                            "document_url"
+                        ]
                     },
                     responses: {
                         success: {
@@ -2186,7 +2209,9 @@ exports.apiDocumentation = {
                     authentication: true,
                     requestBody: {
                         fieldId: "field_id",
-                        documents: ["doc_url"],
+                        documents: [
+                            "doc_url"
+                        ],
                         notes: "Additional information"
                     },
                     responses: {
@@ -2747,7 +2772,10 @@ exports.apiDocumentation = {
                     authentication: true,
                     authorization: "ADMIN",
                     requestBody: {
-                        order: ["faq_id_1", "faq_id_2"]
+                        order: [
+                            "faq_id_1",
+                            "faq_id_2"
+                        ]
                     },
                     responses: {
                         success: {
@@ -2808,7 +2836,10 @@ exports.apiDocumentation = {
                     description: "Upload multiple files",
                     authentication: true,
                     requestBody: {
-                        files: ["base64_file1", "base64_file2"],
+                        files: [
+                            "base64_file1",
+                            "base64_file2"
+                        ],
                         folder: "field"
                     },
                     responses: {
@@ -2817,7 +2848,10 @@ exports.apiDocumentation = {
                             body: {
                                 success: true,
                                 data: {
-                                    urls: ["url1", "url2"]
+                                    urls: [
+                                        "url1",
+                                        "url2"
+                                    ]
                                 }
                             }
                         }
@@ -3342,7 +3376,10 @@ exports.apiDocumentation = {
                     authentication: true,
                     authorization: "ADMIN",
                     requestBody: {
-                        payoutIds: ["payout_1", "payout_2"]
+                        payoutIds: [
+                            "payout_1",
+                            "payout_2"
+                        ]
                     },
                     responses: {
                         success: {
@@ -4103,3 +4140,5 @@ When This Fires: When booking status changes in the system`,
         }
     }
 };
+
+//# sourceMappingURL=api-documentation.js.map

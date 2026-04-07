@@ -1,32 +1,52 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isStripeProduction = exports.STRIPE_REFUND_WEBHOOK_SECRET = exports.STRIPE_PAYOUT_WEBHOOK_SECRET = exports.STRIPE_CONNECT_WEBHOOK_SECRET = exports.STRIPE_PAYMENT_WEBHOOK_SECRET = exports.stripe = void 0;
 //@ts-nocheck
-const stripe_1 = __importDefault(require("stripe"));
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get STRIPE_CONNECT_WEBHOOK_SECRET () {
+        return STRIPE_CONNECT_WEBHOOK_SECRET;
+    },
+    get STRIPE_PAYMENT_WEBHOOK_SECRET () {
+        return STRIPE_PAYMENT_WEBHOOK_SECRET;
+    },
+    get STRIPE_PAYOUT_WEBHOOK_SECRET () {
+        return STRIPE_PAYOUT_WEBHOOK_SECRET;
+    },
+    get STRIPE_REFUND_WEBHOOK_SECRET () {
+        return STRIPE_REFUND_WEBHOOK_SECRET;
+    },
+    get isStripeProduction () {
+        return isProduction;
+    },
+    get stripe () {
+        return stripe;
+    }
+});
+const _stripe = /*#__PURE__*/ _interop_require_default(require("stripe"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 const isProduction = process.env.STRIPE_PRODUCTION_MODE === 'true';
-exports.isStripeProduction = isProduction;
-const STRIPE_SECRET_KEY = isProduction
-    ? process.env.STRIPE_LIVE_SECRET_KEY
-    : process.env.STRIPE_TEST_SECRET_KEY;
+const STRIPE_SECRET_KEY = isProduction ? process.env.STRIPE_LIVE_SECRET_KEY : process.env.STRIPE_TEST_SECRET_KEY;
 if (!STRIPE_SECRET_KEY) {
     throw new Error(`STRIPE_${isProduction ? 'LIVE' : 'TEST'}_SECRET_KEY is not defined in environment variables`);
 }
-exports.stripe = new stripe_1.default(STRIPE_SECRET_KEY, {
+const stripe = new _stripe.default(STRIPE_SECRET_KEY, {
     apiVersion: '2025-07-30.basil',
-    typescript: true,
+    typescript: true
 });
-exports.STRIPE_PAYMENT_WEBHOOK_SECRET = isProduction
-    ? process.env.STRIPE_LIVE_PAYMENT_WEBHOOK_SECRET || ''
-    : process.env.STRIPE_TEST_PAYMENT_WEBHOOK_SECRET || '';
-exports.STRIPE_CONNECT_WEBHOOK_SECRET = isProduction
-    ? process.env.STRIPE_LIVE_CONNECT_WEBHOOK_SECRET || ''
-    : process.env.STRIPE_TEST_CONNECT_WEBHOOK_SECRET || '';
-exports.STRIPE_PAYOUT_WEBHOOK_SECRET = isProduction
-    ? process.env.STRIPE_LIVE_PAYOUT_WEBHOOK_SECRET || ''
-    : process.env.STRIPE_TEST_PAYOUT_WEBHOOK_SECRET || '';
-exports.STRIPE_REFUND_WEBHOOK_SECRET = isProduction
-    ? process.env.STRIPE_LIVE_REFUND_WEBHOOK_SECRET || ''
-    : process.env.STRIPE_TEST_REFUND_WEBHOOK_SECRET || '';
+const STRIPE_PAYMENT_WEBHOOK_SECRET = isProduction ? process.env.STRIPE_LIVE_PAYMENT_WEBHOOK_SECRET || '' : process.env.STRIPE_TEST_PAYMENT_WEBHOOK_SECRET || '';
+const STRIPE_CONNECT_WEBHOOK_SECRET = isProduction ? process.env.STRIPE_LIVE_CONNECT_WEBHOOK_SECRET || '' : process.env.STRIPE_TEST_CONNECT_WEBHOOK_SECRET || '';
+const STRIPE_PAYOUT_WEBHOOK_SECRET = isProduction ? process.env.STRIPE_LIVE_PAYOUT_WEBHOOK_SECRET || '' : process.env.STRIPE_TEST_PAYOUT_WEBHOOK_SECRET || '';
+const STRIPE_REFUND_WEBHOOK_SECRET = isProduction ? process.env.STRIPE_LIVE_REFUND_WEBHOOK_SECRET || '' : process.env.STRIPE_TEST_REFUND_WEBHOOK_SECRET || '';
+
+//# sourceMappingURL=stripe.config.js.map

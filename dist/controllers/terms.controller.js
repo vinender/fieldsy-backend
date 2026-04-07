@@ -1,10 +1,37 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.bulkUpdateTerms = exports.deleteTerm = exports.updateTerm = exports.createTerm = exports.getTerms = void 0;
-const database_1 = __importDefault(require("../config/database"));
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get bulkUpdateTerms () {
+        return bulkUpdateTerms;
+    },
+    get createTerm () {
+        return createTerm;
+    },
+    get deleteTerm () {
+        return deleteTerm;
+    },
+    get getTerms () {
+        return getTerms;
+    },
+    get updateTerm () {
+        return updateTerm;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 const DEFAULT_TERMS = [
     {
         title: "1. About Fieldsy",
@@ -96,20 +123,21 @@ const DEFAULT_TERMS = [
 📍 Camden Town, London NW1 0LT, United Kingdom`
     }
 ];
-// Get all terms (public)
-const getTerms = async (req, res) => {
+const getTerms = async (req, res)=>{
     try {
-        const terms = await database_1.default.term.findMany({
-            orderBy: { order: 'asc' }
+        const terms = await _database.default.term.findMany({
+            orderBy: {
+                order: 'asc'
+            }
         });
         // If no terms exist, seed default terms
         if (terms.length === 0) {
-            const createdTerms = await Promise.all(DEFAULT_TERMS.map((term, index) => database_1.default.term.create({
-                data: {
-                    ...term,
-                    order: index
-                }
-            })));
+            const createdTerms = await Promise.all(DEFAULT_TERMS.map((term, index)=>_database.default.term.create({
+                    data: {
+                        ...term,
+                        order: index
+                    }
+                })));
             return res.json({
                 success: true,
                 data: createdTerms
@@ -119,8 +147,7 @@ const getTerms = async (req, res) => {
             success: true,
             data: terms
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching terms:', error);
         res.status(500).json({
             success: false,
@@ -128,12 +155,10 @@ const getTerms = async (req, res) => {
         });
     }
 };
-exports.getTerms = getTerms;
-// Create Term (Admin)
-const createTerm = async (req, res) => {
+const createTerm = async (req, res)=>{
     try {
         const { title, content, isList, order } = req.body;
-        const term = await database_1.default.term.create({
+        const term = await _database.default.term.create({
             data: {
                 title,
                 content,
@@ -146,8 +171,7 @@ const createTerm = async (req, res) => {
             data: term,
             message: 'Term section created successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error creating term:', error);
         res.status(500).json({
             success: false,
@@ -155,19 +179,27 @@ const createTerm = async (req, res) => {
         });
     }
 };
-exports.createTerm = createTerm;
-// Update Term (Admin)
-const updateTerm = async (req, res) => {
+const updateTerm = async (req, res)=>{
     try {
         const { id } = req.params;
         const { title, content, isList, order } = req.body;
-        const term = await database_1.default.term.update({
-            where: { id },
+        const term = await _database.default.term.update({
+            where: {
+                id
+            },
             data: {
-                ...(title && { title }),
-                ...(content !== undefined && { content }),
-                ...(isList !== undefined && { isList }),
-                ...(order !== undefined && { order })
+                ...title && {
+                    title
+                },
+                ...content !== undefined && {
+                    content
+                },
+                ...isList !== undefined && {
+                    isList
+                },
+                ...order !== undefined && {
+                    order
+                }
             }
         });
         res.json({
@@ -175,8 +207,7 @@ const updateTerm = async (req, res) => {
             data: term,
             message: 'Term section updated successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating term:', error);
         res.status(500).json({
             success: false,
@@ -184,20 +215,19 @@ const updateTerm = async (req, res) => {
         });
     }
 };
-exports.updateTerm = updateTerm;
-// Delete Term (Admin)
-const deleteTerm = async (req, res) => {
+const deleteTerm = async (req, res)=>{
     try {
         const { id } = req.params;
-        await database_1.default.term.delete({
-            where: { id }
+        await _database.default.term.delete({
+            where: {
+                id
+            }
         });
         res.json({
             success: true,
             message: 'Term section deleted successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error deleting term:', error);
         res.status(500).json({
             success: false,
@@ -205,9 +235,7 @@ const deleteTerm = async (req, res) => {
         });
     }
 };
-exports.deleteTerm = deleteTerm;
-// Bulk Update Terms (Admin) - mainly for reordering or full replacement
-const bulkUpdateTerms = async (req, res) => {
+const bulkUpdateTerms = async (req, res)=>{
     try {
         const { terms } = req.body; // Array of terms
         if (!Array.isArray(terms)) {
@@ -219,11 +247,13 @@ const bulkUpdateTerms = async (req, res) => {
         // This is a simple implementation: delete all and recreate
         // A better approach would be to upsert based on ID
         // For now, let's just handle updates/creates
-        const results = await Promise.all(terms.map(async (term, index) => {
+        const results = await Promise.all(terms.map(async (term, index)=>{
             if (term.id) {
                 // Update existing
-                return await database_1.default.term.update({
-                    where: { id: term.id },
+                return await _database.default.term.update({
+                    where: {
+                        id: term.id
+                    },
                     data: {
                         title: term.title,
                         content: term.content,
@@ -231,10 +261,9 @@ const bulkUpdateTerms = async (req, res) => {
                         order: index
                     }
                 });
-            }
-            else {
+            } else {
                 // Create new
-                return await database_1.default.term.create({
+                return await _database.default.term.create({
                     data: {
                         title: term.title,
                         content: term.content,
@@ -251,8 +280,7 @@ const bulkUpdateTerms = async (req, res) => {
             data: results,
             message: 'Terms updated successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error bulk updating terms:', error);
         res.status(500).json({
             success: false,
@@ -260,4 +288,5 @@ const bulkUpdateTerms = async (req, res) => {
         });
     }
 };
-exports.bulkUpdateTerms = bulkUpdateTerms;
+
+//# sourceMappingURL=terms.controller.js.map

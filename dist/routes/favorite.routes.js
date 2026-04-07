@@ -1,22 +1,34 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const favorite_controller_1 = __importDefault(require("../controllers/favorite.controller"));
-const auth_middleware_1 = require("../middleware/auth.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _favoritecontroller = /*#__PURE__*/ _interop_require_default(require("../controllers/favorite.controller"));
+const _authmiddleware = require("../middleware/auth.middleware");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = (0, _express.Router)();
 // All routes require authentication and DOG_OWNER role
-router.use(auth_middleware_1.protect);
-router.use((0, auth_middleware_1.restrictTo)('DOG_OWNER'));
+router.use(_authmiddleware.protect);
+router.use((0, _authmiddleware.restrictTo)('DOG_OWNER'));
 // Toggle favorite (save/unsave)
-router.post('/toggle/:fieldId', favorite_controller_1.default.toggleFavorite);
+router.post('/toggle/:fieldId', _favoritecontroller.default.toggleFavorite);
 // Get user's saved fields
-router.get('/my-saved-fields', favorite_controller_1.default.getSavedFields);
+router.get('/my-saved-fields', _favoritecontroller.default.getSavedFields);
 // Check if field is favorited
-router.get('/check/:fieldId', favorite_controller_1.default.checkFavorite);
+router.get('/check/:fieldId', _favoritecontroller.default.checkFavorite);
 // Remove from favorites
-router.delete('/:fieldId', favorite_controller_1.default.removeFavorite);
-exports.default = router;
+router.delete('/:fieldId', _favoritecontroller.default.removeFavorite);
+const _default = router;
+
+//# sourceMappingURL=favorite.routes.js.map

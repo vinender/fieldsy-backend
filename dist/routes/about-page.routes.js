@@ -1,14 +1,24 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const about_page_controller_1 = require("../controllers/about-page.controller");
-const admin_middleware_1 = require("../middleware/admin.middleware");
-const cache_middleware_1 = require("../middleware/cache.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _aboutpagecontroller = require("../controllers/about-page.controller");
+const _adminmiddleware = require("../middleware/admin.middleware");
+const _cachemiddleware = require("../middleware/cache.middleware");
+const router = (0, _express.Router)();
 // Public route (cached 5 min)
-router.get('/', (0, cache_middleware_1.cacheMiddleware)(300), about_page_controller_1.getAboutPage);
+router.get('/', (0, _cachemiddleware.cacheMiddleware)(300), _aboutpagecontroller.getAboutPage);
 // Admin routes (invalidate cache on write)
-router.put('/', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/about-page'), about_page_controller_1.updateAboutPage);
-router.put('/section/:section', admin_middleware_1.authenticateAdmin, (0, cache_middleware_1.invalidateCacheMiddleware)('/api/about-page'), about_page_controller_1.updateAboutSection);
-exports.default = router;
+router.put('/', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/about-page'), _aboutpagecontroller.updateAboutPage);
+router.put('/section/:section', _adminmiddleware.authenticateAdmin, (0, _cachemiddleware.invalidateCacheMiddleware)('/api/about-page'), _aboutpagecontroller.updateAboutSection);
+const _default = router;
+
+//# sourceMappingURL=about-page.routes.js.map

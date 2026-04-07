@@ -1,26 +1,40 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const auth_controller_1 = __importDefault(require("../controllers/auth.controller"));
-const auth_middleware_1 = require("../middleware/auth.middleware");
-const rateLimiter_middleware_1 = require("../middleware/rateLimiter.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _authcontroller = /*#__PURE__*/ _interop_require_default(require("../controllers/auth.controller"));
+const _authmiddleware = require("../middleware/auth.middleware");
+const _rateLimitermiddleware = require("../middleware/rateLimiter.middleware");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = (0, _express.Router)();
 // Test route
-router.get('/test', (req, res) => {
-    res.json({ message: 'Auth routes working' });
+router.get('/test', (req, res)=>{
+    res.json({
+        message: 'Auth routes working'
+    });
 });
 // Public routes
-router.post('/register', auth_controller_1.default.register);
-router.post('/login', auth_controller_1.default.login);
-router.post('/refresh-token', auth_controller_1.default.refreshToken);
-router.post('/social-login', rateLimiter_middleware_1.socialAuthLimiter, auth_controller_1.default.socialLogin);
-router.post('/apple-signin', rateLimiter_middleware_1.socialAuthLimiter, auth_controller_1.default.appleSignIn);
+router.post('/register', _authcontroller.default.register);
+router.post('/login', _authcontroller.default.login);
+router.post('/refresh-token', _authcontroller.default.refreshToken);
+router.post('/social-login', _rateLimitermiddleware.socialAuthLimiter, _authcontroller.default.socialLogin);
+router.post('/apple-signin', _rateLimitermiddleware.socialAuthLimiter, _authcontroller.default.appleSignIn);
 // Protected routes
-router.get('/me', auth_middleware_1.protect, auth_controller_1.default.getMe);
-router.post('/logout', auth_middleware_1.protect, auth_controller_1.default.logout);
-router.patch('/update-role', auth_middleware_1.protect, auth_controller_1.default.updateRole);
-exports.default = router;
+router.get('/me', _authmiddleware.protect, _authcontroller.default.getMe);
+router.post('/logout', _authmiddleware.protect, _authcontroller.default.logout);
+router.patch('/update-role', _authmiddleware.protect, _authcontroller.default.updateRole);
+const _default = router;
+
+//# sourceMappingURL=auth.routes.js.map

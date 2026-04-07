@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../src/types/global.d.ts"],"sourcesContent":["//@ts-nocheck\nimport { Server } from 'socket.io';\n\ndeclare global {\n  var io: Server | undefined;\n}\n\nexport {};\n"],"names":[],"mappings":"AAAA,aAAa"}

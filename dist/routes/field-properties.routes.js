@@ -1,19 +1,31 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const field_properties_controller_1 = __importDefault(require("../controllers/field-properties.controller"));
-const auth_middleware_1 = require("../middleware/auth.middleware");
-const router = (0, express_1.Router)();
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _fieldpropertiescontroller = /*#__PURE__*/ _interop_require_default(require("../controllers/field-properties.controller"));
+const _authmiddleware = require("../middleware/auth.middleware");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = (0, _express.Router)();
 // Public routes - Get all field properties with their options
-router.get('/', field_properties_controller_1.default.getAllFieldProperties); // GET /field-properties - returns all properties
-router.get('/:property', field_properties_controller_1.default.getFieldOptionsByProperty); // GET /field-properties/:property
+router.get('/', _fieldpropertiescontroller.default.getAllFieldProperties); // GET /field-properties - returns all properties
+router.get('/:property', _fieldpropertiescontroller.default.getFieldOptionsByProperty); // GET /field-properties/:property
 // Admin routes - Manage field properties
-router.get('/admin/all', auth_middleware_1.protect, field_properties_controller_1.default.getAllFieldPropertiesAdmin);
-router.post('/admin', auth_middleware_1.protect, field_properties_controller_1.default.createFieldOption);
-router.put('/admin/:id', auth_middleware_1.protect, field_properties_controller_1.default.updateFieldOption);
-router.delete('/admin/:id', auth_middleware_1.protect, field_properties_controller_1.default.deleteFieldOption);
-router.post('/admin/bulk-order', auth_middleware_1.protect, field_properties_controller_1.default.updateFieldPropertiesOrder);
-exports.default = router;
+router.get('/admin/all', _authmiddleware.protect, _fieldpropertiescontroller.default.getAllFieldPropertiesAdmin);
+router.post('/admin', _authmiddleware.protect, _fieldpropertiescontroller.default.createFieldOption);
+router.put('/admin/:id', _authmiddleware.protect, _fieldpropertiescontroller.default.updateFieldOption);
+router.delete('/admin/:id', _authmiddleware.protect, _fieldpropertiescontroller.default.deleteFieldOption);
+router.post('/admin/bulk-order', _authmiddleware.protect, _fieldpropertiescontroller.default.updateFieldPropertiesOrder);
+const _default = router;
+
+//# sourceMappingURL=field-properties.routes.js.map

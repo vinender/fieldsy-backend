@@ -1,34 +1,75 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.reorderFAQs = exports.bulkUpsertFAQs = exports.deleteFAQ = exports.updateFAQ = exports.createFAQ = exports.getFAQ = exports.getAllFAQs = exports.getFAQs = void 0;
-const database_1 = __importDefault(require("../config/database"));
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get bulkUpsertFAQs () {
+        return bulkUpsertFAQs;
+    },
+    get createFAQ () {
+        return createFAQ;
+    },
+    get deleteFAQ () {
+        return deleteFAQ;
+    },
+    get getAllFAQs () {
+        return getAllFAQs;
+    },
+    get getFAQ () {
+        return getFAQ;
+    },
+    get getFAQs () {
+        return getFAQs;
+    },
+    get reorderFAQs () {
+        return reorderFAQs;
+    },
+    get updateFAQ () {
+        return updateFAQ;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 // In-memory cache for public FAQs (rarely changes)
 let faqCache = null;
 const FAQ_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-// Get all FAQs (public)
-const getFAQs = async (req, res) => {
+const getFAQs = async (req, res)=>{
     try {
         const { category } = req.query;
         // Use cache for unfiltered requests
-        if (!category && faqCache && (Date.now() - faqCache.timestamp < FAQ_CACHE_TTL)) {
+        if (!category && faqCache && Date.now() - faqCache.timestamp < FAQ_CACHE_TTL) {
             return res.json(faqCache.data);
         }
-        const where = { isActive: true };
+        const where = {
+            isActive: true
+        };
         if (category) {
             where.category = category;
         }
-        const faqs = await database_1.default.fAQ.findMany({
+        const faqs = await _database.default.fAQ.findMany({
             where,
             orderBy: [
-                { category: 'asc' },
-                { order: 'asc' },
+                {
+                    category: 'asc'
+                },
+                {
+                    order: 'asc'
+                }
             ]
         });
         // Group FAQs by category
-        const groupedFAQs = faqs.reduce((acc, faq) => {
+        const groupedFAQs = faqs.reduce((acc, faq)=>{
             const cat = faq.category || 'general';
             if (!acc[cat]) {
                 acc[cat] = [];
@@ -45,11 +86,13 @@ const getFAQs = async (req, res) => {
         };
         // Cache unfiltered results
         if (!category) {
-            faqCache = { data: response, timestamp: Date.now() };
+            faqCache = {
+                data: response,
+                timestamp: Date.now()
+            };
         }
         res.json(response);
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching FAQs:', error);
         res.status(500).json({
             success: false,
@@ -57,23 +100,26 @@ const getFAQs = async (req, res) => {
         });
     }
 };
-exports.getFAQs = getFAQs;
-// Get all FAQs for admin (including inactive)
-const getAllFAQs = async (req, res) => {
+const getAllFAQs = async (req, res)=>{
     try {
-        const faqs = await database_1.default.fAQ.findMany({
+        const faqs = await _database.default.fAQ.findMany({
             orderBy: [
-                { category: 'asc' },
-                { order: 'asc' },
-                { createdAt: 'desc' }
+                {
+                    category: 'asc'
+                },
+                {
+                    order: 'asc'
+                },
+                {
+                    createdAt: 'desc'
+                }
             ]
         });
         res.json({
             success: true,
             data: faqs
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching all FAQs:', error);
         res.status(500).json({
             success: false,
@@ -81,13 +127,13 @@ const getAllFAQs = async (req, res) => {
         });
     }
 };
-exports.getAllFAQs = getAllFAQs;
-// Get single FAQ
-const getFAQ = async (req, res) => {
+const getFAQ = async (req, res)=>{
     try {
         const { id } = req.params;
-        const faq = await database_1.default.fAQ.findUnique({
-            where: { id }
+        const faq = await _database.default.fAQ.findUnique({
+            where: {
+                id
+            }
         });
         if (!faq) {
             return res.status(404).json({
@@ -99,8 +145,7 @@ const getFAQ = async (req, res) => {
             success: true,
             data: faq
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching FAQ:', error);
         res.status(500).json({
             success: false,
@@ -108,9 +153,7 @@ const getFAQ = async (req, res) => {
         });
     }
 };
-exports.getFAQ = getFAQ;
-// Create FAQ (Admin only)
-const createFAQ = async (req, res) => {
+const createFAQ = async (req, res)=>{
     try {
         const { question, answer, category, order, isActive } = req.body;
         if (!question || !answer) {
@@ -119,7 +162,7 @@ const createFAQ = async (req, res) => {
                 message: 'Question and answer are required'
             });
         }
-        const faq = await database_1.default.fAQ.create({
+        const faq = await _database.default.fAQ.create({
             data: {
                 question,
                 answer,
@@ -133,8 +176,7 @@ const createFAQ = async (req, res) => {
             data: faq,
             message: 'FAQ created successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error creating FAQ:', error);
         res.status(500).json({
             success: false,
@@ -142,14 +184,14 @@ const createFAQ = async (req, res) => {
         });
     }
 };
-exports.createFAQ = createFAQ;
-// Update FAQ (Admin only)
-const updateFAQ = async (req, res) => {
+const updateFAQ = async (req, res)=>{
     try {
         const { id } = req.params;
         const { question, answer, category, order, isActive } = req.body;
-        const existingFAQ = await database_1.default.fAQ.findUnique({
-            where: { id }
+        const existingFAQ = await _database.default.fAQ.findUnique({
+            where: {
+                id
+            }
         });
         if (!existingFAQ) {
             return res.status(404).json({
@@ -157,14 +199,26 @@ const updateFAQ = async (req, res) => {
                 message: 'FAQ not found'
             });
         }
-        const faq = await database_1.default.fAQ.update({
-            where: { id },
+        const faq = await _database.default.fAQ.update({
+            where: {
+                id
+            },
             data: {
-                ...(question !== undefined && { question }),
-                ...(answer !== undefined && { answer }),
-                ...(category !== undefined && { category }),
-                ...(order !== undefined && { order }),
-                ...(isActive !== undefined && { isActive })
+                ...question !== undefined && {
+                    question
+                },
+                ...answer !== undefined && {
+                    answer
+                },
+                ...category !== undefined && {
+                    category
+                },
+                ...order !== undefined && {
+                    order
+                },
+                ...isActive !== undefined && {
+                    isActive
+                }
             }
         });
         res.json({
@@ -172,8 +226,7 @@ const updateFAQ = async (req, res) => {
             data: faq,
             message: 'FAQ updated successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating FAQ:', error);
         res.status(500).json({
             success: false,
@@ -181,13 +234,13 @@ const updateFAQ = async (req, res) => {
         });
     }
 };
-exports.updateFAQ = updateFAQ;
-// Delete FAQ (Admin only)
-const deleteFAQ = async (req, res) => {
+const deleteFAQ = async (req, res)=>{
     try {
         const { id } = req.params;
-        const existingFAQ = await database_1.default.fAQ.findUnique({
-            where: { id }
+        const existingFAQ = await _database.default.fAQ.findUnique({
+            where: {
+                id
+            }
         });
         if (!existingFAQ) {
             return res.status(404).json({
@@ -195,15 +248,16 @@ const deleteFAQ = async (req, res) => {
                 message: 'FAQ not found'
             });
         }
-        await database_1.default.fAQ.delete({
-            where: { id }
+        await _database.default.fAQ.delete({
+            where: {
+                id
+            }
         });
         res.json({
             success: true,
             message: 'FAQ deleted successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error deleting FAQ:', error);
         res.status(500).json({
             success: false,
@@ -211,9 +265,7 @@ const deleteFAQ = async (req, res) => {
         });
     }
 };
-exports.deleteFAQ = deleteFAQ;
-// Bulk create/update FAQs (Admin only)
-const bulkUpsertFAQs = async (req, res) => {
+const bulkUpsertFAQs = async (req, res)=>{
     try {
         const { faqs } = req.body;
         if (!Array.isArray(faqs)) {
@@ -223,11 +275,13 @@ const bulkUpsertFAQs = async (req, res) => {
             });
         }
         // Process each FAQ
-        const results = await Promise.all(faqs.map(async (faq) => {
+        const results = await Promise.all(faqs.map(async (faq)=>{
             if (faq.id) {
                 // Update existing FAQ
-                return await database_1.default.fAQ.update({
-                    where: { id: faq.id },
+                return await _database.default.fAQ.update({
+                    where: {
+                        id: faq.id
+                    },
                     data: {
                         question: faq.question,
                         answer: faq.answer,
@@ -236,10 +290,9 @@ const bulkUpsertFAQs = async (req, res) => {
                         isActive: faq.isActive !== undefined ? faq.isActive : true
                     }
                 });
-            }
-            else {
+            } else {
                 // Create new FAQ
-                return await database_1.default.fAQ.create({
+                return await _database.default.fAQ.create({
                     data: {
                         question: faq.question,
                         answer: faq.answer,
@@ -255,8 +308,7 @@ const bulkUpsertFAQs = async (req, res) => {
             data: results,
             message: `${results.length} FAQs processed successfully`
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error bulk upserting FAQs:', error);
         res.status(500).json({
             success: false,
@@ -264,9 +316,7 @@ const bulkUpsertFAQs = async (req, res) => {
         });
     }
 };
-exports.bulkUpsertFAQs = bulkUpsertFAQs;
-// Reorder FAQs (Admin only)
-const reorderFAQs = async (req, res) => {
+const reorderFAQs = async (req, res)=>{
     try {
         const { orders } = req.body; // Array of { id, order }
         if (!Array.isArray(orders)) {
@@ -276,18 +326,21 @@ const reorderFAQs = async (req, res) => {
             });
         }
         // Update order for each FAQ
-        await Promise.all(orders.map(async (item) => {
-            await database_1.default.fAQ.update({
-                where: { id: item.id },
-                data: { order: item.order }
+        await Promise.all(orders.map(async (item)=>{
+            await _database.default.fAQ.update({
+                where: {
+                    id: item.id
+                },
+                data: {
+                    order: item.order
+                }
             });
         }));
         res.json({
             success: true,
             message: 'FAQs reordered successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error reordering FAQs:', error);
         res.status(500).json({
             success: false,
@@ -295,4 +348,5 @@ const reorderFAQs = async (req, res) => {
         });
     }
 };
-exports.reorderFAQs = reorderFAQs;
+
+//# sourceMappingURL=faq.controller.js.map

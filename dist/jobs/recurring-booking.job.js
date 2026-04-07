@@ -1,62 +1,80 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.initRecurringBookingJobs = void 0;
-exports.triggerRecurringBookingCreation = triggerRecurringBookingCreation;
 //@ts-nocheck
-const node_cron_1 = __importDefault(require("node-cron"));
-const database_1 = __importDefault(require("../config/database"));
-const notification_controller_1 = require("../controllers/notification.controller");
-const payout_services_1 = require("../config/payout-services");
-const subscriptionService = (0, payout_services_1.getSubscriptionService)();
-const date_fns_1 = require("date-fns");
-const ukTime_1 = require("../utils/ukTime");
-/**
- * Scheduled job to automatically create recurring bookings for the next billing cycle
- * Runs daily at 2 AM to check for subscriptions that need new bookings created
- * Also runs hourly to check for completed bookings that need next booking created
- * Also runs daily at 8 AM to retry failed subscription payments
- */
-const initRecurringBookingJobs = () => {
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get initRecurringBookingJobs () {
+        return initRecurringBookingJobs;
+    },
+    get triggerRecurringBookingCreation () {
+        return triggerRecurringBookingCreation;
+    }
+});
+const _nodecron = /*#__PURE__*/ _interop_require_default(require("node-cron"));
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _notificationcontroller = require("../controllers/notification.controller");
+const _payoutservices = require("../config/payout-services");
+const _datefns = require("date-fns");
+const _ukTime = require("../utils/ukTime");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
+const subscriptionService = (0, _payoutservices.getSubscriptionService)();
+const initRecurringBookingJobs = ()=>{
     // NOTE: Subscription payment retries are now handled by the payout engine scheduler.
     // See payoutEngine.startScheduler(cron) in server.ts
     // Run daily at 2:00 AM to create upcoming recurring bookings
-    node_cron_1.default.schedule('0 2 * * *', async () => {
+    _nodecron.default.schedule('0 2 * * *', async ()=>{
         console.log('📅 Running recurring booking creation job...');
         try {
             const results = await createUpcomingRecurringBookings();
@@ -65,15 +83,16 @@ const initRecurringBookingJobs = () => {
             console.log(`   - Skipped: ${results.skipped}`);
             console.log(`   - Failed: ${results.failed}`);
             console.log(`   - Cancelled: ${results.cancelled}`);
-        }
-        catch (error) {
+        } catch (error) {
             console.error('❌ Recurring booking job error:', error);
             // Notify admins of job failure
-            const adminUsers = await database_1.default.user.findMany({
-                where: { role: 'ADMIN' }
+            const adminUsers = await _database.default.user.findMany({
+                where: {
+                    role: 'ADMIN'
+                }
             });
-            for (const admin of adminUsers) {
-                await (0, notification_controller_1.createNotification)({
+            for (const admin of adminUsers){
+                await (0, _notificationcontroller.createNotification)({
                     userId: admin.id,
                     type: 'RECURRING_JOB_ERROR',
                     title: 'Recurring Booking Job Failed',
@@ -87,7 +106,7 @@ const initRecurringBookingJobs = () => {
         }
     });
     // Run every hour to check for past bookings and auto-create next recurring booking
-    node_cron_1.default.schedule('0 * * * *', async () => {
+    _nodecron.default.schedule('0 * * * *', async ()=>{
         console.log('🔄 Running past bookings check for auto-creation...');
         try {
             const results = await checkPastBookingsAndCreateNext();
@@ -95,8 +114,7 @@ const initRecurringBookingJobs = () => {
             console.log(`   - Created: ${results.created}`);
             console.log(`   - Skipped: ${results.skipped}`);
             console.log(`   - Failed: ${results.failed}`);
-        }
-        catch (error) {
+        } catch (error) {
             console.error('❌ Past bookings check error:', error);
         }
     });
@@ -105,11 +123,9 @@ const initRecurringBookingJobs = () => {
     console.log('   - Hourly job: Every hour (check past bookings)');
     console.log('   - (Subscription payment retries handled by payout engine)');
 };
-exports.initRecurringBookingJobs = initRecurringBookingJobs;
 /**
  * Create upcoming recurring bookings for active subscriptions
- */
-async function createUpcomingRecurringBookings() {
+ */ async function createUpcomingRecurringBookings() {
     const results = {
         created: 0,
         skipped: 0,
@@ -118,17 +134,27 @@ async function createUpcomingRecurringBookings() {
     };
     try {
         // Get system settings for max advance booking days
-        const settings = await database_1.default.systemSettings.findFirst({
-            select: { maxAdvanceBookingDays: true }
+        const settings = await _database.default.systemSettings.findFirst({
+            select: {
+                maxAdvanceBookingDays: true
+            }
         });
         const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
         // Get all active subscriptions
-        const activeSubscriptions = await database_1.default.subscription.findMany({
+        const activeSubscriptions = await _database.default.subscription.findMany({
             where: {
                 status: 'active',
                 cancelAtPeriodEnd: false,
-                field: { id: { not: undefined } },
-                user: { id: { not: undefined } }
+                field: {
+                    id: {
+                        not: undefined
+                    }
+                },
+                user: {
+                    id: {
+                        not: undefined
+                    }
+                }
             },
             include: {
                 field: {
@@ -140,12 +166,12 @@ async function createUpcomingRecurringBookings() {
             }
         });
         console.log(`📊 Found ${activeSubscriptions.length} active subscriptions`);
-        for (const subscription of activeSubscriptions) {
+        for (const subscription of activeSubscriptions){
             try {
                 // Calculate next booking date
                 let nextBookingDate = calculateNextBookingDate(subscription);
                 // Check if we already have a booking for the next date
-                const existingBooking = await database_1.default.booking.findFirst({
+                const existingBooking = await _database.default.booking.findFirst({
                     where: {
                         subscriptionId: subscription.id,
                         date: nextBookingDate,
@@ -155,12 +181,12 @@ async function createUpcomingRecurringBookings() {
                     }
                 });
                 if (existingBooking) {
-                    console.log(`⏭️  Booking already exists for subscription ${subscription.id} on ${(0, date_fns_1.format)(nextBookingDate, 'PPP')}`);
+                    console.log(`⏭️  Booking already exists for subscription ${subscription.id} on ${(0, _datefns.format)(nextBookingDate, 'PPP')}`);
                     results.skipped++;
                     continue;
                 }
                 // Validate that next booking date is within advance booking days range
-                const today = (0, ukTime_1.getNowUK)();
+                const today = (0, _ukTime.getNowUK)();
                 today.setHours(0, 0, 0, 0);
                 const maxFutureDate = new Date(today);
                 maxFutureDate.setDate(maxFutureDate.getDate() + maxAdvanceBookingDays);
@@ -169,28 +195,28 @@ async function createUpcomingRecurringBookings() {
                 const lastBookingDateOnly = new Date(lastBookingDate);
                 lastBookingDateOnly.setHours(0, 0, 0, 0);
                 // Only create next booking if last booking date has passed
-                if ((0, date_fns_1.isAfter)(lastBookingDateOnly, today)) {
-                    console.log(`⏳ Last booking date (${(0, date_fns_1.format)(lastBookingDate, 'PPP')}) has not passed yet for subscription ${subscription.id}`);
+                if ((0, _datefns.isAfter)(lastBookingDateOnly, today)) {
+                    console.log(`⏳ Last booking date (${(0, _datefns.format)(lastBookingDate, 'PPP')}) has not passed yet for subscription ${subscription.id}`);
                     results.skipped++;
                     continue;
                 }
                 // Check if next booking date falls within advance booking range
-                if ((0, date_fns_1.isAfter)(nextBookingDate, maxFutureDate)) {
-                    console.log(`📆 Next booking date (${(0, date_fns_1.format)(nextBookingDate, 'PPP')}) is beyond max advance booking days (${maxAdvanceBookingDays}) for subscription ${subscription.id}`);
+                if ((0, _datefns.isAfter)(nextBookingDate, maxFutureDate)) {
+                    console.log(`📆 Next booking date (${(0, _datefns.format)(nextBookingDate, 'PPP')}) is beyond max advance booking days (${maxAdvanceBookingDays}) for subscription ${subscription.id}`);
                     results.skipped++;
                     continue;
                 }
                 // Check if next booking date is in the past
-                if ((0, date_fns_1.isBefore)(nextBookingDate, today)) {
-                    console.log(`⚠️  Next booking date (${(0, date_fns_1.format)(nextBookingDate, 'PPP')}) is in the past for subscription ${subscription.id}`);
+                if ((0, _datefns.isBefore)(nextBookingDate, today)) {
+                    console.log(`⚠️  Next booking date (${(0, _datefns.format)(nextBookingDate, 'PPP')}) is in the past for subscription ${subscription.id}`);
                     // If the subscription is old and hasn't been used, cancel it
                     const daysSinceLastBooking = Math.floor((today.getTime() - lastBookingDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-                    if (daysSinceLastBooking > 14) { // If no booking for 14+ days, consider cancelling
+                    if (daysSinceLastBooking > 14) {
                         console.log(`🚫 Cancelling inactive subscription ${subscription.id}`);
                         // Cancel the subscription
                         await subscriptionService.cancelSubscription(subscription.id, true);
                         // Notify user
-                        await (0, notification_controller_1.createNotification)({
+                        await (0, _notificationcontroller.createNotification)({
                             userId: subscription.userId,
                             type: 'subscription_auto_cancelled',
                             title: 'Recurring Booking Cancelled',
@@ -215,21 +241,20 @@ async function createUpcomingRecurringBookings() {
                     continue;
                 }
                 // Create the booking for the next billing cycle
-                console.log(`✨ Creating booking for subscription ${subscription.id} on ${(0, date_fns_1.format)(nextBookingDate, 'PPP')}`);
+                console.log(`✨ Creating booking for subscription ${subscription.id} on ${(0, _datefns.format)(nextBookingDate, 'PPP')}`);
                 const booking = await subscriptionService.createBookingFromSubscription(subscription.id, nextBookingDate);
                 // Check if booking was skipped due to slot conflict (returns null)
                 if (booking === null) {
-                    console.log(`⚠️ Slot conflict for subscription ${subscription.id} on ${(0, date_fns_1.format)(nextBookingDate, 'PPP')} - skipping (notification suppressed)`);
+                    console.log(`⚠️ Slot conflict for subscription ${subscription.id} on ${(0, _datefns.format)(nextBookingDate, 'PPP')} - skipping (notification suppressed)`);
                     results.skipped++;
-                    // Note: Notification removed to prevent spam - slots are already shown as unavailable in UI
                     continue;
                 }
                 // Notify the user about the upcoming booking
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: subscription.userId,
                     type: 'recurring_booking_created',
                     title: 'Upcoming Booking Scheduled',
-                    message: `Your ${subscription.interval} booking at ${subscription.field.name} has been scheduled for ${(0, date_fns_1.format)(nextBookingDate, 'PPP')} at ${subscription.timeSlot}`,
+                    message: `Your ${subscription.interval} booking at ${subscription.field.name} has been scheduled for ${(0, _datefns.format)(nextBookingDate, 'PPP')} at ${subscription.timeSlot}`,
                     data: {
                         bookingId: booking.id,
                         subscriptionId: subscription.id,
@@ -241,7 +266,7 @@ async function createUpcomingRecurringBookings() {
                 });
                 // Send email to dog owner
                 try {
-                    const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
+                    const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
                     await emailService.sendRecurringBookingEmailToDogOwner({
                         email: subscription.user.email,
                         userName: subscription.user.name || 'Valued Customer',
@@ -254,17 +279,16 @@ async function createUpcomingRecurringBookings() {
                         numberOfDogs: subscription.numberOfDogs,
                         totalPrice: booking.totalPrice
                     });
-                }
-                catch (emailError) {
+                } catch (emailError) {
                     console.error('Failed to send recurring booking email to dog owner:', emailError);
                 }
                 // Notify the field owner
                 if (subscription.field.ownerId && subscription.field.ownerId !== subscription.userId) {
-                    await (0, notification_controller_1.createNotification)({
+                    await (0, _notificationcontroller.createNotification)({
                         userId: subscription.field.ownerId,
                         type: 'recurring_booking_scheduled',
                         title: 'Recurring Booking Scheduled',
-                        message: `A ${subscription.interval} booking has been scheduled for ${subscription.field.name} on ${(0, date_fns_1.format)(nextBookingDate, 'PPP')} at ${subscription.timeSlot}`,
+                        message: `A ${subscription.interval} booking has been scheduled for ${subscription.field.name} on ${(0, _datefns.format)(nextBookingDate, 'PPP')} at ${subscription.timeSlot}`,
                         data: {
                             bookingId: booking.id,
                             subscriptionId: subscription.id,
@@ -277,7 +301,7 @@ async function createUpcomingRecurringBookings() {
                     });
                     // Send email to field owner
                     try {
-                        const { emailService } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
+                        const { emailService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/email.service")));
                         await emailService.sendRecurringBookingEmailToFieldOwner({
                             email: subscription.field.owner.email,
                             ownerName: subscription.field.owner.name || 'Field Owner',
@@ -292,15 +316,13 @@ async function createUpcomingRecurringBookings() {
                             totalPrice: booking.totalPrice,
                             fieldOwnerAmount: booking.fieldOwnerAmount
                         });
-                    }
-                    catch (emailError) {
+                    } catch (emailError) {
                         console.error('Failed to send recurring booking email to field owner:', emailError);
                     }
                 }
                 results.created++;
                 console.log(`✅ Created booking ${booking.id} for subscription ${subscription.id}`);
-            }
-            catch (error) {
+            } catch (error) {
                 const errorMessage = error.message || 'Unknown error';
                 console.error(`❌ Failed to process subscription ${subscription.id}:`, error);
                 results.failed++;
@@ -311,12 +333,11 @@ async function createUpcomingRecurringBookings() {
                 // Only log actual failures (non-conflict errors) for monitoring
                 if (!isSlotConflict) {
                     console.error(`⚠️ Non-conflict error for subscription ${subscription.id}:`, errorMessage);
-                    // Could add admin notification here for actual system failures if needed
+                // Could add admin notification here for actual system failures if needed
                 }
             }
         }
-    }
-    catch (error) {
+    } catch (error) {
         console.error('❌ Error in createUpcomingRecurringBookings:', error);
         throw error;
     }
@@ -324,26 +345,39 @@ async function createUpcomingRecurringBookings() {
 }
 /**
  * Check if a date is valid for a field's operating days
- */
-function isDateValidForField(date, operatingDays) {
+ */ function isDateValidForField(date, operatingDays) {
     if (!operatingDays || operatingDays.length === 0) {
         return true; // If no operating days specified, assume all days are valid
     }
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayNames = [
+        'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday'
+    ];
     const dayOfWeek = dayNames[date.getDay()];
-    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const weekends = ['Saturday', 'Sunday'];
-    for (const opDay of operatingDays) {
+    const weekdays = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday'
+    ];
+    const weekends = [
+        'Saturday',
+        'Sunday'
+    ];
+    for (const opDay of operatingDays){
         if (opDay === 'everyday') {
             return true;
-        }
-        else if (opDay === 'weekdays' && weekdays.includes(dayOfWeek)) {
+        } else if (opDay === 'weekdays' && weekdays.includes(dayOfWeek)) {
             return true;
-        }
-        else if (opDay === 'weekends' && weekends.includes(dayOfWeek)) {
+        } else if (opDay === 'weekends' && weekends.includes(dayOfWeek)) {
             return true;
-        }
-        else if (opDay === dayOfWeek) {
+        } else if (opDay === dayOfWeek) {
             return true;
         }
     }
@@ -352,53 +386,47 @@ function isDateValidForField(date, operatingDays) {
 /**
  * Calculate the next booking date based on subscription interval
  * For 'everyday' subscriptions, skips days when the field doesn't operate
- */
-function calculateNextBookingDate(subscription) {
+ */ function calculateNextBookingDate(subscription) {
     const lastBookingDate = subscription.lastBookingDate || new Date(subscription.createdAt);
     const operatingDays = subscription.field?.operatingDays;
     if (subscription.interval === 'everyday') {
         // Add 1 day to last booking date, but skip days when field doesn't operate
-        let nextDate = (0, date_fns_1.addDays)(lastBookingDate, 1);
+        let nextDate = (0, _datefns.addDays)(lastBookingDate, 1);
         // For everyday subscriptions, find the next valid operating day
         // Maximum 7 iterations to prevent infinite loop (covers a full week)
         let iterations = 0;
-        while (!isDateValidForField(nextDate, operatingDays) && iterations < 7) {
-            nextDate = (0, date_fns_1.addDays)(nextDate, 1);
+        while(!isDateValidForField(nextDate, operatingDays) && iterations < 7){
+            nextDate = (0, _datefns.addDays)(nextDate, 1);
             iterations++;
         }
         return nextDate;
-    }
-    else if (subscription.interval === 'weekly') {
+    } else if (subscription.interval === 'weekly') {
         // Add 7 days to last booking date
-        return (0, date_fns_1.addDays)(lastBookingDate, 7);
-    }
-    else if (subscription.interval === 'monthly') {
+        return (0, _datefns.addDays)(lastBookingDate, 7);
+    } else if (subscription.interval === 'monthly') {
         // Add 1 month to last booking date
-        return (0, date_fns_1.addMonths)(lastBookingDate, 1);
-    }
-    else {
+        return (0, _datefns.addMonths)(lastBookingDate, 1);
+    } else {
         throw new Error(`Unknown subscription interval: ${subscription.interval}`);
     }
 }
 /**
  * Calculate the next valid booking date starting from today
  * For 'everyday' subscriptions, skips days when the field doesn't operate
- */
-function calculateNextValidBookingDate(subscription, today) {
+ */ function calculateNextValidBookingDate(subscription, today) {
     let nextDate = new Date(today);
     const operatingDays = subscription.field?.operatingDays;
     if (subscription.interval === 'everyday') {
         // Next valid date is tomorrow, but skip days when field doesn't operate
-        nextDate = (0, date_fns_1.addDays)(nextDate, 1);
+        nextDate = (0, _datefns.addDays)(nextDate, 1);
         // Find the next valid operating day (max 7 iterations)
         let iterations = 0;
-        while (!isDateValidForField(nextDate, operatingDays) && iterations < 7) {
-            nextDate = (0, date_fns_1.addDays)(nextDate, 1);
+        while(!isDateValidForField(nextDate, operatingDays) && iterations < 7){
+            nextDate = (0, _datefns.addDays)(nextDate, 1);
             iterations++;
         }
         return nextDate;
-    }
-    else if (subscription.interval === 'weekly') {
+    } else if (subscription.interval === 'weekly') {
         // Find next occurrence of the day of week
         const targetDayOfWeek = new Date(subscription.lastBookingDate || subscription.createdAt).getDay();
         const currentDayOfWeek = nextDate.getDay();
@@ -406,57 +434,69 @@ function calculateNextValidBookingDate(subscription, today) {
         if (daysToAdd <= 0) {
             daysToAdd += 7; // Move to next week
         }
-        return (0, date_fns_1.addDays)(nextDate, daysToAdd);
-    }
-    else if (subscription.interval === 'monthly') {
+        return (0, _datefns.addDays)(nextDate, daysToAdd);
+    } else if (subscription.interval === 'monthly') {
         // Use the day of month from original booking
         const targetDayOfMonth = subscription.dayOfMonth || new Date(subscription.lastBookingDate || subscription.createdAt).getDate();
         nextDate.setDate(1); // Start from first day of current month
-        nextDate = (0, date_fns_1.addMonths)(nextDate, 1); // Move to next month
+        nextDate = (0, _datefns.addMonths)(nextDate, 1); // Move to next month
         // Set to target day of month (handle cases where day doesn't exist in month)
         const lastDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
         nextDate.setDate(Math.min(targetDayOfMonth, lastDayOfMonth));
         return nextDate;
-    }
-    else {
+    } else {
         throw new Error(`Unknown subscription interval: ${subscription.interval}`);
     }
 }
 /**
  * Check for past bookings with subscriptions and auto-create next booking
- */
-async function checkPastBookingsAndCreateNext() {
+ */ async function checkPastBookingsAndCreateNext() {
     const results = {
         created: 0,
         skipped: 0,
         failed: 0
     };
     try {
-        const now = (0, ukTime_1.getNowUK)();
+        const now = (0, _ukTime.getNowUK)();
         // Get system settings for maxAdvanceBookingDays
-        const settings = await database_1.default.systemSettings.findFirst({
-            select: { maxAdvanceBookingDays: true }
+        const settings = await _database.default.systemSettings.findFirst({
+            select: {
+                maxAdvanceBookingDays: true
+            }
         });
         const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
         const maxFutureDate = new Date(now);
         maxFutureDate.setDate(maxFutureDate.getDate() + maxAdvanceBookingDays);
         // Find all active subscriptions that have bookings in the past
-        const subscriptions = await database_1.default.subscription.findMany({
+        const subscriptions = await _database.default.subscription.findMany({
             where: {
                 status: 'active',
                 cancelAtPeriodEnd: false,
-                field: { id: { not: undefined } },
-                user: { id: { not: undefined } }
+                field: {
+                    id: {
+                        not: undefined
+                    }
+                },
+                user: {
+                    id: {
+                        not: undefined
+                    }
+                }
             },
             include: {
                 field: {
-                    include: { owner: true }
+                    include: {
+                        owner: true
+                    }
                 },
                 user: true,
                 bookings: {
                     where: {
                         status: {
-                            in: ['CONFIRMED', 'COMPLETED'] // Include both confirmed and completed bookings
+                            in: [
+                                'CONFIRMED',
+                                'COMPLETED'
+                            ] // Include both confirmed and completed bookings
                         },
                         date: {
                             lt: now // Past bookings
@@ -470,7 +510,7 @@ async function checkPastBookingsAndCreateNext() {
             }
         });
         console.log(`📊 Found ${subscriptions.length} active subscriptions to check`);
-        for (const subscription of subscriptions) {
+        for (const subscription of subscriptions){
             try {
                 // Skip if no past bookings found
                 if (!subscription.bookings || subscription.bookings.length === 0) {
@@ -482,10 +522,8 @@ async function checkPastBookingsAndCreateNext() {
                 const [endHourStr, endPeriod] = lastBooking.endTime.split(/(?=[AP]M)/);
                 let endHour = parseInt(endHourStr.split(':')[0]);
                 const endMinute = parseInt(endHourStr.split(':')[1] || '0');
-                if (endPeriod === 'PM' && endHour !== 12)
-                    endHour += 12;
-                if (endPeriod === 'AM' && endHour === 12)
-                    endHour = 0;
+                if (endPeriod === 'PM' && endHour !== 12) endHour += 12;
+                if (endPeriod === 'AM' && endHour === 12) endHour = 0;
                 bookingDate.setHours(endHour, endMinute, 0, 0);
                 // Only process if the booking end time has passed
                 if (bookingDate >= now) {
@@ -493,75 +531,71 @@ async function checkPastBookingsAndCreateNext() {
                 }
                 // Calculate next booking date
                 const lastBookingDate = subscription.lastBookingDate || lastBooking.date;
-                let nextBookingDate = (0, ukTime_1.getNowUK)();
+                let nextBookingDate = (0, _ukTime.getNowUK)();
                 if (subscription.interval === 'everyday') {
-                    nextBookingDate = (0, date_fns_1.addDays)(lastBookingDate, 1);
-                }
-                else if (subscription.interval === 'weekly') {
-                    nextBookingDate = (0, date_fns_1.addDays)(lastBookingDate, 7);
-                }
-                else if (subscription.interval === 'monthly') {
-                    nextBookingDate = (0, date_fns_1.addMonths)(lastBookingDate, 1);
+                    nextBookingDate = (0, _datefns.addDays)(lastBookingDate, 1);
+                } else if (subscription.interval === 'weekly') {
+                    nextBookingDate = (0, _datefns.addDays)(lastBookingDate, 7);
+                } else if (subscription.interval === 'monthly') {
+                    nextBookingDate = (0, _datefns.addMonths)(lastBookingDate, 1);
                 }
                 // Ensure next booking date is in the future
-                const today = (0, ukTime_1.getNowUK)();
+                const today = (0, _ukTime.getNowUK)();
                 today.setHours(0, 0, 0, 0);
-                if ((0, date_fns_1.isBefore)(nextBookingDate, today)) {
+                if ((0, _datefns.isBefore)(nextBookingDate, today)) {
                     // Calculate a valid future date
                     nextBookingDate = calculateNextValidBookingDate(subscription, today);
                 }
                 // Check if next booking is within advance booking range
-                if ((0, date_fns_1.isAfter)(nextBookingDate, maxFutureDate)) {
-                    console.log(`⏭️  Next booking date (${(0, date_fns_1.format)(nextBookingDate, 'PPP')}) is beyond max advance booking days for subscription ${subscription.id}`);
+                if ((0, _datefns.isAfter)(nextBookingDate, maxFutureDate)) {
+                    console.log(`⏭️  Next booking date (${(0, _datefns.format)(nextBookingDate, 'PPP')}) is beyond max advance booking days for subscription ${subscription.id}`);
                     results.skipped++;
                     continue;
                 }
                 // Check if booking already exists for this date
-                const existingBooking = await database_1.default.booking.findFirst({
+                const existingBooking = await _database.default.booking.findFirst({
                     where: {
                         subscriptionId: subscription.id,
                         date: nextBookingDate,
-                        status: { not: 'CANCELLED' }
+                        status: {
+                            not: 'CANCELLED'
+                        }
                     }
                 });
                 if (existingBooking) {
-                    console.log(`⏭️  Booking already exists for subscription ${subscription.id} on ${(0, date_fns_1.format)(nextBookingDate, 'PPP')}`);
+                    console.log(`⏭️  Booking already exists for subscription ${subscription.id} on ${(0, _datefns.format)(nextBookingDate, 'PPP')}`);
                     results.skipped++;
                     continue;
                 }
                 // Create the next booking
-                console.log(`✨ Auto-creating next booking for subscription ${subscription.id} on ${(0, date_fns_1.format)(nextBookingDate, 'PPP')}`);
+                console.log(`✨ Auto-creating next booking for subscription ${subscription.id} on ${(0, _datefns.format)(nextBookingDate, 'PPP')}`);
                 const newBooking = await subscriptionService.createBookingFromSubscription(subscription.id, nextBookingDate);
                 // Check if booking was skipped due to slot conflict (returns null)
                 if (newBooking === null) {
-                    console.log(`⚠️ Slot conflict for subscription ${subscription.id} on ${(0, date_fns_1.format)(nextBookingDate, 'PPP')} - skipping (notification suppressed)`);
+                    console.log(`⚠️ Slot conflict for subscription ${subscription.id} on ${(0, _datefns.format)(nextBookingDate, 'PPP')} - skipping (notification suppressed)`);
                     results.skipped++;
-                    // Note: Notification removed to prevent spam - slots are already shown as unavailable in UI
                     continue;
                 }
                 // NOTE: Notifications are sent by the daily job (createUpcomingRecurringBookings)
                 // to avoid duplicate notifications. This hourly job only creates bookings silently.
                 results.created++;
                 console.log(`✅ Created booking ${newBooking.id} for subscription ${subscription.id}`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error(`❌ Failed to process subscription ${subscription.id}:`, error);
                 results.failed++;
             }
         }
-    }
-    catch (error) {
+    } catch (error) {
         console.error('❌ Error in checkPastBookingsAndCreateNext:', error);
         throw error;
     }
     return results;
 }
-/**
- * Manual trigger for testing or admin purposes
- */
 async function triggerRecurringBookingCreation() {
     console.log('🔧 Manually triggering recurring booking creation...');
     const results = await createUpcomingRecurringBookings();
     console.log('✅ Manual trigger completed:', results);
     return results;
 }
+
+//# sourceMappingURL=recurring-booking.job.js.map

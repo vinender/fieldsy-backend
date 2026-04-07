@@ -1,49 +1,67 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const database_1 = __importDefault(require("../config/database"));
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const constants_1 = require("../config/constants");
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _bcryptjs = /*#__PURE__*/ _interop_require_default(require("bcryptjs"));
+const _constants = require("../config/constants");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 class UserModel {
     // Helper to generate unique userId
     async generateUserId() {
-        const counter = await database_1.default.counter.upsert({
-            where: { name: 'user' },
-            update: { value: { increment: 1 } },
-            create: { name: 'user', value: 7777 },
+        const counter = await _database.default.counter.upsert({
+            where: {
+                name: 'user'
+            },
+            update: {
+                value: {
+                    increment: 1
+                }
+            },
+            create: {
+                name: 'user',
+                value: 7777
+            }
         });
         return counter.value.toString();
     }
     // Helper to strip sensitive/internal IDs from user object for response
     stripInternalId(user) {
-        if (!user)
-            return null;
+        if (!user) return null;
         return user;
     }
     // Create a new user
     async create(data) {
-        const hashedPassword = await bcryptjs_1.default.hash(data.password, constants_1.BCRYPT_ROUNDS);
+        const hashedPassword = await _bcryptjs.default.hash(data.password, _constants.BCRYPT_ROUNDS);
         const role = data.role || 'DOG_OWNER';
         // Get default commission rate from system settings for field owners
         let commissionRate = undefined;
         if (role === 'FIELD_OWNER') {
             // Get system settings for default commission rate
-            const settings = await database_1.default.systemSettings.findFirst();
+            const settings = await _database.default.systemSettings.findFirst();
             commissionRate = settings?.defaultCommissionRate || 15.0; // Use 15% as fallback
         }
         // Generate unique human-readable userId
         const userId = await this.generateUserId();
-        return database_1.default.user.create({
+        return _database.default.user.create({
             data: {
                 ...data,
                 userId,
                 password: hashedPassword,
                 role,
                 provider: data.provider || 'general',
-                commissionRate,
+                commissionRate
             },
             select: {
                 id: true,
@@ -57,38 +75,46 @@ class UserModel {
                 googleImage: true,
                 commissionRate: true,
                 createdAt: true,
-                updatedAt: true,
-            },
+                updatedAt: true
+            }
         });
     }
     // Find user by email (returns first match, use for login without role)
     async findByEmail(email) {
-        return database_1.default.user.findFirst({
-            where: { email },
+        return _database.default.user.findFirst({
+            where: {
+                email
+            }
         });
     }
     // Find user by email and role
     async findByEmailAndRole(email, role) {
-        return database_1.default.user.findUnique({
+        return _database.default.user.findUnique({
             where: {
                 email_role: {
                     email,
                     role
                 }
-            },
+            }
         });
     }
     // Find user by phone
     async findByPhone(phone) {
-        return database_1.default.user.findFirst({
-            where: { phone },
+        return _database.default.user.findFirst({
+            where: {
+                phone
+            }
         });
     }
     // Find user by ID (handles both ObjectId and human-readable userId)
     async findById(id) {
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-        const where = isObjectId ? { id } : { userId: id };
-        return database_1.default.user.findUnique({
+        const where = isObjectId ? {
+            id
+        } : {
+            userId: id
+        };
+        return _database.default.user.findUnique({
             where,
             select: {
                 id: true,
@@ -104,36 +130,43 @@ class UserModel {
                 emailVerified: true,
                 hasField: true,
                 createdAt: true,
-                updatedAt: true,
-            },
+                updatedAt: true
+            }
         });
     }
     // Find user by ObjectId ONLY (for internal use)
     async findByInternalId(id) {
-        return database_1.default.user.findUnique({
-            where: { id },
+        return _database.default.user.findUnique({
+            where: {
+                id
+            }
         });
     }
     // Helper to resolve an input ID (could be human ID or ObjectID) to an ObjectID
     async resolveId(id) {
-        if (!id)
-            return id;
+        if (!id) return id;
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-        if (isObjectId)
-            return id;
-        const user = await database_1.default.user.findUnique({
-            where: { userId: id },
-            select: { id: true }
+        if (isObjectId) return id;
+        const user = await _database.default.user.findUnique({
+            where: {
+                userId: id
+            },
+            select: {
+                id: true
+            }
         });
-        if (!user)
-            throw new AppError('User not found', 404);
+        if (!user) throw new AppError('User not found', 404);
         return user.id;
     }
     // Update user
     async update(id, data) {
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-        const where = isObjectId ? { id } : { userId: id };
-        return database_1.default.user.update({
+        const where = isObjectId ? {
+            id
+        } : {
+            userId: id
+        };
+        return _database.default.user.update({
             where,
             data,
             select: {
@@ -148,40 +181,50 @@ class UserModel {
                 googleImage: true,
                 provider: true,
                 createdAt: true,
-                updatedAt: true,
-            },
+                updatedAt: true
+            }
         });
     }
     // Delete user
     async delete(id) {
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-        const where = isObjectId ? { id } : { userId: id };
-        return database_1.default.user.delete({
-            where,
+        const where = isObjectId ? {
+            id
+        } : {
+            userId: id
+        };
+        return _database.default.user.delete({
+            where
         });
     }
     // Verify password
     async verifyPassword(plainPassword, hashedPassword) {
-        return bcryptjs_1.default.compare(plainPassword, hashedPassword);
+        return _bcryptjs.default.compare(plainPassword, hashedPassword);
     }
     // Check if user has OAuth account
     async hasOAuthAccount(userId) {
-        const account = await database_1.default.account.findFirst({
-            where: { userId },
+        const account = await _database.default.account.findFirst({
+            where: {
+                userId
+            }
         });
         return !!account;
     }
     // Get OAuth providers for a user
     async getOAuthProviders(userId) {
-        const accounts = await database_1.default.account.findMany({
-            where: { userId },
-            select: { provider: true },
+        const accounts = await _database.default.account.findMany({
+            where: {
+                userId
+            },
+            select: {
+                provider: true
+            }
         });
-        return accounts.map(a => a.provider);
+        return accounts.map((a)=>a.provider);
     }
     // Get all users (admin only)
     async findAll(skip = 0, take = 10) {
-        return database_1.default.user.findMany({
+        return _database.default.user.findMany({
             skip,
             take,
             select: {
@@ -194,11 +237,11 @@ class UserModel {
                 image: true,
                 googleImage: true,
                 createdAt: true,
-                updatedAt: true,
+                updatedAt: true
             },
             orderBy: {
-                createdAt: 'desc',
-            },
+                createdAt: 'desc'
+            }
         });
     }
     // Create or update user from social login
@@ -220,9 +263,9 @@ class UserModel {
             const updateData = {
                 name: data.name || existingUser.name,
                 // Keep user's uploaded image, store Google image separately
-                image: existingUser.image, // Keep existing uploaded image
-                emailVerified: new Date(), // Auto-verify when logging in with social provider
-                provider: data.provider, // Update provider to track social login
+                image: existingUser.image,
+                emailVerified: new Date(),
+                provider: data.provider
             };
             // Store Google image separately if provider is Google
             if (data.provider === 'google' && data.image) {
@@ -232,8 +275,10 @@ class UserModel {
                     updateData.image = data.image;
                 }
             }
-            return database_1.default.user.update({
-                where: { id: existingUser.id },
+            return _database.default.user.update({
+                where: {
+                    id: existingUser.id
+                },
                 data: updateData,
                 select: {
                     id: true,
@@ -247,8 +292,8 @@ class UserModel {
                     googleImage: true,
                     emailVerified: true,
                     createdAt: true,
-                    updatedAt: true,
-                },
+                    updatedAt: true
+                }
             });
         }
         // Create new user from social login with specific role
@@ -261,13 +306,13 @@ class UserModel {
             image: data.image,
             role: userRole,
             provider: data.provider,
-            emailVerified: new Date(), // Social logins are automatically verified
+            emailVerified: new Date()
         };
         // Store Google image separately if provider is Google
         if (data.provider === 'google' && data.image) {
             createData.googleImage = data.image;
         }
-        return database_1.default.user.create({
+        return _database.default.user.create({
             data: createData,
             select: {
                 id: true,
@@ -281,17 +326,23 @@ class UserModel {
                 googleImage: true,
                 emailVerified: true,
                 createdAt: true,
-                updatedAt: true,
-            },
+                updatedAt: true
+            }
         });
     }
     // Update user role
     async updateRole(id, role) {
         const isObjectId = id.length === 24 && /^[0-9a-fA-F]+$/.test(id);
-        const where = isObjectId ? { id } : { userId: id };
-        return database_1.default.user.update({
+        const where = isObjectId ? {
+            id
+        } : {
+            userId: id
+        };
+        return _database.default.user.update({
             where,
-            data: { role },
+            data: {
+                role
+            },
             select: {
                 id: true,
                 userId: true,
@@ -303,9 +354,11 @@ class UserModel {
                 image: true,
                 googleImage: true,
                 createdAt: true,
-                updatedAt: true,
-            },
+                updatedAt: true
+            }
         });
     }
 }
-exports.default = new UserModel();
+const _default = new UserModel();
+
+//# sourceMappingURL=user.model.js.map

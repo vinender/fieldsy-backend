@@ -1,61 +1,80 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.setupWebSocket = setupWebSocket;
 //@ts-nocheck
-const socket_io_1 = require("socket.io");
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const client_1 = require("@prisma/client");
-const kafka_1 = require("../config/kafka");
-const prisma = new client_1.PrismaClient();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "setupWebSocket", {
+    enumerable: true,
+    get: function() {
+        return setupWebSocket;
+    }
+});
+const _socketio = require("socket.io");
+const _jsonwebtoken = /*#__PURE__*/ _interop_require_default(require("jsonwebtoken"));
+const _client = require("@prisma/client");
+const _kafka = require("../config/kafka");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const prisma = new _client.PrismaClient();
 // Socket debug logging flag - controlled by environment variable
 const SOCKET_DEBUG = process.env.SOCKET_DEBUG_LOGGING === 'true';
 // Debug logger - only logs if SOCKET_DEBUG is true
-const socketLog = (...args) => {
+const socketLog = (...args)=>{
     if (SOCKET_DEBUG) {
         console.log(...args);
     }
 };
 // Always log errors regardless of debug flag
-const socketError = (...args) => {
+const socketError = (...args)=>{
     console.error(...args);
 };
 function setupWebSocket(server) {
     // ALLOW ALL ORIGINS WITH DYNAMIC REFLECTION FOR CREDENTIALS
     console.log('[WebSocket] CORS: Allowing all origins with credentials support');
-    const io = new socket_io_1.Server(server, {
+    const io = new _socketio.Server(server, {
         cors: {
             // CRITICAL: Cannot use origin: '*' with credentials: true
             // Solution: Dynamically reflect the requesting origin
-            origin: (origin, callback) => {
+            origin: (origin, callback)=>{
                 // Always allow requests (reflect the origin back)
                 // This allows credentials while accepting all origins
                 callback(null, origin || '*');
             },
             credentials: true,
-            methods: ['GET', 'POST', 'OPTIONS'],
-            allowedHeaders: ['Content-Type', 'Authorization'],
+            methods: [
+                'GET',
+                'POST',
+                'OPTIONS'
+            ],
+            allowedHeaders: [
+                'Content-Type',
+                'Authorization'
+            ]
         },
-        transports: ['polling', 'websocket'], // Polling first for better compatibility
-        allowEIO3: true, // Allow different Socket.IO versions
-        pingTimeout: 60000, // 60 seconds
-        pingInterval: 25000, // 25 seconds
-        upgradeTimeout: 30000, // 30 seconds for upgrade
-        maxHttpBufferSize: 1e8, // 100 MB
-        path: '/socket.io/', // Explicit path
+        transports: [
+            'polling',
+            'websocket'
+        ],
+        allowEIO3: true,
+        pingTimeout: 60000,
+        pingInterval: 25000,
+        upgradeTimeout: 30000,
+        maxHttpBufferSize: 1e8,
+        path: '/socket.io/'
     });
     // Store io instance globally for use in other modules
     global.io = io;
     // Authentication middleware
-    io.use(async (socket, next) => {
+    io.use(async (socket, next)=>{
         try {
             const token = socket.handshake.auth.token;
             if (!token) {
                 return next(new Error('Authentication error'));
             }
-            const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
+            const decoded = _jsonwebtoken.default.verify(token, process.env.JWT_SECRET);
             console.log('WebSocket Auth - Decoded token:', {
                 id: decoded.id,
                 userId: decoded.userId,
@@ -66,10 +85,20 @@ function setupWebSocket(server) {
             const userId = decoded.id || decoded.userId;
             // Support both ObjectID and human-readable userId
             const isObjectId = userId.length === 24 && /^[0-9a-fA-F]+$/.test(userId);
-            const where = isObjectId ? { id: userId } : { userId: userId };
+            const where = isObjectId ? {
+                id: userId
+            } : {
+                userId: userId
+            };
             const user = await prisma.user.findUnique({
                 where,
-                select: { id: true, userId: true, role: true, email: true, name: true },
+                select: {
+                    id: true,
+                    userId: true,
+                    role: true,
+                    email: true,
+                    name: true
+                }
             });
             if (!user) {
                 return next(new Error('User not found'));
@@ -79,12 +108,11 @@ function setupWebSocket(server) {
             socket.userRole = user.role;
             socket.user = user;
             next();
-        }
-        catch (error) {
+        } catch (error) {
             next(new Error('Authentication error'));
         }
     });
-    io.on('connection', async (socket) => {
+    io.on('connection', async (socket)=>{
         const userId = socket.userId;
         const userRole = socket.userRole;
         const userEmail = socket.user?.email;
@@ -96,7 +124,7 @@ function setupWebSocket(server) {
         socketLog(`  - Socket ID: ${socket.id}`);
         // Leave all rooms first (except the socket's own room)
         const rooms = Array.from(socket.rooms);
-        for (const room of rooms) {
+        for (const room of rooms){
             if (room !== socket.id) {
                 socket.leave(room);
             }
@@ -120,16 +148,17 @@ function setupWebSocket(server) {
                         has: userId
                     }
                 },
-                select: { id: true }
+                select: {
+                    id: true
+                }
             });
-            conversations.forEach(conv => {
+            conversations.forEach((conv)=>{
                 const convRoom = `conversation:${conv.id}`;
                 socket.join(convRoom);
                 socketLog(`  - Auto-joined conversation: ${convRoom}`);
             });
             socketLog(`  - Total conversations joined: ${conversations.length}`);
-        }
-        catch (error) {
+        } catch (error) {
             socketError('Error auto-joining conversations:', error);
         }
         // Verify room membership
@@ -144,7 +173,7 @@ function setupWebSocket(server) {
         sendUnreadCount(userId);
         // ============ CHAT MESSAGING SOCKET EVENTS ============
         // Join a specific conversation and fetch message history
-        socket.on('join-conversation', async (data) => {
+        socket.on('join-conversation', async (data)=>{
             try {
                 const { conversationId } = data;
                 console.log(`[Socket] User ${userId} joining conversation: ${conversationId}`);
@@ -158,7 +187,9 @@ function setupWebSocket(server) {
                     }
                 });
                 if (!conversation) {
-                    socket.emit('conversation-error', { error: 'Access denied' });
+                    socket.emit('conversation-error', {
+                        error: 'Access denied'
+                    });
                     return;
                 }
                 // Join conversation room
@@ -172,7 +203,9 @@ function setupWebSocket(server) {
                 const limit = 30; // Initial load limit
                 const [messages, totalCount] = await Promise.all([
                     prisma.message.findMany({
-                        where: { conversationId },
+                        where: {
+                            conversationId
+                        },
                         include: {
                             sender: {
                                 select: {
@@ -191,10 +224,16 @@ function setupWebSocket(server) {
                                 }
                             }
                         },
-                        orderBy: { createdAt: 'desc' }, // Get newest first
+                        orderBy: {
+                            createdAt: 'desc'
+                        },
                         take: limit
                     }),
-                    prisma.message.count({ where: { conversationId } })
+                    prisma.message.count({
+                        where: {
+                            conversationId
+                        }
+                    })
                 ]);
                 // Reverse to show oldest to newest in UI
                 messages.reverse();
@@ -222,19 +261,22 @@ function setupWebSocket(server) {
                         readAt: new Date()
                     }
                 });
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('[Socket] Error joining conversation:', error);
-                socket.emit('conversation-error', { error: 'Failed to join conversation' });
+                socket.emit('conversation-error', {
+                    error: 'Failed to join conversation'
+                });
             }
         });
         // Fetch messages for a conversation (cursor-based pagination for infinite scroll)
-        socket.on('fetch-messages', async (data) => {
+        socket.on('fetch-messages', async (data)=>{
             try {
                 const { conversationId, beforeMessageId, limit: requestedLimit } = data;
                 // Validation
                 if (!conversationId || typeof conversationId !== 'string') {
-                    socket.emit('messages-error', { error: 'Invalid conversationId' });
+                    socket.emit('messages-error', {
+                        error: 'Invalid conversationId'
+                    });
                     return;
                 }
                 // Sanitize limit (max 50, default 30)
@@ -249,19 +291,29 @@ function setupWebSocket(server) {
                     }
                 });
                 if (!conversation) {
-                    socket.emit('messages-error', { error: 'Access denied' });
+                    socket.emit('messages-error', {
+                        error: 'Access denied'
+                    });
                     return;
                 }
                 // Build query with cursor if provided
-                const whereClause = { conversationId };
+                const whereClause = {
+                    conversationId
+                };
                 if (beforeMessageId) {
                     // Get the timestamp of the cursor message for efficient querying
                     const cursorMessage = await prisma.message.findUnique({
-                        where: { id: beforeMessageId },
-                        select: { createdAt: true }
+                        where: {
+                            id: beforeMessageId
+                        },
+                        select: {
+                            createdAt: true
+                        }
                     });
                     if (cursorMessage) {
-                        whereClause.createdAt = { lt: cursorMessage.createdAt };
+                        whereClause.createdAt = {
+                            lt: cursorMessage.createdAt
+                        };
                     }
                 }
                 // Get messages older than cursor
@@ -285,7 +337,9 @@ function setupWebSocket(server) {
                             }
                         }
                     },
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
                     take: limit + 1 // Fetch one extra to check if there are more
                 });
                 // Check if there are more messages
@@ -317,14 +371,15 @@ function setupWebSocket(server) {
                         readAt: new Date()
                     }
                 });
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('[Socket] Error fetching messages:', error);
-                socket.emit('messages-error', { error: 'Failed to fetch messages' });
+                socket.emit('messages-error', {
+                    error: 'Failed to fetch messages'
+                });
             }
         });
         // Send a message via socket (with acknowledgment callback)
-        socket.on('send-message', async (data, callback) => {
+        socket.on('send-message', async (data, callback)=>{
             socketLog(`[Socket] === SEND-MESSAGE EVENT RECEIVED ===`);
             socketLog(`[Socket] From user: ${userId}`);
             socketLog(`[Socket] Data:`, data);
@@ -334,10 +389,15 @@ function setupWebSocket(server) {
                 // Quick validation
                 if (!conversationId || !content || !receiverId) {
                     socketLog(`[Socket] Missing required fields, sending error`);
-                    const error = { error: 'Missing required fields', correlationId };
+                    const error = {
+                        error: 'Missing required fields',
+                        correlationId
+                    };
                     socket.emit('message-error', error);
-                    if (callback)
-                        callback({ success: false, error: 'Missing required fields' });
+                    if (callback) callback({
+                        success: false,
+                        error: 'Missing required fields'
+                    });
                     return;
                 }
                 const convRoom = `conversation:${conversationId}`;
@@ -346,8 +406,7 @@ function setupWebSocket(server) {
                 if (!socket.rooms.has(convRoom)) {
                     socketLog(`[Socket] Adding sender to conversation room: ${convRoom}`);
                     socket.join(convRoom);
-                }
-                else {
+                } else {
                     socketLog(`[Socket] Sender already in conversation room: ${convRoom}`);
                 }
                 // Parallel database operations for speed
@@ -383,10 +442,15 @@ function setupWebSocket(server) {
                 // Validation checks
                 if (!conversation) {
                     socketLog(`[Socket] Access denied - user not participant in conversation`);
-                    const error = { error: 'Access denied', correlationId };
+                    const error = {
+                        error: 'Access denied',
+                        correlationId
+                    };
                     socket.emit('message-error', error);
-                    if (callback)
-                        callback({ success: false, error: 'Access denied' });
+                    if (callback) callback({
+                        success: false,
+                        error: 'Access denied'
+                    });
                     return;
                 }
                 if (senderBlockedReceiver || receiverBlockedSender) {
@@ -397,8 +461,11 @@ function setupWebSocket(server) {
                         correlationId
                     };
                     socket.emit('message-error', error);
-                    if (callback)
-                        callback({ success: false, error: error.error, blocked: true });
+                    if (callback) callback({
+                        success: false,
+                        error: error.error,
+                        blocked: true
+                    });
                     return;
                 }
                 // Generate a temporary message ID for immediate ACK
@@ -433,7 +500,7 @@ function setupWebSocket(server) {
                 // Send message to Kafka for async processing (or process directly if Kafka disabled)
                 socketLog(`[Socket] Sending message to Kafka for processing`);
                 try {
-                    const savedMessage = await (0, kafka_1.sendMessageToKafka)({
+                    const savedMessage = await (0, _kafka.sendMessageToKafka)({
                         conversationId,
                         senderId: userId,
                         receiverId,
@@ -447,12 +514,10 @@ function setupWebSocket(server) {
                     // So we just log the result here
                     if (savedMessage) {
                         socketLog(`[Socket] Direct processing complete, message ID: ${savedMessage.id}`);
-                    }
-                    else {
+                    } else {
                         socketLog(`[Socket] Message sent to Kafka queue, will be processed asynchronously`);
                     }
-                }
-                catch (kafkaError) {
+                } catch (kafkaError) {
                     socketError('[Socket] Kafka/processing error:', kafkaError);
                     socketError('[Socket] Error details:', {
                         name: kafkaError?.name,
@@ -468,22 +533,28 @@ function setupWebSocket(server) {
                     });
                 }
                 socketLog(`[Socket] Message flow completed successfully`);
-            }
-            catch (error) {
+            } catch (error) {
                 socketError('[Socket] Error sending message:', error);
-                const errorResponse = { error: 'Failed to send message', correlationId: data.correlationId };
+                const errorResponse = {
+                    error: 'Failed to send message',
+                    correlationId: data.correlationId
+                };
                 socket.emit('message-error', errorResponse);
-                if (callback)
-                    callback({ success: false, error: 'Failed to send message' });
+                if (callback) callback({
+                    success: false,
+                    error: 'Failed to send message'
+                });
             }
         });
         // Mark messages as read
-        socket.on('mark-as-read', async (data) => {
+        socket.on('mark-as-read', async (data)=>{
             try {
                 const { messageIds } = data;
                 await prisma.message.updateMany({
                     where: {
-                        id: { in: messageIds },
+                        id: {
+                            in: messageIds
+                        },
                         receiverId: userId
                     },
                     data: {
@@ -492,13 +563,12 @@ function setupWebSocket(server) {
                     }
                 });
                 console.log(`[Socket] Marked ${messageIds.length} messages as read for user ${userId}`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('[Socket] Error marking messages as read:', error);
             }
         });
         // Typing indicator
-        socket.on('typing', async (data) => {
+        socket.on('typing', async (data)=>{
             try {
                 const { conversationId, isTyping } = data;
                 // Broadcast to conversation room (except sender)
@@ -507,41 +577,49 @@ function setupWebSocket(server) {
                     conversationId,
                     isTyping
                 });
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('[Socket] Error handling typing:', error);
             }
         });
         // ============ END CHAT MESSAGING EVENTS ============
         // Handle disconnect
-        socket.on('disconnect', () => {
+        socket.on('disconnect', ()=>{
             socketLog(`User ${userId} disconnected`);
         });
         // Handle marking notifications as read
-        socket.on('markAsRead', async (notificationId) => {
+        socket.on('markAsRead', async (notificationId)=>{
             try {
                 await prisma.notification.update({
-                    where: { id: notificationId },
-                    data: { read: true, readAt: new Date() },
+                    where: {
+                        id: notificationId
+                    },
+                    data: {
+                        read: true,
+                        readAt: new Date()
+                    }
                 });
                 // Send updated unread count
                 sendUnreadCount(userId);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error marking notification as read:', error);
             }
         });
         // Handle marking all as read
-        socket.on('markAllAsRead', async () => {
+        socket.on('markAllAsRead', async ()=>{
             try {
                 await prisma.notification.updateMany({
-                    where: { userId, read: false },
-                    data: { read: true, readAt: new Date() },
+                    where: {
+                        userId,
+                        read: false
+                    },
+                    data: {
+                        read: true,
+                        readAt: new Date()
+                    }
                 });
                 // Send updated unread count
                 sendUnreadCount(userId);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error marking all notifications as read:', error);
             }
         });
@@ -550,13 +628,17 @@ function setupWebSocket(server) {
     async function sendUnreadCount(userId) {
         try {
             const unreadCount = await prisma.notification.count({
-                where: { userId, read: false },
+                where: {
+                    userId,
+                    read: false
+                }
             });
             io.to(`user-${userId}`).emit('unreadCount', unreadCount);
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error sending unread count:', error);
         }
     }
     return io;
 }
+
+//# sourceMappingURL=websocket.js.map

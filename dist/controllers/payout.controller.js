@@ -1,14 +1,43 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.triggerBookingPayout = exports.getPayoutHistory = exports.processPendingPayouts = exports.getTransactionDetails = exports.getEarningsSummary = exports.getEarningsHistory = void 0;
-const database_1 = __importDefault(require("../config/database"));
-const payout_services_1 = require("../config/payout-services");
-const payoutService = (0, payout_services_1.getPayoutService)();
-// Get field owner's earnings history with pagination
-const getEarningsHistory = async (req, res) => {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get getEarningsHistory () {
+        return getEarningsHistory;
+    },
+    get getEarningsSummary () {
+        return getEarningsSummary;
+    },
+    get getPayoutHistory () {
+        return getPayoutHistory;
+    },
+    get getTransactionDetails () {
+        return getTransactionDetails;
+    },
+    get processPendingPayouts () {
+        return processPendingPayouts;
+    },
+    get triggerBookingPayout () {
+        return triggerBookingPayout;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _payoutservices = require("../config/payout-services");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const payoutService = (0, _payoutservices.getPayoutService)();
+const getEarningsHistory = async (req, res)=>{
     try {
         const userId = req.user._id || req.user.id;
         const { page = 1, limit = 10, status, startDate, endDate } = req.query;
@@ -16,11 +45,15 @@ const getEarningsHistory = async (req, res) => {
         // Build query filters
         const where = {};
         // Get all fields owned by this user
-        const userFields = await database_1.default.field.findMany({
-            where: { ownerId: userId },
-            select: { id: true }
+        const userFields = await _database.default.field.findMany({
+            where: {
+                ownerId: userId
+            },
+            select: {
+                id: true
+            }
         });
-        const fieldIds = userFields.map(field => field.id);
+        const fieldIds = userFields.map((field)=>field.id);
         if (fieldIds.length === 0) {
             return res.json({
                 transactions: [],
@@ -40,24 +73,34 @@ const getEarningsHistory = async (req, res) => {
         }
         // Get bookings for these fields including cancelled ones with transfers
         const bookingWhere = {
-            fieldId: { in: fieldIds },
+            fieldId: {
+                in: fieldIds
+            },
             OR: [
-                { status: 'COMPLETED' },
+                {
+                    status: 'COMPLETED'
+                },
                 {
                     status: 'CANCELLED',
-                    payoutStatus: { not: null } // Include cancelled bookings that have payouts
+                    payoutStatus: {
+                        not: null
+                    } // Include cancelled bookings that have payouts
                 }
             ]
         };
         // Get transactions for these bookings
-        const bookings = await database_1.default.booking.findMany({
+        const bookings = await _database.default.booking.findMany({
             where: bookingWhere,
-            select: { id: true }
+            select: {
+                id: true
+            }
         });
-        const bookingIds = bookings.map(booking => booking.id);
+        const bookingIds = bookings.map((booking)=>booking.id);
         // Build transaction query
         const transactionWhere = {
-            bookingId: { in: bookingIds }
+            bookingId: {
+                in: bookingIds
+            }
         };
         if (status) {
             transactionWhere.status = status;
@@ -73,7 +116,7 @@ const getEarningsHistory = async (req, res) => {
         }
         // Get transactions with pagination
         const [transactions, total] = await Promise.all([
-            database_1.default.transaction.findMany({
+            _database.default.transaction.findMany({
                 where: transactionWhere,
                 include: {
                     booking: {
@@ -99,14 +142,16 @@ const getEarningsHistory = async (req, res) => {
                 skip,
                 take: Number(limit)
             }),
-            database_1.default.transaction.count({
+            _database.default.transaction.count({
                 where: transactionWhere
             })
         ]);
         // Calculate total earnings and stats
-        const allTransactions = await database_1.default.transaction.findMany({
+        const allTransactions = await _database.default.transaction.findMany({
             where: {
-                bookingId: { in: bookingIds },
+                bookingId: {
+                    in: bookingIds
+                },
                 status: 'COMPLETED'
             },
             select: {
@@ -114,35 +159,39 @@ const getEarningsHistory = async (req, res) => {
                 status: true
             }
         });
-        const totalEarnings = allTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const totalEarnings = allTransactions.reduce((sum, t)=>sum + t.amount, 0);
         // Get status counts
-        const statusCounts = await database_1.default.transaction.groupBy({
-            by: ['status'],
+        const statusCounts = await _database.default.transaction.groupBy({
+            by: [
+                'status'
+            ],
             where: {
-                bookingId: { in: bookingIds }
+                bookingId: {
+                    in: bookingIds
+                }
             },
             _count: true
         });
         const stats = {
-            completed: statusCounts.find(s => s.status === 'COMPLETED')?._count || 0,
-            refunded: statusCounts.find(s => s.status === 'REFUNDED')?._count || 0,
-            failed: statusCounts.find(s => s.status === 'FAILED')?._count || 0
+            completed: statusCounts.find((s)=>s.status === 'COMPLETED')?._count || 0,
+            refunded: statusCounts.find((s)=>s.status === 'REFUNDED')?._count || 0,
+            failed: statusCounts.find((s)=>s.status === 'FAILED')?._count || 0
         };
         // Format transactions for frontend
-        const formattedTransactions = transactions.map(transaction => ({
-            id: transaction.id,
-            orderId: `#${transaction.id.slice(-6).toUpperCase()}`,
-            paymentId: transaction.stripePaymentIntentId || transaction.id,
-            date: transaction.createdAt,
-            amount: transaction.amount,
-            status: transaction.status.toLowerCase(),
-            type: transaction.type,
-            fieldName: transaction.booking.field.name,
-            fieldAddress: transaction.booking.field.address,
-            customerName: transaction.booking.user.name,
-            customerEmail: transaction.booking.user.email,
-            description: transaction.description
-        }));
+        const formattedTransactions = transactions.map((transaction)=>({
+                id: transaction.id,
+                orderId: `#${transaction.id.slice(-6).toUpperCase()}`,
+                paymentId: transaction.stripePaymentIntentId || transaction.id,
+                date: transaction.createdAt,
+                amount: transaction.amount,
+                status: transaction.status.toLowerCase(),
+                type: transaction.type,
+                fieldName: transaction.booking.field.name,
+                fieldAddress: transaction.booking.field.address,
+                customerName: transaction.booking.user.name,
+                customerEmail: transaction.booking.user.email,
+                description: transaction.description
+            }));
         res.json({
             transactions: formattedTransactions,
             totalEarnings,
@@ -154,24 +203,27 @@ const getEarningsHistory = async (req, res) => {
                 totalPages: Math.ceil(total / Number(limit))
             }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching earnings history:', error);
-        res.status(500).json({ error: 'Failed to fetch earnings history' });
+        res.status(500).json({
+            error: 'Failed to fetch earnings history'
+        });
     }
 };
-exports.getEarningsHistory = getEarningsHistory;
-// Get earnings summary
-const getEarningsSummary = async (req, res) => {
+const getEarningsSummary = async (req, res)=>{
     try {
         const userId = req.user._id || req.user.id;
         const { period = 'all' } = req.query;
         // Get all fields owned by this user
-        const userFields = await database_1.default.field.findMany({
-            where: { ownerId: userId },
-            select: { id: true }
+        const userFields = await _database.default.field.findMany({
+            where: {
+                ownerId: userId
+            },
+            select: {
+                id: true
+            }
         });
-        const fieldIds = userFields.map(field => field.id);
+        const fieldIds = userFields.map((field)=>field.id);
         if (fieldIds.length === 0) {
             return res.json({
                 totalEarnings: 0,
@@ -182,15 +234,21 @@ const getEarningsSummary = async (req, res) => {
             });
         }
         // Get bookings for these fields
-        const bookings = await database_1.default.booking.findMany({
-            where: { fieldId: { in: fieldIds } },
-            select: { id: true }
+        const bookings = await _database.default.booking.findMany({
+            where: {
+                fieldId: {
+                    in: fieldIds
+                }
+            },
+            select: {
+                id: true
+            }
         });
-        const bookingIds = bookings.map(booking => booking.id);
+        const bookingIds = bookings.map((booking)=>booking.id);
         // Calculate date range based on period
         let dateFilter = {};
         const now = new Date();
-        switch (period) {
+        switch(period){
             case 'week':
                 dateFilter = {
                     gte: new Date(now.setDate(now.getDate() - 7))
@@ -208,35 +266,43 @@ const getEarningsSummary = async (req, res) => {
                 break;
         }
         // Get completed transactions
-        const completedTransactions = await database_1.default.transaction.findMany({
+        const completedTransactions = await _database.default.transaction.findMany({
             where: {
-                bookingId: { in: bookingIds },
+                bookingId: {
+                    in: bookingIds
+                },
                 status: 'COMPLETED',
-                ...(period !== 'all' && { createdAt: dateFilter })
+                ...period !== 'all' && {
+                    createdAt: dateFilter
+                }
             },
             select: {
                 amount: true,
                 createdAt: true
             }
         });
-        const totalEarnings = completedTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const totalEarnings = completedTransactions.reduce((sum, t)=>sum + t.amount, 0);
         // Get pending transactions
-        const pendingTransactions = await database_1.default.transaction.findMany({
+        const pendingTransactions = await _database.default.transaction.findMany({
             where: {
-                bookingId: { in: bookingIds },
+                bookingId: {
+                    in: bookingIds
+                },
                 status: 'PENDING'
             },
             select: {
                 amount: true
             }
         });
-        const pendingPayouts = pendingTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const pendingPayouts = pendingTransactions.reduce((sum, t)=>sum + t.amount, 0);
         // Calculate monthly earnings for chart
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        const monthlyTransactions = await database_1.default.transaction.findMany({
+        const monthlyTransactions = await _database.default.transaction.findMany({
             where: {
-                bookingId: { in: bookingIds },
+                bookingId: {
+                    in: bookingIds
+                },
                 status: 'COMPLETED',
                 createdAt: {
                     gte: sixMonthsAgo
@@ -248,16 +314,21 @@ const getEarningsSummary = async (req, res) => {
             }
         });
         // Group by month
-        const monthlyEarnings = Array.from({ length: 6 }, (_, i) => {
+        const monthlyEarnings = Array.from({
+            length: 6
+        }, (_, i)=>{
             const date = new Date();
             date.setMonth(date.getMonth() - (5 - i));
-            const month = date.toLocaleString('default', { month: 'short', timeZone: 'Europe/London' });
+            const month = date.toLocaleString('default', {
+                month: 'short',
+                timeZone: 'Europe/London'
+            });
             const year = date.getFullYear();
-            const monthTransactions = monthlyTransactions.filter(t => {
+            const monthTransactions = monthlyTransactions.filter((t)=>{
                 const tDate = new Date(t.createdAt);
                 return tDate.getMonth() === date.getMonth() && tDate.getFullYear() === year;
             });
-            const amount = monthTransactions.reduce((sum, t) => sum + t.amount, 0);
+            const amount = monthTransactions.reduce((sum, t)=>sum + t.amount, 0);
             return {
                 month: `${month} ${year}`,
                 amount
@@ -265,25 +336,26 @@ const getEarningsSummary = async (req, res) => {
         });
         res.json({
             totalEarnings,
-            currentBalance: totalEarnings - pendingPayouts, // Simplified calculation
+            currentBalance: totalEarnings - pendingPayouts,
             pendingPayouts,
-            lastPayout: null, // To be implemented with payout tracking
+            lastPayout: null,
             monthlyEarnings
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching earnings summary:', error);
-        res.status(500).json({ error: 'Failed to fetch earnings summary' });
+        res.status(500).json({
+            error: 'Failed to fetch earnings summary'
+        });
     }
 };
-exports.getEarningsSummary = getEarningsSummary;
-// Get transaction details
-const getTransactionDetails = async (req, res) => {
+const getTransactionDetails = async (req, res)=>{
     try {
         const { transactionId } = req.params;
         const userId = req.user._id || req.user.id;
-        const transaction = await database_1.default.transaction.findUnique({
-            where: { id: transactionId },
+        const transaction = await _database.default.transaction.findUnique({
+            where: {
+                id: transactionId
+            },
             include: {
                 booking: {
                     include: {
@@ -300,32 +372,37 @@ const getTransactionDetails = async (req, res) => {
             }
         });
         if (!transaction) {
-            return res.status(404).json({ error: 'Transaction not found' });
+            return res.status(404).json({
+                error: 'Transaction not found'
+            });
         }
         // Verify the user owns the field
         if (transaction.booking.field.ownerId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
+            return res.status(403).json({
+                error: 'Access denied'
+            });
         }
         res.json(transaction);
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching transaction details:', error);
-        res.status(500).json({ error: 'Failed to fetch transaction details' });
+        res.status(500).json({
+            error: 'Failed to fetch transaction details'
+        });
     }
 };
-exports.getTransactionDetails = getTransactionDetails;
-// Process pending payouts for field owner (after Stripe account setup)
-const processPendingPayouts = async (req, res) => {
+const processPendingPayouts = async (req, res)=>{
     try {
         const userId = req.user._id || req.user.id;
         const userRole = req.user.role;
         // Only field owners can process their payouts
         if (userRole !== 'FIELD_OWNER') {
-            return res.status(403).json({ error: 'Only field owners can process payouts' });
+            return res.status(403).json({
+                error: 'Only field owners can process payouts'
+            });
         }
         const results = await payoutService.processPendingPayouts(userId);
-        const successCount = results.filter(r => r.success).length;
-        const failedCount = results.filter(r => !r.success).length;
+        const successCount = results.filter((r)=>r.success).length;
+        const failedCount = results.filter((r)=>!r.success).length;
         res.json({
             success: true,
             message: `Processed ${successCount} payouts successfully, ${failedCount} failed`,
@@ -335,8 +412,7 @@ const processPendingPayouts = async (req, res) => {
                 results
             }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error processing pending payouts:', error);
         res.status(500).json({
             error: 'Failed to process pending payouts',
@@ -344,9 +420,7 @@ const processPendingPayouts = async (req, res) => {
         });
     }
 };
-exports.processPendingPayouts = processPendingPayouts;
-// Get payout history for field owner
-const getPayoutHistory = async (req, res) => {
+const getPayoutHistory = async (req, res)=>{
     try {
         const userId = req.user._id || req.user.id;
         const { page = 1, limit = 10 } = req.query;
@@ -355,8 +429,7 @@ const getPayoutHistory = async (req, res) => {
             success: true,
             data: payouts
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching payout history:', error);
         res.status(500).json({
             error: 'Failed to fetch payout history',
@@ -364,15 +437,15 @@ const getPayoutHistory = async (req, res) => {
         });
     }
 };
-exports.getPayoutHistory = getPayoutHistory;
-// Manually trigger payout for a specific booking (Admin only)
-const triggerBookingPayout = async (req, res) => {
+const triggerBookingPayout = async (req, res)=>{
     try {
         const { bookingId } = req.params;
         const userRole = req.user.role;
         // Only admins can manually trigger payouts
         if (userRole !== 'ADMIN') {
-            return res.status(403).json({ error: 'Only admins can manually trigger payouts' });
+            return res.status(403).json({
+                error: 'Only admins can manually trigger payouts'
+            });
         }
         const payout = await payoutService.processBookingPayout(bookingId);
         res.json({
@@ -380,8 +453,7 @@ const triggerBookingPayout = async (req, res) => {
             message: 'Payout triggered successfully',
             data: payout
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error triggering payout:', error);
         res.status(500).json({
             error: 'Failed to trigger payout',
@@ -389,4 +461,5 @@ const triggerBookingPayout = async (req, res) => {
         });
     }
 };
-exports.triggerBookingPayout = triggerBookingPayout;
+
+//# sourceMappingURL=payout.controller.js.map

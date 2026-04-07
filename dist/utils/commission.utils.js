@@ -1,27 +1,42 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getEffectiveCommissionRate = getEffectiveCommissionRate;
-exports.calculatePayoutAmounts = calculatePayoutAmounts;
 //@ts-nocheck
-const database_1 = __importDefault(require("../config/database"));
-const settings_cache_1 = require("../config/settings-cache");
-/**
- * Get the effective commission rate for a field owner
- * Returns the custom rate if set, otherwise the system default
- * Also returns whether a custom rate was used and the default rate for auditing
- */
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get calculatePayoutAmounts () {
+        return calculatePayoutAmounts;
+    },
+    get getEffectiveCommissionRate () {
+        return getEffectiveCommissionRate;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _settingscache = require("../config/settings-cache");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 async function getEffectiveCommissionRate(userId) {
     try {
         // Get the field owner's custom commission rate
-        const user = await database_1.default.user.findUnique({
-            where: { id: userId },
-            select: { commissionRate: true }
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            },
+            select: {
+                commissionRate: true
+            }
         });
         // Get the system default
-        const settings = await (0, settings_cache_1.getSystemSettings)();
+        const settings = await (0, _settingscache.getSystemSettings)();
         const defaultRate = settings?.defaultCommissionRate || 20;
         // If user has a custom rate, use it
         if (user?.commissionRate !== null && user?.commissionRate !== undefined) {
@@ -37,8 +52,7 @@ async function getEffectiveCommissionRate(userId) {
             isCustomRate: false,
             defaultRate
         };
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error getting commission rate:', error);
         // Return default 20% on error
         return {
@@ -48,22 +62,14 @@ async function getEffectiveCommissionRate(userId) {
         };
     }
 }
-/**
- * Calculate field owner amount and platform fee based on commission rate
- *
- * Commission rate represents what the PLATFORM takes as a percentage.
- * Example: If dog owner pays £100:
- * With 20% commission rate: Platform takes 20% = £20
- * Field owner gets the remaining 80% = £80
- */
 async function calculatePayoutAmounts(totalAmount, fieldOwnerId) {
     const { effectiveRate, isCustomRate, defaultRate } = await getEffectiveCommissionRate(fieldOwnerId);
     // Calculate Stripe fee (1.5% + £0.20)
-    const stripeFee = (totalAmount * 0.015) + 0.20;
+    const stripeFee = totalAmount * 0.015 + 0.20;
     // Net amount after Stripe fee
     const amountAfterStripeFee = totalAmount - stripeFee;
     // Platform takes the commission percentage from the NET amount (after Stripe fee)
-    const platformFeeAmount = (amountAfterStripeFee * effectiveRate) / 100;
+    const platformFeeAmount = amountAfterStripeFee * effectiveRate / 100;
     const platformCommission = platformFeeAmount; // Same value, different name for DB compatibility
     // Field owner gets the remaining net amount after platform commission
     // Owner Amount = Net (after Stripe) - PlatformCommission
@@ -78,9 +84,11 @@ async function calculatePayoutAmounts(totalAmount, fieldOwnerId) {
     return {
         fieldOwnerAmount,
         platformFeeAmount,
-        platformCommission, // DB field name
+        platformCommission,
         commissionRate: effectiveRate,
         isCustomCommission: isCustomRate,
         defaultCommissionRate: defaultRate
     };
 }
+
+//# sourceMappingURL=commission.utils.js.map

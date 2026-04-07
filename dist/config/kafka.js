@@ -1,44 +1,72 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.shutdownKafka = exports.sendMessageToKafka = exports.initializeKafka = void 0;
-exports.getMessageStats = getMessageStats;
 //@ts-nocheck
-const kafkajs_1 = require("kafkajs");
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get getMessageStats () {
+        return getMessageStats;
+    },
+    get initializeKafka () {
+        return initializeKafka;
+    },
+    get sendMessageToKafka () {
+        return sendMessageToKafka;
+    },
+    get shutdownKafka () {
+        return shutdownKafka;
+    }
+});
+const _kafkajs = require("kafkajs");
+const _client = require("@prisma/client");
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
+const prisma = new _client.PrismaClient();
 // Flag to track if Kafka is available
 let kafkaEnabled = false;
 let kafkaConnecting = false; // Prevent multiple connection attempts
@@ -49,10 +77,10 @@ let kafkaInstance = null;
 // AUTO-SCALING CONFIGURATION
 // ============================================
 const AUTO_SCALE_CONFIG = {
-    enabled: process.env.KAFKA_AUTO_SCALE !== 'false', // Enabled by default
-    threshold: parseInt(process.env.KAFKA_THRESHOLD || '100', 10), // Messages per minute to trigger Kafka
-    windowMs: 60000, // 1 minute window
-    cooldownMs: 300000, // 5 minutes before disabling Kafka after load drops
+    enabled: process.env.KAFKA_AUTO_SCALE !== 'false',
+    threshold: parseInt(process.env.KAFKA_THRESHOLD || '100', 10),
+    windowMs: 60000,
+    cooldownMs: 300000
 };
 // Rate tracking
 let messageCount = 0;
@@ -66,7 +94,7 @@ function trackMessageRate() {
     const elapsed = now - windowStartTime;
     // Calculate rate every window
     if (elapsed >= AUTO_SCALE_CONFIG.windowMs) {
-        currentRate = Math.round((messageCount / elapsed) * 60000); // msgs/min
+        currentRate = Math.round(messageCount / elapsed * 60000); // msgs/min
         console.log(`[AutoScale] Message rate: ${currentRate} msgs/min (threshold: ${AUTO_SCALE_CONFIG.threshold})`);
         // Check if we need to scale up
         if (currentRate >= AUTO_SCALE_CONFIG.threshold) {
@@ -81,36 +109,38 @@ function trackMessageRate() {
         windowStartTime = now;
     }
 }
-// Get current stats (for monitoring/debugging)
 function getMessageStats() {
     return {
         currentRate,
         kafkaEnabled,
         threshold: AUTO_SCALE_CONFIG.threshold,
-        autoScaleEnabled: AUTO_SCALE_CONFIG.enabled,
+        autoScaleEnabled: AUTO_SCALE_CONFIG.enabled
     };
 }
 // Dynamically enable Kafka when threshold is reached
 async function enableKafkaAutomatically() {
-    if (kafkaConnecting || kafkaEnabled)
-        return;
+    if (kafkaConnecting || kafkaEnabled) return;
     kafkaConnecting = true;
     console.log('[AutoScale] Attempting to connect to Kafka...');
     try {
         // Create Kafka instance if not exists
         if (!kafkaInstance) {
-            kafkaInstance = new kafkajs_1.Kafka({
+            kafkaInstance = new _kafkajs.Kafka({
                 clientId: 'fieldsy-chat',
-                brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+                brokers: [
+                    process.env.KAFKA_BROKER || 'localhost:9092'
+                ],
                 retry: {
                     initialRetryTime: 100,
-                    retries: 3,
-                },
+                    retries: 3
+                }
             });
         }
         // Create producer and consumer
         producer = kafkaInstance.producer();
-        consumer = kafkaInstance.consumer({ groupId: 'chat-service-group' });
+        consumer = kafkaInstance.consumer({
+            groupId: 'chat-service-group'
+        });
         // Connect producer
         await producer.connect();
         console.log('[AutoScale] ✅ Kafka producer connected');
@@ -118,49 +148,52 @@ async function enableKafkaAutomatically() {
         await consumer.connect();
         console.log('[AutoScale] ✅ Kafka consumer connected');
         // Subscribe to topic
-        await consumer.subscribe({ topic: 'chat-messages', fromBeginning: false });
+        await consumer.subscribe({
+            topic: 'chat-messages',
+            fromBeginning: false
+        });
         // Run consumer
         await consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
+            eachMessage: async ({ topic, partition, message })=>{
                 try {
-                    if (!message.value)
-                        return;
+                    if (!message.value) return;
                     const chatMessage = JSON.parse(message.value.toString());
                     if (socketIO) {
                         await processMessage(chatMessage, socketIO);
                     }
-                }
-                catch (error) {
+                } catch (error) {
                     console.error('[AutoScale] Error processing Kafka message:', error);
                 }
-            },
+            }
         });
         kafkaEnabled = true;
         console.log('[AutoScale] ✅ Kafka fully enabled via auto-scaling!');
-    }
-    catch (error) {
+    } catch (error) {
         console.error('[AutoScale] ❌ Failed to enable Kafka:', error.message);
         console.log('[AutoScale] Continuing with direct processing...');
         // Clean up on failure
         producer = null;
         consumer = null;
-    }
-    finally {
+    } finally{
         kafkaConnecting = false;
     }
 }
 // Initialize Kafka on startup (only if explicitly enabled via env)
 if (process.env.ENABLE_KAFKA === 'true') {
-    kafkaInstance = new kafkajs_1.Kafka({
+    kafkaInstance = new _kafkajs.Kafka({
         clientId: 'fieldsy-chat',
-        brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+        brokers: [
+            process.env.KAFKA_BROKER || 'localhost:9092'
+        ],
         retry: {
             initialRetryTime: 100,
-            retries: 3,
-        },
+            retries: 3
+        }
     });
     producer = kafkaInstance.producer();
-    consumer = kafkaInstance.consumer({ groupId: 'chat-service-group' });
+    consumer = kafkaInstance.consumer({
+        groupId: 'chat-service-group'
+    });
 }
 // Track processed messages to prevent duplicates
 const processedMessages = new Set();
@@ -171,8 +204,7 @@ let socketIO = null;
 // Batch conversation updates to avoid bottleneck
 const conversationUpdateQueue = new Map();
 const CONVERSATION_UPDATE_DELAY = 1000; // Wait 1 second before updating conversation
-// Initialize Kafka producer and consumer (if enabled)
-const initializeKafka = async (io) => {
+const initializeKafka = async (io)=>{
     socketIO = io; // Store the Socket.io instance
     if (!producer || !consumer) {
         console.log('Kafka is disabled. Messages will be handled directly.');
@@ -188,28 +220,27 @@ const initializeKafka = async (io) => {
         console.log('Kafka consumer connected');
         kafkaEnabled = true;
         // Subscribe to the chat topic
-        await consumer.subscribe({ topic: 'chat-messages', fromBeginning: false });
+        await consumer.subscribe({
+            topic: 'chat-messages',
+            fromBeginning: false
+        });
         // Run the consumer
         await consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
+            eachMessage: async ({ topic, partition, message })=>{
                 try {
-                    if (!message.value)
-                        return;
+                    if (!message.value) return;
                     const chatMessage = JSON.parse(message.value.toString());
                     await processMessage(chatMessage, io);
-                }
-                catch (error) {
+                } catch (error) {
                     console.error('Error processing Kafka message:', error);
                 }
-            },
+            }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Kafka initialization failed, falling back to direct processing:', error);
         kafkaEnabled = false;
     }
 };
-exports.initializeKafka = initializeKafka;
 // Batch update conversation - debounced to handle rapid messages
 function scheduleConversationUpdate(conversationId, content, timestamp) {
     // Clear existing timeout if any
@@ -218,34 +249,38 @@ function scheduleConversationUpdate(conversationId, content, timestamp) {
         clearTimeout(existing.timeout);
     }
     // Schedule new update
-    const timeout = setTimeout(async () => {
+    const timeout = setTimeout(async ()=>{
         try {
             const data = conversationUpdateQueue.get(conversationId);
             if (data) {
                 await prisma.conversation.update({
-                    where: { id: conversationId },
+                    where: {
+                        id: conversationId
+                    },
                     data: {
                         lastMessage: data.content,
-                        lastMessageAt: data.timestamp,
-                    },
+                        lastMessageAt: data.timestamp
+                    }
                 });
                 conversationUpdateQueue.delete(conversationId);
                 console.log(`[ConversationUpdate] Updated conversation ${conversationId}`);
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.warn('[ConversationUpdate] Failed (non-critical):', error.message);
             conversationUpdateQueue.delete(conversationId);
         }
     }, CONVERSATION_UPDATE_DELAY);
-    conversationUpdateQueue.set(conversationId, { content, timestamp, timeout });
+    conversationUpdateQueue.set(conversationId, {
+        content,
+        timestamp,
+        timeout
+    });
 }
 // Process message (used by both Kafka and direct processing)
 async function processMessage(chatMessage, io) {
     // Generate unique key using correlationId (preferred) or content hash
     // IMPORTANT: Don't use just timestamp - multiple messages can have same timestamp!
-    const messageKey = chatMessage.correlationId ||
-        `${chatMessage.conversationId}-${chatMessage.senderId}-${chatMessage.timestamp.getTime()}-${chatMessage.content.slice(0, 20)}-${Math.random().toString(36).substr(2, 5)}`;
+    const messageKey = chatMessage.correlationId || `${chatMessage.conversationId}-${chatMessage.senderId}-${chatMessage.timestamp.getTime()}-${chatMessage.content.slice(0, 20)}-${Math.random().toString(36).substr(2, 5)}`;
     try {
         // Check for duplicate processing - only if correlationId exists (client-generated unique ID)
         // Without correlationId, we skip duplicate check to avoid false positives
@@ -260,8 +295,7 @@ async function processMessage(chatMessage, io) {
             // Maintain cache size
             if (messageCacheArray.length > MESSAGE_CACHE_SIZE) {
                 const oldKey = messageCacheArray.shift();
-                if (oldKey)
-                    processedMessages.delete(oldKey);
+                if (oldKey) processedMessages.delete(oldKey);
             }
         }
         // Save message to database (this is the only blocking operation)
@@ -271,7 +305,7 @@ async function processMessage(chatMessage, io) {
                 senderId: chatMessage.senderId,
                 receiverId: chatMessage.receiverId,
                 content: chatMessage.content,
-                createdAt: chatMessage.timestamp,
+                createdAt: chatMessage.timestamp
             },
             include: {
                 sender: {
@@ -280,7 +314,7 @@ async function processMessage(chatMessage, io) {
                         name: true,
                         image: true,
                         role: true
-                    },
+                    }
                 },
                 receiver: {
                     select: {
@@ -288,9 +322,9 @@ async function processMessage(chatMessage, io) {
                         name: true,
                         image: true,
                         role: true
-                    },
-                },
-            },
+                    }
+                }
+            }
         });
         // Schedule conversation update (batched, non-blocking)
         scheduleConversationUpdate(chatMessage.conversationId, chatMessage.content, chatMessage.timestamp);
@@ -302,7 +336,7 @@ async function processMessage(chatMessage, io) {
         // Notify receiver if not in conversation room
         io.to(receiverRoom).emit('new-message-notification', {
             conversationId: chatMessage.conversationId,
-            message: savedMessage,
+            message: savedMessage
         });
         // Send confirmation to the specific socket that sent the message (if still connected)
         if (chatMessage.socketId && chatMessage.correlationId) {
@@ -321,7 +355,7 @@ async function processMessage(chatMessage, io) {
         // Or if we want to notify them regardless (usually better UX to always notify on mobile/background)
         try {
             // Import dynamically to avoid circular dependencies if any
-            const { PushNotificationService } = await Promise.resolve().then(() => __importStar(require('../services/push-notification.service')));
+            const { PushNotificationService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/push-notification.service")));
             console.log(`[ProcessMessage] Sending push notification to ${chatMessage.receiverId}`);
             await PushNotificationService.sendNotificationByType(chatMessage.receiverId, 'new_message', savedMessage.id, {
                 senderId: chatMessage.senderId,
@@ -331,25 +365,21 @@ async function processMessage(chatMessage, io) {
                 conversationId: chatMessage.conversationId,
                 fieldId: savedMessage.conversation?.fieldId || ''
             });
-        }
-        catch (pushError) {
+        } catch (pushError) {
             console.error('[ProcessMessage] Failed to send push notification:', pushError);
-            // Non-blocking error, continue
+        // Non-blocking error, continue
         }
         return savedMessage;
-    }
-    catch (error) {
+    } catch (error) {
         console.error('[ProcessMessage] Error processing message:', error);
         // Remove from processed set on error so it can be retried
         processedMessages.delete(messageKey);
         const index = messageCacheArray.indexOf(messageKey);
-        if (index > -1)
-            messageCacheArray.splice(index, 1);
+        if (index > -1) messageCacheArray.splice(index, 1);
         throw error;
     }
 }
-// Send message to Kafka or process directly (parallel processing)
-const sendMessageToKafka = async (message) => {
+const sendMessageToKafka = async (message)=>{
     // Track message rate for auto-scaling
     trackMessageRate();
     try {
@@ -360,30 +390,27 @@ const sendMessageToKafka = async (message) => {
                 topic: 'chat-messages',
                 messages: [
                     {
-                        key: message.conversationId, // Partition key ensures ordering per conversation
+                        key: message.conversationId,
                         value: JSON.stringify(message),
                         headers: {
                             correlationId: message.correlationId || '',
                             socketId: message.socketId || '',
-                            timestamp: message.timestamp.toISOString(),
-                        },
-                    },
-                ],
+                            timestamp: message.timestamp.toISOString()
+                        }
+                    }
+                ]
             });
             return null; // Return null to indicate async processing
-        }
-        else {
+        } else {
             // Process directly if Kafka is not available (parallel processing)
             if (socketIO) {
                 const savedMessage = await processMessage(message, socketIO);
                 return savedMessage; // Return saved message for immediate handling
-            }
-            else {
+            } else {
                 throw new Error('Socket.io not initialized');
             }
         }
-    }
-    catch (error) {
+    } catch (error) {
         console.error('[Kafka] Error handling message:', error);
         // If Kafka fails, try direct processing as fallback
         if (socketIO && error instanceof Error && !error.message.includes('Socket.io')) {
@@ -393,9 +420,7 @@ const sendMessageToKafka = async (message) => {
         throw error;
     }
 };
-exports.sendMessageToKafka = sendMessageToKafka;
-// Graceful shutdown
-const shutdownKafka = async () => {
+const shutdownKafka = async ()=>{
     if (producer) {
         await producer.disconnect();
     }
@@ -406,4 +431,5 @@ const shutdownKafka = async () => {
         console.log('Kafka connections closed');
     }
 };
-exports.shutdownKafka = shutdownKafka;
+
+//# sourceMappingURL=kafka.js.map

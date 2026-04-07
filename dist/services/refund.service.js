@@ -1,34 +1,53 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.RefundService = void 0;
 //@ts-nocheck
-const stripe_config_1 = require("../config/stripe.config");
-const database_1 = __importDefault(require("../config/database"));
-const notification_controller_1 = require("../controllers/notification.controller");
-const stripe_payout_helper_1 = require("../utils/stripe-payout.helper");
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get RefundService () {
+        return RefundService;
+    },
+    get default () {
+        return _default;
+    }
+});
+const _stripeconfig = require("../config/stripe.config");
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _notificationcontroller = require("../controllers/notification.controller");
+const _stripepayouthelper = require("../utils/stripe-payout.helper");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 class RefundService {
     /**
-     * Get cancellation window hours from system settings
-     */
-    async getCancellationWindowHours() {
-        const settings = await database_1.default.systemSettings.findFirst();
+   * Get cancellation window hours from system settings
+   */ async getCancellationWindowHours() {
+        const settings = await _database.default.systemSettings.findFirst();
         return settings?.cancellationWindowHours || 24; // Default to 24 hours if not set
     }
     /**
-     * Process immediate refund for cancelled booking
-     */
-    async processRefund(bookingId, reason = 'requested_by_customer') {
+   * Process immediate refund for cancelled booking
+   */ async processRefund(bookingId, reason = 'requested_by_customer') {
         try {
             // Get cancellation window from settings
             const cancellationWindowHours = await this.getCancellationWindowHours();
             // Support both ObjectId and human-readable bookingId
             const isObjectId = bookingId.length === 24 && /^[0-9a-fA-F]+$/.test(bookingId);
-            const where = isObjectId ? { id: bookingId } : { bookingId: bookingId };
+            const where = isObjectId ? {
+                id: bookingId
+            } : {
+                bookingId: bookingId
+            };
             // Get booking with payment details
-            const booking = await database_1.default.booking.findFirst({
+            const booking = await _database.default.booking.findFirst({
                 where,
                 include: {
                     payment: true,
@@ -58,10 +77,7 @@ class RefundService {
             }
             // If payment record exists, check its status (but don't block if no record — multi-slot)
             // Allow: completed, refunded, partially_refunded (sibling slot already refunded)
-            if (booking.payment &&
-                booking.payment.status !== 'completed' &&
-                booking.payment.status !== 'refunded' &&
-                booking.payment.status !== 'partially_refunded') {
+            if (booking.payment && booking.payment.status !== 'completed' && booking.payment.status !== 'refunded' && booking.payment.status !== 'partially_refunded') {
                 return {
                     success: false,
                     message: 'Cannot refund incomplete payment'
@@ -82,13 +98,11 @@ class RefundService {
                 // Full refund if cancelled at least cancellationWindowHours before
                 refundAmount = bookingAmount;
                 refundPercentage = 100;
-            }
-            else if (hoursUntilBooking >= cancellationWindowHours / 2) {
+            } else if (hoursUntilBooking >= cancellationWindowHours / 2) {
                 // 50% refund if cancelled between half and full cancellation window
                 refundAmount = bookingAmount * 0.5;
                 refundPercentage = 50;
-            }
-            else {
+            } else {
                 // No refund if cancelled less than half the cancellation window
                 refundAmount = 0;
                 refundPercentage = 0;
@@ -99,9 +113,9 @@ class RefundService {
             if (refundAmount > 0) {
                 try {
                     // Create refund in Stripe — partial refund against the shared payment intent
-                    stripeRefund = await stripe_config_1.stripe.refunds.create({
+                    stripeRefund = await _stripeconfig.stripe.refunds.create({
                         payment_intent: stripePaymentId,
-                        amount: Math.round(refundAmount * 100), // Convert to cents
+                        amount: Math.round(refundAmount * 100),
                         reason: 'requested_by_customer',
                         metadata: {
                             bookingId: booking.id,
@@ -111,21 +125,29 @@ class RefundService {
                         }
                     });
                     // Update the shared payment record — find it either from this booking or via paymentIntentId
-                    const paymentRecord = booking.payment || await database_1.default.payment.findFirst({
-                        where: { stripePaymentId: stripePaymentId }
+                    const paymentRecord = booking.payment || await _database.default.payment.findFirst({
+                        where: {
+                            stripePaymentId: stripePaymentId
+                        }
                     });
                     if (paymentRecord) {
                         // Check if ALL sibling bookings sharing this payment intent are now refunded
-                        const siblingBookings = await database_1.default.booking.findMany({
+                        const siblingBookings = await _database.default.booking.findMany({
                             where: {
                                 paymentIntentId: stripePaymentId,
-                                id: { not: booking.id }
+                                id: {
+                                    not: booking.id
+                                }
                             },
-                            select: { paymentStatus: true }
+                            select: {
+                                paymentStatus: true
+                            }
                         });
-                        const allSiblingsRefunded = siblingBookings.every(b => b.paymentStatus === 'REFUNDED');
-                        await database_1.default.payment.update({
-                            where: { id: paymentRecord.id },
+                        const allSiblingsRefunded = siblingBookings.every((b)=>b.paymentStatus === 'REFUNDED');
+                        await _database.default.payment.update({
+                            where: {
+                                id: paymentRecord.id
+                            },
                             data: {
                                 status: allSiblingsRefunded ? 'refunded' : 'partially_refunded',
                                 stripeRefundId: stripeRefund.id,
@@ -136,11 +158,11 @@ class RefundService {
                         });
                     }
                     // Create transaction record for refund with lifecycle tracking
-                    await database_1.default.transaction.create({
+                    await _database.default.transaction.create({
                         data: {
                             bookingId: booking.id,
                             userId: booking.userId,
-                            amount: -refundAmount, // Negative amount for refund
+                            amount: -refundAmount,
                             type: 'REFUND',
                             status: 'COMPLETED',
                             stripeRefundId: stripeRefund.id,
@@ -152,15 +174,17 @@ class RefundService {
                         }
                     });
                     // Update booking payout metadata
-                    await database_1.default.booking.update({
-                        where: { id: booking.id },
+                    await _database.default.booking.update({
+                        where: {
+                            id: booking.id
+                        },
                         data: {
                             paymentStatus: 'REFUNDED',
                             payoutStatus: 'REFUNDED'
                         }
                     });
                     // Flag related payouts as canceled
-                    await database_1.default.payout.updateMany({
+                    await _database.default.payout.updateMany({
                         where: {
                             bookingIds: {
                                 has: booking.id
@@ -172,7 +196,7 @@ class RefundService {
                         }
                     });
                     // Send refund notification to user
-                    await (0, notification_controller_1.createNotification)({
+                    await (0, _notificationcontroller.createNotification)({
                         userId: booking.userId,
                         type: 'refund_processed',
                         title: 'Refund Processed',
@@ -195,13 +219,11 @@ class RefundService {
                         stripeRefundId: stripeRefund.id,
                         message: `Refund of £${refundAmount.toFixed(2)} processed successfully`
                     };
-                }
-                catch (stripeError) {
+                } catch (stripeError) {
                     console.error('Stripe refund error:', stripeError);
                     throw new Error(`Failed to process refund: ${stripeError.message}`);
                 }
-            }
-            else {
+            } else {
                 // No refund but transfer full amount to field owner
                 await this.processFieldOwnerPayout(booking, 0);
                 return {
@@ -211,16 +233,14 @@ class RefundService {
                     message: 'No refund eligible, full amount will be transferred to field owner'
                 };
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Refund processing error:', error);
             throw error;
         }
     }
     /**
-     * Process payout to field owner after cancellation period
-     */
-    async processFieldOwnerPayout(booking, refundedAmount) {
+   * Process payout to field owner after cancellation period
+   */ async processFieldOwnerPayout(booking, refundedAmount) {
         try {
             // Use booking.totalPrice (per-slot) — not payment.amount (may be full multi-slot total)
             const totalAmount = booking.totalPrice || booking.payment?.amount || 0;
@@ -232,22 +252,26 @@ class RefundService {
                 return; // No payout if amount is 0 or negative
             }
             // Check if field owner has Stripe Connect account
-            const stripeAccount = await database_1.default.stripeAccount.findUnique({
-                where: { userId: booking.field.ownerId }
+            const stripeAccount = await _database.default.stripeAccount.findUnique({
+                where: {
+                    userId: booking.field.ownerId
+                }
             });
             if (!stripeAccount || !stripeAccount.payoutsEnabled) {
                 // Queue payout for later when account is ready
-                await database_1.default.payout.create({
+                await _database.default.payout.create({
                     data: {
                         stripeAccountId: stripeAccount?.id || '',
                         amount: netPayoutAmount,
                         currency: 'gbp',
                         status: 'pending',
                         description: `Payout for cancelled booking ${booking.id}`,
-                        bookingIds: [booking.id]
+                        bookingIds: [
+                            booking.id
+                        ]
                     }
                 });
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: booking.field.ownerId,
                     type: 'payout_pending',
                     title: 'Payout Pending',
@@ -261,8 +285,8 @@ class RefundService {
             }
             // Create transfer to connected account
             try {
-                const transfer = await stripe_config_1.stripe.transfers.create({
-                    amount: Math.round(netPayoutAmount * 100), // Convert to cents
+                const transfer = await _stripeconfig.stripe.transfers.create({
+                    amount: Math.round(netPayoutAmount * 100),
                     currency: 'gbp',
                     destination: stripeAccount.stripeAccountId,
                     description: `Payout for booking ${booking.id}`,
@@ -275,25 +299,26 @@ class RefundService {
                 });
                 let stripePayout = null;
                 try {
-                    stripePayout = await (0, stripe_payout_helper_1.createConnectedAccountPayout)({
+                    stripePayout = await (0, _stripepayouthelper.createConnectedAccountPayout)({
                         stripeAccountId: stripeAccount.stripeAccountId,
                         amountInMinorUnits: Math.round(netPayoutAmount * 100),
                         description: `Payout for booking ${booking.id}`,
                         metadata: {
                             bookingId: booking.id,
-                            bookingIds: JSON.stringify([booking.id]),
+                            bookingIds: JSON.stringify([
+                                booking.id
+                            ]),
                             fieldId: booking.fieldId,
                             fieldOwnerId: booking.field.ownerId,
                             transferId: transfer.id,
                             source: 'refund_payout'
                         }
                     });
-                }
-                catch (payoutError) {
+                } catch (payoutError) {
                     console.error('Stripe payout creation failed:', payoutError);
                 }
                 // Create payout record
-                const payout = await database_1.default.payout.create({
+                const payout = await _database.default.payout.create({
                     data: {
                         stripeAccountId: stripeAccount.id,
                         stripePayoutId: stripePayout?.id || transfer.id,
@@ -301,22 +326,26 @@ class RefundService {
                         currency: 'gbp',
                         status: stripePayout?.status || 'processing',
                         description: `Payout for booking ${booking.id}`,
-                        bookingIds: [booking.id],
+                        bookingIds: [
+                            booking.id
+                        ],
                         arrivalDate: stripePayout?.arrival_date ? new Date(stripePayout.arrival_date * 1000) : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
                         failureCode: stripePayout?.failure_code || null,
                         failureMessage: stripePayout?.failure_message || null
                     }
                 });
                 // Update booking with payout reference
-                await database_1.default.booking.update({
-                    where: { id: booking.id },
+                await _database.default.booking.update({
+                    where: {
+                        id: booking.id
+                    },
                     data: {
                         payoutStatus: stripePayout?.status === 'paid' ? 'COMPLETED' : 'PROCESSING',
                         payoutId: payout.id
                     }
                 });
                 // Send notification to field owner
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: booking.field.ownerId,
                     type: 'payout_processed',
                     title: 'Payout Processed',
@@ -328,40 +357,39 @@ class RefundService {
                         arrivalDate: payout.arrivalDate
                     }
                 });
-            }
-            catch (transferError) {
+            } catch (transferError) {
                 console.error('Transfer error:', transferError);
                 // Queue payout for retry
-                await database_1.default.payout.create({
+                await _database.default.payout.create({
                     data: {
                         stripeAccountId: stripeAccount.id,
                         amount: netPayoutAmount,
                         currency: 'gbp',
                         status: 'failed',
                         description: `Failed payout for booking ${booking.id}`,
-                        bookingIds: [booking.id],
+                        bookingIds: [
+                            booking.id
+                        ],
                         failureCode: transferError.code,
                         failureMessage: transferError.message
                     }
                 });
                 throw transferError;
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Field owner payout error:', error);
             throw error;
         }
     }
     /**
-     * Process payouts for completed bookings after cancellation period expires
-     */
-    async processCompletedBookingPayouts() {
+   * Process payouts for completed bookings after cancellation period expires
+   */ async processCompletedBookingPayouts() {
         try {
             // Find all completed bookings that are past their cancellation period (24 hours after completion)
-            const eligibleBookings = await database_1.default.booking.findMany({
+            const eligibleBookings = await _database.default.booking.findMany({
                 where: {
                     status: 'COMPLETED',
-                    payoutStatus: null, // Not yet processed for payout
+                    payoutStatus: null,
                     createdAt: {
                         lte: new Date(Date.now() - 24 * 60 * 60 * 1000) // At least 24 hours old
                     }
@@ -375,26 +403,28 @@ class RefundService {
                     }
                 }
             });
-            for (const booking of eligibleBookings) {
+            for (const booking of eligibleBookings){
                 if (!booking.payment || booking.payment.status !== 'completed') {
                     continue; // Skip if no valid payment
                 }
                 // Process payout for this booking
                 await this.processFieldOwnerPayout(booking, 0);
                 // Mark booking as processed
-                await database_1.default.booking.update({
-                    where: { id: booking.id },
+                await _database.default.booking.update({
+                    where: {
+                        id: booking.id
+                    },
                     data: {
                         payoutStatus: 'PROCESSING'
                     }
                 });
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Batch payout processing error:', error);
             throw error;
         }
     }
 }
-exports.RefundService = RefundService;
-exports.default = new RefundService();
+const _default = new RefundService();
+
+//# sourceMappingURL=refund.service.js.map

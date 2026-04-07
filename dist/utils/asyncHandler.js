@@ -1,13 +1,18 @@
+//@ts-nocheck
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.asyncHandler = void 0;
-/**
- * Async handler wrapper to avoid try-catch blocks in controllers
- * Catches errors in async functions and passes them to Express error handler
- */
-const asyncHandler = (fn) => {
-    return (req, res, next) => {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "asyncHandler", {
+    enumerable: true,
+    get: function() {
+        return asyncHandler;
+    }
+});
+const asyncHandler = (fn)=>{
+    return (req, res, next)=>{
         Promise.resolve(fn(req, res, next)).catch(next);
     };
 };
-exports.asyncHandler = asyncHandler;
+
+//# sourceMappingURL=asyncHandler.js.map

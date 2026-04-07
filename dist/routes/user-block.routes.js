@@ -1,18 +1,28 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const user_block_controller_1 = require("../controllers/user-block.controller");
-const auth_middleware_1 = require("../middleware/auth.middleware");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _userblockcontroller = require("../controllers/user-block.controller");
+const _authmiddleware = require("../middleware/auth.middleware");
+const router = (0, _express.Router)();
 // Block a user
-router.post('/block', auth_middleware_1.protect, user_block_controller_1.userBlockController.blockUser);
+router.post('/block', _authmiddleware.protect, _userblockcontroller.userBlockController.blockUser);
 // Unblock a user
-router.post('/unblock', auth_middleware_1.protect, user_block_controller_1.userBlockController.unblockUser);
+router.post('/unblock', _authmiddleware.protect, _userblockcontroller.userBlockController.unblockUser);
 // Get list of blocked users
-router.get('/blocked', auth_middleware_1.protect, user_block_controller_1.userBlockController.getBlockedUsers);
+router.get('/blocked', _authmiddleware.protect, _userblockcontroller.userBlockController.getBlockedUsers);
 // Get list of users who blocked you
-router.get('/blocked-by', auth_middleware_1.protect, user_block_controller_1.userBlockController.getBlockedByUsers);
+router.get('/blocked-by', _authmiddleware.protect, _userblockcontroller.userBlockController.getBlockedByUsers);
 // Check block status between two users
-router.get('/status/:otherUserId', auth_middleware_1.protect, user_block_controller_1.userBlockController.checkBlockStatus);
-exports.default = router;
+router.get('/status/:otherUserId', _authmiddleware.protect, _userblockcontroller.userBlockController.checkBlockStatus);
+const _default = router;
+
+//# sourceMappingURL=user-block.routes.js.map

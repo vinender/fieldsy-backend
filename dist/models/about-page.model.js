@@ -1,105 +1,224 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AboutPage = void 0;
 //@ts-nocheck
-const mongoose_1 = __importStar(require("mongoose"));
-const AboutPageSchema = new mongoose_1.Schema({
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "AboutPage", {
+    enumerable: true,
+    get: function() {
+        return AboutPage;
+    }
+});
+const _mongoose = /*#__PURE__*/ _interop_require_wildcard(require("mongoose"));
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
+const AboutPageSchema = new _mongoose.Schema({
     heroSection: {
-        sectionTitle: { type: String, default: 'About Us' },
-        mainTitle: { type: String, required: true },
-        subtitle: { type: String },
-        description: { type: String, required: true },
-        buttonText: { type: String, default: 'Download App' },
-        image: { type: String, required: true },
+        sectionTitle: {
+            type: String,
+            default: 'About Us'
+        },
+        mainTitle: {
+            type: String,
+            required: true
+        },
+        subtitle: {
+            type: String
+        },
+        description: {
+            type: String,
+            required: true
+        },
+        buttonText: {
+            type: String,
+            default: 'Download App'
+        },
+        image: {
+            type: String,
+            required: true
+        },
         stats: [
             {
-                value: { type: String, required: true },
-                label: { type: String, required: true },
-                order: { type: Number, default: 0 }
+                value: {
+                    type: String,
+                    required: true
+                },
+                label: {
+                    type: String,
+                    required: true
+                },
+                order: {
+                    type: Number,
+                    default: 0
+                }
             }
         ]
     },
     missionSection: {
-        title: { type: String, required: true },
-        description: { type: String, required: true },
-        buttonText: { type: String },
-        image: { type: String }
+        title: {
+            type: String,
+            required: true
+        },
+        description: {
+            type: String,
+            required: true
+        },
+        buttonText: {
+            type: String
+        },
+        image: {
+            type: String
+        }
     },
     whoWeAreSection: {
-        title: { type: String, required: true },
-        description: { type: String, required: true },
-        mainImage: { type: String },
-        rightCardImage: { type: String },
-        rightCardTitle: { type: String },
-        rightCardDescription: { type: String },
+        title: {
+            type: String,
+            required: true
+        },
+        description: {
+            type: String,
+            required: true
+        },
+        mainImage: {
+            type: String
+        },
+        rightCardImage: {
+            type: String
+        },
+        rightCardTitle: {
+            type: String
+        },
+        rightCardDescription: {
+            type: String
+        },
         features: [
             {
-                icon: { type: String },
-                title: { type: String, required: true },
-                description: { type: String, required: true },
-                order: { type: Number, default: 0 }
+                icon: {
+                    type: String
+                },
+                title: {
+                    type: String,
+                    required: true
+                },
+                description: {
+                    type: String,
+                    required: true
+                },
+                order: {
+                    type: Number,
+                    default: 0
+                }
             }
         ]
     },
     whatWeDoSection: {
-        title: { type: String, required: true },
-        subtitle: { type: String },
-        description: { type: String, required: true },
-        image: { type: String },
+        title: {
+            type: String,
+            required: true
+        },
+        subtitle: {
+            type: String
+        },
+        description: {
+            type: String,
+            required: true
+        },
+        image: {
+            type: String
+        },
         features: [
             {
-                title: { type: String, required: true },
-                description: { type: String, required: true },
-                order: { type: Number, default: 0 }
+                title: {
+                    type: String,
+                    required: true
+                },
+                description: {
+                    type: String,
+                    required: true
+                },
+                order: {
+                    type: Number,
+                    default: 0
+                }
             }
         ]
     },
     whyFieldsySection: {
-        title: { type: String, required: true },
-        subtitle: { type: String },
-        image: { type: String },
-        boxTitle: { type: String },
-        boxDescription: { type: String },
-        buttonText: { type: String },
+        title: {
+            type: String,
+            required: true
+        },
+        subtitle: {
+            type: String
+        },
+        image: {
+            type: String
+        },
+        boxTitle: {
+            type: String
+        },
+        boxDescription: {
+            type: String
+        },
+        buttonText: {
+            type: String
+        },
         features: [
             {
-                icon: { type: String },
-                title: { type: String, required: true },
-                description: { type: String, required: true },
-                order: { type: Number, default: 0 }
+                icon: {
+                    type: String
+                },
+                title: {
+                    type: String,
+                    required: true
+                },
+                description: {
+                    type: String,
+                    required: true
+                },
+                order: {
+                    type: Number,
+                    default: 0
+                }
             }
         ]
     }
@@ -107,7 +226,7 @@ const AboutPageSchema = new mongoose_1.Schema({
     timestamps: true
 });
 // Ensure only one document exists
-AboutPageSchema.statics.findOneOrCreate = async function () {
+AboutPageSchema.statics.findOneOrCreate = async function() {
     let aboutPage = await this.findOne();
     if (!aboutPage) {
         aboutPage = await this.create({
@@ -118,10 +237,26 @@ AboutPageSchema.statics.findOneOrCreate = async function () {
                 buttonText: 'Download the App',
                 image: 'https://fieldsy-s3.s3.eu-west-2.amazonaws.com/defaults/about/dog2.webp',
                 stats: [
-                    { value: '500+', label: 'Dog Owners Signed Up', order: 1 },
-                    { value: '200+', label: 'Private Fields Listed', order: 2 },
-                    { value: '50+', label: 'Towns & Cities Across the UK', order: 3 },
-                    { value: '100%', label: 'Secure, Fenced Spaces', order: 4 }
+                    {
+                        value: '500+',
+                        label: 'Dog Owners Signed Up',
+                        order: 1
+                    },
+                    {
+                        value: '200+',
+                        label: 'Private Fields Listed',
+                        order: 2
+                    },
+                    {
+                        value: '50+',
+                        label: 'Towns & Cities Across the UK',
+                        order: 3
+                    },
+                    {
+                        value: '100%',
+                        label: 'Secure, Fenced Spaces',
+                        order: 4
+                    }
                 ]
             },
             missionSection: {
@@ -140,26 +275,72 @@ AboutPageSchema.statics.findOneOrCreate = async function () {
                 description: 'Fieldsy brings dog owners and landowners together on one simple platform. Dog owners browse and book secure, private fields. Landowners list their land and earn income. Everyone benefits -- especially the dogs.',
                 image: '',
                 features: [
-                    { title: 'Browse Fields Near You', description: 'Explore a growing network of private, secure dog walking fields across the UK. Filter by size, amenities, and distance.', order: 1 },
-                    { title: 'Book Instantly', description: 'Reserve your time slot in a few taps -- no waiting, no back-and-forth with the host.', order: 2 },
-                    { title: 'Enjoy Peace of Mind', description: 'Let your dog run free in a fully enclosed, verified space. No unexpected dogs, no distractions.', order: 3 },
-                    { title: 'List Your Land', description: 'Turn unused or underused land into a steady source of income by hosting dog owners.', order: 4 },
-                    { title: 'Set Your Own Schedule', description: 'Control exactly when your field is available. Block dates, set opening hours, adjust as you go.', order: 5 },
-                    { title: 'Get Paid Automatically', description: 'Receive secure payouts directly to your bank account after each completed booking. Powered by Stripe.', order: 6 }
+                    {
+                        title: 'Browse Fields Near You',
+                        description: 'Explore a growing network of private, secure dog walking fields across the UK. Filter by size, amenities, and distance.',
+                        order: 1
+                    },
+                    {
+                        title: 'Book Instantly',
+                        description: 'Reserve your time slot in a few taps -- no waiting, no back-and-forth with the host.',
+                        order: 2
+                    },
+                    {
+                        title: 'Enjoy Peace of Mind',
+                        description: 'Let your dog run free in a fully enclosed, verified space. No unexpected dogs, no distractions.',
+                        order: 3
+                    },
+                    {
+                        title: 'List Your Land',
+                        description: 'Turn unused or underused land into a steady source of income by hosting dog owners.',
+                        order: 4
+                    },
+                    {
+                        title: 'Set Your Own Schedule',
+                        description: 'Control exactly when your field is available. Block dates, set opening hours, adjust as you go.',
+                        order: 5
+                    },
+                    {
+                        title: 'Get Paid Automatically',
+                        description: 'Receive secure payouts directly to your bank account after each completed booking. Powered by Stripe.',
+                        order: 6
+                    }
                 ]
             },
             whyFieldsySection: {
                 title: 'Why Fieldsy?',
                 subtitle: 'Choosing Fieldsy means choosing peace of mind for you and real freedom for your dog.',
                 features: [
-                    { icon: 'CheckCircle', title: 'Secure & Private', description: 'Every field is enclosed and verified. You and your dog have the space entirely to yourselves during your booking.', order: 1 },
-                    { icon: 'MapPin', title: 'Local & Convenient', description: 'Find fields close to home with postcode or GPS search. No long drives -- just easy access to safe spaces nearby.', order: 2 },
-                    { icon: 'Calendar', title: 'Flexible Booking', description: 'Book by the hour, at a time that suits you. Cancel within the window if plans change -- no penalty.', order: 3 },
-                    { icon: 'Shield', title: 'Trusted Community', description: 'Verified hosts, real reviews, and responsive support. We take safety and trust seriously.', order: 4 }
+                    {
+                        icon: 'CheckCircle',
+                        title: 'Secure & Private',
+                        description: 'Every field is enclosed and verified. You and your dog have the space entirely to yourselves during your booking.',
+                        order: 1
+                    },
+                    {
+                        icon: 'MapPin',
+                        title: 'Local & Convenient',
+                        description: 'Find fields close to home with postcode or GPS search. No long drives -- just easy access to safe spaces nearby.',
+                        order: 2
+                    },
+                    {
+                        icon: 'Calendar',
+                        title: 'Flexible Booking',
+                        description: 'Book by the hour, at a time that suits you. Cancel within the window if plans change -- no penalty.',
+                        order: 3
+                    },
+                    {
+                        icon: 'Shield',
+                        title: 'Trusted Community',
+                        description: 'Verified hosts, real reviews, and responsive support. We take safety and trust seriously.',
+                        order: 4
+                    }
                 ]
             }
         });
     }
     return aboutPage;
 };
-exports.AboutPage = mongoose_1.default.model('AboutPage', AboutPageSchema);
+const AboutPage = _mongoose.default.model('AboutPage', AboutPageSchema);
+
+//# sourceMappingURL=about-page.model.js.map

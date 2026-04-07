@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Structured Logger for Authentication Pipeline
  *
@@ -7,78 +6,76 @@
  * - Security event logging
  * - Error context preservation
  * - Request ID correlation
- */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.logger = void 0;
+ */ "use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "logger", {
+    enumerable: true,
+    get: function() {
+        return logger;
+    }
+});
 class AuthLogger {
     /**
-     * Log a step in the authentication pipeline
-     * Format: [AUTH] STEP_NAME { details }
-     */
-    step(step, context = {}) {
+   * Log a step in the authentication pipeline
+   * Format: [AUTH] STEP_NAME { details }
+   */ step(step, context = {}) {
         const { requestId, ...details } = context;
         const rid = requestId ? ` [${requestId}]` : '';
         console.log(`[AUTH:STEP] ${step}${rid}`, Object.keys(details).length > 0 ? details : '');
     }
     /**
-     * Log a successful authentication milestone
-     * Format: [AUTH:SUCCESS] ACTION [User: userId]
-     */
-    success(action, userId, context = {}) {
+   * Log a successful authentication milestone
+   * Format: [AUTH:SUCCESS] ACTION [User: userId]
+   */ success(action, userId, context = {}) {
         const { requestId, ...details } = context;
         const rid = requestId ? ` [${requestId}]` : '';
         const user = userId ? ` [User: ${userId}]` : '';
         console.log(`[AUTH:SUCCESS] ${action}${user}${rid}`, Object.keys(details).length > 0 ? details : '');
     }
     /**
-     * Log a security-related event (suspicious activity, failures, etc)
-     * Format: [AUTH:SECURITY] EVENT { details }
-     */
-    security(event, context = {}) {
+   * Log a security-related event (suspicious activity, failures, etc)
+   * Format: [AUTH:SECURITY] EVENT { details }
+   */ security(event, context = {}) {
         const { requestId, ...details } = context;
         const rid = requestId ? ` [${requestId}]` : '';
         console.warn(`[AUTH:SECURITY] ${event}${rid}`, details);
     }
     /**
-     * Log an error with context
-     * Format: [AUTH:ERROR] ACTION: errorMessage { context }
-     */
-    error(action, error, context = {}) {
+   * Log an error with context
+   * Format: [AUTH:ERROR] ACTION: errorMessage { context }
+   */ error(action, error, context = {}) {
         const { requestId, ...details } = context;
         const rid = requestId ? ` [${requestId}]` : '';
         const errorMsg = error instanceof Error ? error.message : error;
         console.error(`[AUTH:ERROR] ${action}${rid}:`, errorMsg, details);
     }
     /**
-     * Log when role-based access is denied
-     * Format: [AUTH:FORBIDDEN] RESOURCE [User: userId, Role: role]
-     */
-    forbidden(resource, context = {}) {
+   * Log when role-based access is denied
+   * Format: [AUTH:FORBIDDEN] RESOURCE [User: userId, Role: role]
+   */ forbidden(resource, context = {}) {
         const { requestId, ...details } = context;
         const rid = requestId ? ` [${requestId}]` : '';
         console.warn(`[AUTH:FORBIDDEN] ${resource}${rid}`, details);
     }
     /**
-     * Log external service calls (Google, Apple, email, etc)
-     * Format: [AUTH:EXTERNAL] SERVICE: action { details }
-     */
-    external(service, action, status, context = {}) {
+   * Log external service calls (Google, Apple, email, etc)
+   * Format: [AUTH:EXTERNAL] SERVICE: action { details }
+   */ external(service, action, status, context = {}) {
         const { requestId, ...details } = context;
         const rid = requestId ? ` [${requestId}]` : '';
         const logFn = status === 'FAILED' ? console.error : console.log;
         logFn(`[AUTH:EXTERNAL] ${service}:${action}[${status}]${rid}`, details);
     }
     /**
-     * Generate a unique request ID for tracking
-     * Format: timestamp-randomString
-     */
-    generateRequestId() {
+   * Generate a unique request ID for tracking
+   * Format: timestamp-randomString
+   */ generateRequestId() {
         return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     }
 }
-// Export singleton instance
-exports.logger = new AuthLogger();
-/**
+const logger = new AuthLogger(); /**
  * Usage Examples:
  *
  * // Starting a flow
@@ -113,4 +110,6 @@ exports.logger = new AuthLogger();
  *
  * // Access denied
  * logger.forbidden('DELETE_USER', { userId: req.user.id, requestId });
- */
+ */ 
+
+//# sourceMappingURL=logger.js.map

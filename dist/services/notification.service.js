@@ -1,15 +1,21 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.NotificationService = void 0;
 //@ts-nocheck
-const client_1 = require("@prisma/client");
-const push_notification_service_1 = require("./push-notification.service");
-const prisma = new client_1.PrismaClient();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "NotificationService", {
+    enumerable: true,
+    get: function() {
+        return NotificationService;
+    }
+});
+const _client = require("@prisma/client");
+const _pushnotificationservice = require("./push-notification.service");
+const prisma = new _client.PrismaClient();
 class NotificationService {
     /**
-     * Create notification for user and optionally for admin
-     */
-    static async createNotification(notificationData, notifyAdmin = true) {
+   * Create notification for user and optionally for admin
+   */ static async createNotification(notificationData, notifyAdmin = true) {
         try {
             // Create notification for the user
             const userNotification = await prisma.notification.create({
@@ -29,19 +35,23 @@ class NotificationService {
                 io.to(userRoomName).emit('notification', userNotification);
             }
             // Send push notification (async, don't wait for it)
-            push_notification_service_1.PushNotificationService.sendNotificationByType(notificationData.userId, notificationData.type, userNotification.id, notificationData.data || {}).catch(err => {
+            _pushnotificationservice.PushNotificationService.sendNotificationByType(notificationData.userId, notificationData.type, userNotification.id, notificationData.data || {}).catch((err)=>{
                 console.error('[NotificationService] Push notification failed:', err.message);
             });
             // If notifyAdmin is true and it's an important notification type, also notify admin
             if (notifyAdmin && this.shouldNotifyAdmin(notificationData.type)) {
                 // Get admin users
                 const adminUsers = await prisma.user.findMany({
-                    where: { role: 'ADMIN' },
-                    select: { id: true }
+                    where: {
+                        role: 'ADMIN'
+                    },
+                    select: {
+                        id: true
+                    }
                 });
                 console.log(`[NotificationService] Creating admin notifications for ${adminUsers.length} admin(s)`);
                 // Create notification for each admin and emit socket event
-                for (const admin of adminUsers) {
+                for (const admin of adminUsers){
                     const adminTitle = notificationData.adminTitle || `[Admin Alert] ${notificationData.title}`;
                     const adminMessage = notificationData.adminMessage || this.sanitizeAdminMessage(notificationData.message);
                     const adminNotification = await prisma.notification.create({
@@ -66,16 +76,14 @@ class NotificationService {
                 }
             }
             return userNotification;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error creating notification:', error);
             throw error;
         }
     }
     /**
-     * Determine if admin should be notified for this type
-     */
-    static shouldNotifyAdmin(type) {
+   * Determine if admin should be notified for this type
+   */ static shouldNotifyAdmin(type) {
         const adminNotificationTypes = [
             'booking_received',
             'booking_cancelled',
@@ -93,35 +101,36 @@ class NotificationService {
         return adminNotificationTypes.includes(type);
     }
     /**
-     * Create bulk notifications
-     */
-    static async createBulkNotifications(notifications) {
+   * Create bulk notifications
+   */ static async createBulkNotifications(notifications) {
         try {
             const results = [];
-            for (const notification of notifications) {
+            for (const notification of notifications){
                 const result = await this.createNotification(notification);
                 results.push(result);
             }
             return results;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error creating bulk notifications:', error);
             throw error;
         }
     }
     /**
-     * Notify all admins
-     */
-    static async notifyAdmins(title, message, data) {
+   * Notify all admins
+   */ static async notifyAdmins(title, message, data) {
         try {
             const adminUsers = await prisma.user.findMany({
-                where: { role: 'ADMIN' },
-                select: { id: true }
+                where: {
+                    role: 'ADMIN'
+                },
+                select: {
+                    id: true
+                }
             });
             console.log(`[NotificationService] Creating admin notifications for ${adminUsers.length} admin(s) - Title: ${title}`);
             const io = global.io;
             const notifications = [];
-            for (const admin of adminUsers) {
+            for (const admin of adminUsers){
                 const notification = await prisma.notification.create({
                     data: {
                         userId: admin.id,
@@ -140,16 +149,14 @@ class NotificationService {
                 }
             }
             return notifications;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error notifying admins:', error);
             throw error;
         }
     }
     /**
-     * Get unread count for user
-     */
-    static async getUnreadCount(userId) {
+   * Get unread count for user
+   */ static async getUnreadCount(userId) {
         try {
             return await prisma.notification.count({
                 where: {
@@ -157,28 +164,45 @@ class NotificationService {
                     read: false
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error getting unread count:', error);
             return 0;
         }
     }
     static sanitizeAdminMessage(message) {
-        if (!message)
-            return '';
+        if (!message) return '';
         let formatted = message;
         const replacements = [
-            [/\bYou have\b/gi, 'A user has'],
-            [/\bYou were\b/gi, 'A user was'],
-            [/\bYour booking\b/gi, 'The booking'],
-            [/\bYour\b/gi, 'The'],
-            [/\byour\b/g, 'the'],
-            [/\bYou\b/gi, 'A user']
+            [
+                /\bYou have\b/gi,
+                'A user has'
+            ],
+            [
+                /\bYou were\b/gi,
+                'A user was'
+            ],
+            [
+                /\bYour booking\b/gi,
+                'The booking'
+            ],
+            [
+                /\bYour\b/gi,
+                'The'
+            ],
+            [
+                /\byour\b/g,
+                'the'
+            ],
+            [
+                /\bYou\b/gi,
+                'A user'
+            ]
         ];
-        for (const [pattern, replacement] of replacements) {
+        for (const [pattern, replacement] of replacements){
             formatted = formatted.replace(pattern, replacement);
         }
         return formatted;
     }
 }
-exports.NotificationService = NotificationService;
+
+//# sourceMappingURL=notification.service.js.map

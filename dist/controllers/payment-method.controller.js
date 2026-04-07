@@ -1,16 +1,28 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.paymentMethodController = void 0;
-const stripe_config_1 = require("../config/stripe.config");
-const database_1 = __importDefault(require("../config/database"));
-exports.paymentMethodController = {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "paymentMethodController", {
+    enumerable: true,
+    get: function() {
+        return paymentMethodController;
+    }
+});
+const _stripeconfig = require("../config/stripe.config");
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const paymentMethodController = {
     // Create or get Stripe customer for user
-    async getOrCreateStripeCustomer(userId) {
-        const user = await database_1.default.user.findUnique({
-            where: { id: userId }
+    async getOrCreateStripeCustomer (userId) {
+        const user = await _database.default.user.findUnique({
+            where: {
+                id: userId
+            }
         });
         if (!user) {
             throw new Error('User not found');
@@ -19,29 +31,26 @@ exports.paymentMethodController = {
         if (user.stripeCustomerId) {
             try {
                 // Try to retrieve the customer from Stripe
-                const customer = await stripe_config_1.stripe.customers.retrieve(user.stripeCustomerId);
+                const customer = await _stripeconfig.stripe.customers.retrieve(user.stripeCustomerId);
                 // Check if customer is deleted
                 if (customer.deleted) {
                     console.log(`Stripe customer ${user.stripeCustomerId} was deleted, creating new one`);
-                }
-                else {
+                } else {
                     // Customer exists and is valid
                     return user.stripeCustomerId;
                 }
-            }
-            catch (error) {
+            } catch (error) {
                 // Customer doesn't exist in Stripe (404 error)
                 if (error.statusCode === 404 || error.code === 'resource_missing') {
                     console.log(`Stripe customer ${user.stripeCustomerId} not found, creating new one`);
-                }
-                else {
+                } else {
                     // Some other error occurred, throw it
                     throw error;
                 }
             }
         }
         // Create a new Stripe customer
-        const customer = await stripe_config_1.stripe.customers.create({
+        const customer = await _stripeconfig.stripe.customers.create({
             email: user.email,
             name: user.name || undefined,
             metadata: {
@@ -49,14 +58,18 @@ exports.paymentMethodController = {
             }
         });
         // Save the Stripe customer ID to the user
-        await database_1.default.user.update({
-            where: { id: userId },
-            data: { stripeCustomerId: customer.id }
+        await _database.default.user.update({
+            where: {
+                id: userId
+            },
+            data: {
+                stripeCustomerId: customer.id
+            }
         });
         return customer.id;
     },
     // Create setup intent for adding a new card
-    async createSetupIntent(req, res) {
+    async createSetupIntent (req, res) {
         try {
             const userId = req.user?.id;
             if (!userId) {
@@ -66,12 +79,14 @@ exports.paymentMethodController = {
                 });
             }
             // Get or create Stripe customer for this user
-            const customerId = await exports.paymentMethodController.getOrCreateStripeCustomer(userId);
+            const customerId = await paymentMethodController.getOrCreateStripeCustomer(userId);
             // Create a SetupIntent to collect card details securely
-            const setupIntent = await stripe_config_1.stripe.setupIntents.create({
+            const setupIntent = await _stripeconfig.stripe.setupIntents.create({
                 customer: customerId,
-                payment_method_types: ['card'],
-                usage: 'off_session', // Allow future payments
+                payment_method_types: [
+                    'card'
+                ],
+                usage: 'off_session',
                 metadata: {
                     userId,
                     createdAt: new Date().toISOString()
@@ -85,8 +100,7 @@ exports.paymentMethodController = {
                 clientSecret: setupIntent.client_secret,
                 customerId
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Create setup intent error:', error);
             res.status(500).json({
                 success: false,
@@ -95,7 +109,7 @@ exports.paymentMethodController = {
         }
     },
     // Save payment method after successful setup
-    async savePaymentMethod(req, res) {
+    async savePaymentMethod (req, res) {
         try {
             const userId = req.user?.id;
             if (!userId) {
@@ -112,18 +126,20 @@ exports.paymentMethodController = {
                 });
             }
             // Get or create Stripe customer
-            const customerId = await exports.paymentMethodController.getOrCreateStripeCustomer(userId);
+            const customerId = await paymentMethodController.getOrCreateStripeCustomer(userId);
             // Retrieve payment method from Stripe
-            const paymentMethod = await stripe_config_1.stripe.paymentMethods.retrieve(paymentMethodId);
+            const paymentMethod = await _stripeconfig.stripe.paymentMethods.retrieve(paymentMethodId);
             // Attach payment method to customer if not already attached
             if (!paymentMethod.customer) {
-                await stripe_config_1.stripe.paymentMethods.attach(paymentMethodId, {
+                await _stripeconfig.stripe.paymentMethods.attach(paymentMethodId, {
                     customer: customerId
                 });
             }
             // Check if payment method already exists in our database
-            const existingMethod = await database_1.default.paymentMethod.findUnique({
-                where: { stripePaymentMethodId: paymentMethodId }
+            const existingMethod = await _database.default.paymentMethod.findUnique({
+                where: {
+                    stripePaymentMethodId: paymentMethodId
+                }
             });
             if (existingMethod) {
                 return res.status(400).json({
@@ -134,32 +150,37 @@ exports.paymentMethodController = {
             // Determine if this should be default
             const shouldBeDefault = isDefault !== undefined ? isDefault : false;
             // Check if user has any existing payment methods
-            const existingMethods = await database_1.default.paymentMethod.findMany({
-                where: { userId }
+            const existingMethods = await _database.default.paymentMethod.findMany({
+                where: {
+                    userId
+                }
             });
             // If this is the first card, make it default
             const finalIsDefault = existingMethods.length === 0 ? true : shouldBeDefault;
             // If this is set as default, unset other defaults
             if (finalIsDefault) {
-                await database_1.default.paymentMethod.updateMany({
-                    where: { userId },
-                    data: { isDefault: false }
+                await _database.default.paymentMethod.updateMany({
+                    where: {
+                        userId
+                    },
+                    data: {
+                        isDefault: false
+                    }
                 });
                 // Set as default in Stripe
                 try {
-                    await stripe_config_1.stripe.customers.update(customerId, {
+                    await _stripeconfig.stripe.customers.update(customerId, {
                         invoice_settings: {
                             default_payment_method: paymentMethodId
                         }
                     });
-                }
-                catch (stripeError) {
+                } catch (stripeError) {
                     console.error('Error setting default in Stripe:', stripeError);
-                    // Continue - we'll still save locally
+                // Continue - we'll still save locally
                 }
             }
             // Save payment method to database
-            const savedMethod = await database_1.default.paymentMethod.create({
+            const savedMethod = await _database.default.paymentMethod.create({
                 data: {
                     userId,
                     stripePaymentMethodId: paymentMethodId,
@@ -185,8 +206,7 @@ exports.paymentMethodController = {
                     isDefault: savedMethod.isDefault
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Save payment method error:', error);
             res.status(500).json({
                 success: false,
@@ -195,24 +215,29 @@ exports.paymentMethodController = {
         }
     },
     // Get all payment methods for a user
-    async getPaymentMethods(req, res) {
+    async getPaymentMethods (req, res) {
         try {
             const userId = req.user?.id;
             if (!userId) {
-                return res.status(401).json({ error: 'Unauthorized' });
+                return res.status(401).json({
+                    error: 'Unauthorized'
+                });
             }
-            const paymentMethods = await database_1.default.paymentMethod.findMany({
-                where: { userId },
+            const paymentMethods = await _database.default.paymentMethod.findMany({
+                where: {
+                    userId
+                },
                 orderBy: [
-                    { createdAt: 'desc' }
+                    {
+                        createdAt: 'desc'
+                    }
                 ]
             });
             res.json({
                 success: true,
                 paymentMethods
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Get payment methods error:', error);
             res.status(500).json({
                 success: false,
@@ -221,52 +246,62 @@ exports.paymentMethodController = {
         }
     },
     // Set a payment method as default
-    async setDefaultPaymentMethod(req, res) {
+    async setDefaultPaymentMethod (req, res) {
         try {
             const userId = req.user?.id;
             if (!userId) {
-                return res.status(401).json({ error: 'Unauthorized' });
+                return res.status(401).json({
+                    error: 'Unauthorized'
+                });
             }
             const { paymentMethodId } = req.params;
             // Check if payment method exists and belongs to user
-            const paymentMethod = await database_1.default.paymentMethod.findFirst({
+            const paymentMethod = await _database.default.paymentMethod.findFirst({
                 where: {
                     id: paymentMethodId,
                     userId
                 }
             });
             if (!paymentMethod) {
-                return res.status(404).json({ error: 'Payment method not found' });
+                return res.status(404).json({
+                    error: 'Payment method not found'
+                });
             }
             // Unset all other defaults
-            await database_1.default.paymentMethod.updateMany({
-                where: { userId },
-                data: { isDefault: false }
+            await _database.default.paymentMethod.updateMany({
+                where: {
+                    userId
+                },
+                data: {
+                    isDefault: false
+                }
             });
             // Set this one as default
-            const updatedMethod = await database_1.default.paymentMethod.update({
-                where: { id: paymentMethodId },
-                data: { isDefault: true }
+            const updatedMethod = await _database.default.paymentMethod.update({
+                where: {
+                    id: paymentMethodId
+                },
+                data: {
+                    isDefault: true
+                }
             });
             // Also set it as default in Stripe
             try {
-                const customerId = await exports.paymentMethodController.getOrCreateStripeCustomer(userId);
-                await stripe_config_1.stripe.customers.update(customerId, {
+                const customerId = await paymentMethodController.getOrCreateStripeCustomer(userId);
+                await _stripeconfig.stripe.customers.update(customerId, {
                     invoice_settings: {
                         default_payment_method: paymentMethod.stripePaymentMethodId
                     }
                 });
-            }
-            catch (stripeError) {
+            } catch (stripeError) {
                 console.error('Error setting default payment method in Stripe:', stripeError);
-                // Continue even if Stripe update fails - local DB is already updated
+            // Continue even if Stripe update fails - local DB is already updated
             }
             res.json({
                 success: true,
                 paymentMethod: updatedMethod
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Set default payment method error:', error);
             res.status(500).json({
                 success: false,
@@ -275,45 +310,58 @@ exports.paymentMethodController = {
         }
     },
     // Delete a payment method
-    async deletePaymentMethod(req, res) {
+    async deletePaymentMethod (req, res) {
         try {
             const userId = req.user?.id;
             if (!userId) {
-                return res.status(401).json({ error: 'Unauthorized' });
+                return res.status(401).json({
+                    error: 'Unauthorized'
+                });
             }
             const { paymentMethodId } = req.params;
             // Check if payment method exists and belongs to user
-            const paymentMethod = await database_1.default.paymentMethod.findFirst({
+            const paymentMethod = await _database.default.paymentMethod.findFirst({
                 where: {
                     id: paymentMethodId,
                     userId
                 }
             });
             if (!paymentMethod) {
-                return res.status(404).json({ error: 'Payment method not found' });
+                return res.status(404).json({
+                    error: 'Payment method not found'
+                });
             }
             // Detach from Stripe customer
             try {
-                await stripe_config_1.stripe.paymentMethods.detach(paymentMethod.stripePaymentMethodId);
-            }
-            catch (stripeError) {
+                await _stripeconfig.stripe.paymentMethods.detach(paymentMethod.stripePaymentMethodId);
+            } catch (stripeError) {
                 console.error('Error detaching from Stripe:', stripeError);
-                // Continue with local deletion even if Stripe detach fails
+            // Continue with local deletion even if Stripe detach fails
             }
             // Delete from database
-            await database_1.default.paymentMethod.delete({
-                where: { id: paymentMethodId }
+            await _database.default.paymentMethod.delete({
+                where: {
+                    id: paymentMethodId
+                }
             });
             // If this was the default, set another as default
             if (paymentMethod.isDefault) {
-                const nextDefault = await database_1.default.paymentMethod.findFirst({
-                    where: { userId },
-                    orderBy: { createdAt: 'desc' }
+                const nextDefault = await _database.default.paymentMethod.findFirst({
+                    where: {
+                        userId
+                    },
+                    orderBy: {
+                        createdAt: 'desc'
+                    }
                 });
                 if (nextDefault) {
-                    await database_1.default.paymentMethod.update({
-                        where: { id: nextDefault.id },
-                        data: { isDefault: true }
+                    await _database.default.paymentMethod.update({
+                        where: {
+                            id: nextDefault.id
+                        },
+                        data: {
+                            isDefault: true
+                        }
                     });
                 }
             }
@@ -321,8 +369,7 @@ exports.paymentMethodController = {
                 success: true,
                 message: 'Payment method deleted successfully'
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Delete payment method error:', error);
             res.status(500).json({
                 success: false,
@@ -331,3 +378,5 @@ exports.paymentMethodController = {
         }
     }
 };
+
+//# sourceMappingURL=payment-method.controller.js.map

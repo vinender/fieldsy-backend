@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Payout Service Provider — feature flag switch.
  *
@@ -8,17 +7,43 @@
  *
  * All controllers, jobs, and routes should import services from this file
  * instead of importing directly from the engine or original service files.
- */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isPayoutEngineEnabled = void 0;
-exports.getAutoPayoutService = getAutoPayoutService;
-exports.getPayoutService = getPayoutService;
-exports.getHeldPayoutService = getHeldPayoutService;
-exports.getRefundService = getRefundService;
-exports.getSubscriptionService = getSubscriptionService;
-exports.getLifecycleService = getLifecycleService;
-exports.getPayoutEngine = getPayoutEngine;
-exports.isPayoutEngineEnabled = process.env.USE_PAYOUT_ENGINE === 'true';
+ */ "use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get getAutoPayoutService () {
+        return getAutoPayoutService;
+    },
+    get getHeldPayoutService () {
+        return getHeldPayoutService;
+    },
+    get getLifecycleService () {
+        return getLifecycleService;
+    },
+    get getPayoutEngine () {
+        return getPayoutEngine;
+    },
+    get getPayoutService () {
+        return getPayoutService;
+    },
+    get getRefundService () {
+        return getRefundService;
+    },
+    get getSubscriptionService () {
+        return getSubscriptionService;
+    },
+    get isPayoutEngineEnabled () {
+        return isPayoutEngineEnabled;
+    }
+});
+const isPayoutEngineEnabled = process.env.USE_PAYOUT_ENGINE === 'true';
 // Lazy-loaded references (populated on first access)
 let _autoPayoutService;
 let _payoutService;
@@ -33,10 +58,9 @@ function getEngine() {
     }
     return _payoutEngine;
 }
-/** AutoPayoutService — processEligiblePayouts(), getMerchantPayoutSummary(), etc. */
 function getAutoPayoutService() {
     if (!_autoPayoutService) {
-        if (exports.isPayoutEngineEnabled) {
+        if (isPayoutEngineEnabled) {
             const engineService = getEngine().autoPayoutService;
             const builtInService = require('../services/auto-payout.service').automaticPayoutService;
             // Engine doesn't expose getPayoutSummary — bridge from built-in service
@@ -44,54 +68,46 @@ function getAutoPayoutService() {
                 engineService.getPayoutSummary = builtInService.getPayoutSummary.bind(builtInService);
             }
             _autoPayoutService = engineService;
-        }
-        else {
+        } else {
             _autoPayoutService = require('../services/auto-payout.service').automaticPayoutService;
         }
     }
     return _autoPayoutService;
 }
-/** PayoutService — processBookingPayout(), processPendingPayouts(), getPayoutHistory() */
 function getPayoutService() {
     if (!_payoutService) {
-        if (exports.isPayoutEngineEnabled) {
+        if (isPayoutEngineEnabled) {
             _payoutService = getEngine().payoutService;
-        }
-        else {
+        } else {
             _payoutService = require('../services/payout.service').payoutService;
         }
     }
     return _payoutService;
 }
-/** HeldPayoutService — releaseHeldPayouts(), processScheduledReleases() */
 function getHeldPayoutService() {
     if (!_heldPayoutService) {
-        if (exports.isPayoutEngineEnabled) {
+        if (isPayoutEngineEnabled) {
             _heldPayoutService = getEngine().heldPayoutService;
-        }
-        else {
+        } else {
             _heldPayoutService = require('../services/held-payout.service').heldPayoutService;
         }
     }
     return _heldPayoutService;
 }
-/** RefundService — processRefund(), processCompletedBookingPayouts() */
 function getRefundService() {
     if (!_refundService) {
-        if (exports.isPayoutEngineEnabled) {
+        if (isPayoutEngineEnabled) {
             _refundService = getEngine().refundService;
-        }
-        else {
+        } else {
             const mod = require('../services/refund.service');
             _refundService = mod.default || mod.refundService;
         }
     }
     return _refundService;
 }
-/** SubscriptionService — createSubscription(), retryFailedPayments(), cancelSubscription() */
 function getSubscriptionService() {
     if (!_subscriptionService) {
-        if (exports.isPayoutEngineEnabled) {
+        if (isPayoutEngineEnabled) {
             const engineService = getEngine().subscriptionService;
             const builtInService = require('../services/subscription.service').subscriptionService;
             // Engine doesn't expose createBookingFromSubscription — bridge from built-in service
@@ -99,38 +115,30 @@ function getSubscriptionService() {
                 engineService.createBookingFromSubscription = builtInService.createBookingFromSubscription.bind(builtInService);
             }
             _subscriptionService = engineService;
-        }
-        else {
+        } else {
             _subscriptionService = require('../services/subscription.service').subscriptionService;
         }
     }
     return _subscriptionService;
 }
-/** TransactionLifecycleService */
 function getLifecycleService() {
     if (!_lifecycleService) {
-        if (exports.isPayoutEngineEnabled) {
+        if (isPayoutEngineEnabled) {
             _lifecycleService = getEngine().lifecycleService;
-        }
-        else {
+        } else {
             _lifecycleService = require('../services/transaction-lifecycle.service').transactionLifecycleService;
         }
     }
     return _lifecycleService;
 }
-/**
- * Get the engine instance directly (only available when USE_PAYOUT_ENGINE=true).
- * Used for engine-specific methods like createWebhookRouter(), startScheduler(), processPayoutsNow().
- * Returns null when engine is disabled.
- */
 function getPayoutEngine() {
-    if (!exports.isPayoutEngineEnabled)
-        return null;
+    if (!isPayoutEngineEnabled) return null;
     return getEngine();
 }
-if (exports.isPayoutEngineEnabled) {
+if (isPayoutEngineEnabled) {
     console.log('[PayoutServices] Using @fieldsy/stripe-auto-payout engine');
-}
-else {
+} else {
     console.log('[PayoutServices] Using built-in payout services');
 }
+
+//# sourceMappingURL=payout-services.js.map

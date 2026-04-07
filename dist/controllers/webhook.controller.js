@@ -1,116 +1,118 @@
+// DEPRECATED: Replaced by @fieldsy/stripe-auto-payout engine.
+// Webhooks are now handled via payoutEngine.createWebhookRouter() in server.ts.
+// This file is kept for reference only. Safe to delete once integration is verified.
+//@ts-nocheck
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
+Object.defineProperty(exports, "__esModule", {
+    value: true
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get WebhookController () {
+        return WebhookController;
+    },
+    get webhookController () {
+        return webhookController;
+    }
+});
+const _stripeconfig = require("../config/stripe.config");
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _notificationcontroller = require("./notification.controller");
+const _emailservice = require("../services/email.service");
+const _notificationservice = require("../services/notification.service");
+const _transactionlifecycleservice = require("../services/transaction-lifecycle.service");
+const _bookingmodel = /*#__PURE__*/ _interop_require_default(require("../models/booking.model"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
         };
-        return ownKeys(o);
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
     };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.webhookController = exports.WebhookController = void 0;
-const stripe_config_1 = require("../config/stripe.config");
-const database_1 = __importDefault(require("../config/database"));
-const notification_controller_1 = require("./notification.controller");
-const email_service_1 = require("../services/email.service");
-const notification_service_1 = require("../services/notification.service");
-const transaction_lifecycle_service_1 = require("../services/transaction-lifecycle.service");
-const booking_model_1 = __importDefault(require("../models/booking.model"));
-/**
- * ============================================================================
- * STRIPE WEBHOOK CONTROLLER
- * ============================================================================
- *
- * Four dedicated webhook endpoints for handling different Stripe events:
- *
- * 1. PAYMENTS WEBHOOK (/api/webhooks/payments)
- *    - For platform payment events (customer payments to your platform)
- *    - Secret: STRIPE_PAYMENT_WEBHOOK_SECRET
- *    - Events: payment_intent.*, charge.succeeded, charge.failed, charge.updated
- *
- * 2. CONNECT ACCOUNTS WEBHOOK (/api/webhooks/connect)
- *    - For connected account onboarding events (field owners creating Stripe accounts)
- *    - Secret: STRIPE_CONNECT_WEBHOOK_SECRET
- *    - Events: account.updated, account.application.authorized, account.application.deauthorized
- *
- * 3. PAYOUTS WEBHOOK (/api/webhooks/payouts)
- *    - For payout events on connected accounts (money going to field owners' banks)
- *    - Secret: STRIPE_PAYOUT_WEBHOOK_SECRET (connected accounts)
- *    - Events: payout.*, transfer.*, balance.available
- *
- * 4. REFUNDS WEBHOOK (/api/webhooks/refunds)
- *    - For refund events (money going back to customers)
- *    - Secret: STRIPE_REFUND_WEBHOOK_SECRET
- *    - Events: charge.refunded, refund.created, refund.updated, refund.failed
- *
- * ============================================================================
- */
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
 class WebhookController {
     // ============================================================================
     // 1. PAYMENTS WEBHOOK - Platform Payment Events
     // ============================================================================
     /**
-     * Endpoint: /api/webhooks/payments
-     * Listen to: "Events on your account"
-     *
-     * EVENTS TO ENABLE IN STRIPE DASHBOARD:
-     * - payment_intent.created
-     * - payment_intent.succeeded
-     * - payment_intent.payment_failed
-     * - payment_intent.canceled
-     * - payment_intent.processing
-     * - charge.succeeded
-     * - charge.failed
-     * - charge.updated
-     * - charge.captured
-     * - charge.expired
-     */
-    async handlePaymentWebhook(req, res) {
+   * Endpoint: /api/webhooks/payments
+   * Listen to: "Events on your account"
+   *
+   * EVENTS TO ENABLE IN STRIPE DASHBOARD:
+   * - payment_intent.created
+   * - payment_intent.succeeded
+   * - payment_intent.payment_failed
+   * - payment_intent.canceled
+   * - payment_intent.processing
+   * - charge.succeeded
+   * - charge.failed
+   * - charge.updated
+   * - charge.captured
+   * - charge.expired
+   */ async handlePaymentWebhook(req, res) {
         const sig = req.headers['stripe-signature'];
-        const webhookSecret = stripe_config_1.STRIPE_PAYMENT_WEBHOOK_SECRET;
+        const webhookSecret = _stripeconfig.STRIPE_PAYMENT_WEBHOOK_SECRET;
         if (!webhookSecret) {
             console.error('[PaymentWebhook] Webhook secret not configured');
-            return res.status(500).json({ error: 'Webhook secret not configured' });
+            return res.status(500).json({
+                error: 'Webhook secret not configured'
+            });
         }
         let event;
         try {
-            event = stripe_config_1.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-        }
-        catch (err) {
+            event = _stripeconfig.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        } catch (err) {
             console.error('[PaymentWebhook] Signature verification failed:', err);
             return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
-        console.log(`[PaymentWebhook] Received event: ${event.type}`, { eventId: event.id });
+        console.log(`[PaymentWebhook] Received event: ${event.type}`, {
+            eventId: event.id
+        });
         try {
-            switch (event.type) {
+            switch(event.type){
                 case 'payment_intent.created':
                     await this.handlePaymentIntentCreated(event);
                     break;
@@ -141,44 +143,47 @@ class WebhookController {
                 default:
                     console.log(`[PaymentWebhook] Unhandled event type: ${event.type}`);
             }
-            res.json({ received: true });
-        }
-        catch (error) {
+            res.json({
+                received: true
+            });
+        } catch (error) {
             console.error('[PaymentWebhook] Error processing webhook:', error);
-            res.status(500).json({ error: 'Webhook processing failed' });
+            res.status(500).json({
+                error: 'Webhook processing failed'
+            });
         }
     }
     // ============================================================================
     // 2. CONNECT ACCOUNTS WEBHOOK - Merchant/Field Owner Account Events
     // ============================================================================
     /**
-     * Endpoint: /api/webhooks/connect
-     * Listen to: "Events on Connected accounts"
-     *
-     * EVENTS TO ENABLE IN STRIPE DASHBOARD:
-     * - account.updated
-     * - account.application.authorized
-     * - account.application.deauthorized
-     * - account.external_account.created
-     * - account.external_account.deleted
-     * - account.external_account.updated
-     * - capability.updated
-     * - person.created
-     * - person.updated
-     * - person.deleted
-     */
-    async handleConnectWebhook(req, res) {
+   * Endpoint: /api/webhooks/connect
+   * Listen to: "Events on Connected accounts"
+   *
+   * EVENTS TO ENABLE IN STRIPE DASHBOARD:
+   * - account.updated
+   * - account.application.authorized
+   * - account.application.deauthorized
+   * - account.external_account.created
+   * - account.external_account.deleted
+   * - account.external_account.updated
+   * - capability.updated
+   * - person.created
+   * - person.updated
+   * - person.deleted
+   */ async handleConnectWebhook(req, res) {
         const sig = req.headers['stripe-signature'];
-        const webhookSecret = stripe_config_1.STRIPE_CONNECT_WEBHOOK_SECRET;
+        const webhookSecret = _stripeconfig.STRIPE_CONNECT_WEBHOOK_SECRET;
         if (!webhookSecret) {
             console.error('[ConnectWebhook] Webhook secret not configured');
-            return res.status(500).json({ error: 'Webhook secret not configured' });
+            return res.status(500).json({
+                error: 'Webhook secret not configured'
+            });
         }
         let event;
         try {
-            event = stripe_config_1.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-        }
-        catch (err) {
+            event = _stripeconfig.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        } catch (err) {
             console.error('[ConnectWebhook] Signature verification failed:', err);
             return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
@@ -188,7 +193,7 @@ class WebhookController {
             connectedAccountId: connectedAccountId || 'platform'
         });
         try {
-            switch (event.type) {
+            switch(event.type){
                 case 'account.updated':
                     await this.handleAccountUpdated(event);
                     break;
@@ -218,45 +223,48 @@ class WebhookController {
                 default:
                     console.log(`[ConnectWebhook] Unhandled event type: ${event.type}`);
             }
-            res.json({ received: true });
-        }
-        catch (error) {
+            res.json({
+                received: true
+            });
+        } catch (error) {
             console.error('[ConnectWebhook] Error processing webhook:', error);
-            res.status(500).json({ error: 'Webhook processing failed' });
+            res.status(500).json({
+                error: 'Webhook processing failed'
+            });
         }
     }
     // ============================================================================
     // 3. PAYOUTS WEBHOOK - Field Owner Payout Events
     // ============================================================================
     /**
-     * Endpoint: /api/webhooks/payouts
-     * Listen to: "Events on Connected accounts"
-     *
-     * EVENTS TO ENABLE IN STRIPE DASHBOARD:
-     * - payout.created
-     * - payout.updated
-     * - payout.paid
-     * - payout.failed
-     * - payout.canceled
-     * - payout.reconciliation_completed
-     * - transfer.created
-     * - transfer.updated
-     * - transfer.reversed
-     * - balance.available
-     */
-    async handlePayoutWebhook(req, res) {
+   * Endpoint: /api/webhooks/payouts
+   * Listen to: "Events on Connected accounts"
+   *
+   * EVENTS TO ENABLE IN STRIPE DASHBOARD:
+   * - payout.created
+   * - payout.updated
+   * - payout.paid
+   * - payout.failed
+   * - payout.canceled
+   * - payout.reconciliation_completed
+   * - transfer.created
+   * - transfer.updated
+   * - transfer.reversed
+   * - balance.available
+   */ async handlePayoutWebhook(req, res) {
         const sig = req.headers['stripe-signature'];
         // Payout events come from connected accounts, so use connect webhook secret
-        const webhookSecret = stripe_config_1.STRIPE_PAYOUT_WEBHOOK_SECRET || stripe_config_1.STRIPE_CONNECT_WEBHOOK_SECRET;
+        const webhookSecret = _stripeconfig.STRIPE_PAYOUT_WEBHOOK_SECRET || _stripeconfig.STRIPE_CONNECT_WEBHOOK_SECRET;
         if (!webhookSecret) {
             console.error('[PayoutWebhook] Webhook secret not configured');
-            return res.status(500).json({ error: 'Webhook secret not configured' });
+            return res.status(500).json({
+                error: 'Webhook secret not configured'
+            });
         }
         let event;
         try {
-            event = stripe_config_1.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-        }
-        catch (err) {
+            event = _stripeconfig.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        } catch (err) {
             console.error('[PayoutWebhook] Signature verification failed:', err);
             return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
@@ -266,7 +274,7 @@ class WebhookController {
             connectedAccountId: connectedAccountId || 'platform'
         });
         try {
-            switch (event.type) {
+            switch(event.type){
                 case 'payout.created':
                     await this.handlePayoutCreated(event);
                     break;
@@ -300,45 +308,50 @@ class WebhookController {
                 default:
                     console.log(`[PayoutWebhook] Unhandled event type: ${event.type}`);
             }
-            res.json({ received: true });
-        }
-        catch (error) {
+            res.json({
+                received: true
+            });
+        } catch (error) {
             console.error('[PayoutWebhook] Error processing webhook:', error);
-            res.status(500).json({ error: 'Webhook processing failed' });
+            res.status(500).json({
+                error: 'Webhook processing failed'
+            });
         }
     }
     // ============================================================================
     // 4. REFUNDS WEBHOOK - Customer Refund Events
     // ============================================================================
     /**
-     * Endpoint: /api/webhooks/refunds
-     * Listen to: "Events on your account"
-     *
-     * EVENTS TO ENABLE IN STRIPE DASHBOARD:
-     * - charge.refunded
-     * - charge.refund.updated
-     * - refund.created
-     * - refund.updated
-     * - refund.failed
-     */
-    async handleRefundWebhook(req, res) {
+   * Endpoint: /api/webhooks/refunds
+   * Listen to: "Events on your account"
+   *
+   * EVENTS TO ENABLE IN STRIPE DASHBOARD:
+   * - charge.refunded
+   * - charge.refund.updated
+   * - refund.created
+   * - refund.updated
+   * - refund.failed
+   */ async handleRefundWebhook(req, res) {
         const sig = req.headers['stripe-signature'];
-        const webhookSecret = stripe_config_1.STRIPE_REFUND_WEBHOOK_SECRET || stripe_config_1.STRIPE_PAYMENT_WEBHOOK_SECRET;
+        const webhookSecret = _stripeconfig.STRIPE_REFUND_WEBHOOK_SECRET || _stripeconfig.STRIPE_PAYMENT_WEBHOOK_SECRET;
         if (!webhookSecret) {
             console.error('[RefundWebhook] Webhook secret not configured');
-            return res.status(500).json({ error: 'Webhook secret not configured' });
+            return res.status(500).json({
+                error: 'Webhook secret not configured'
+            });
         }
         let event;
         try {
-            event = stripe_config_1.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-        }
-        catch (err) {
+            event = _stripeconfig.stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        } catch (err) {
             console.error('[RefundWebhook] Signature verification failed:', err);
             return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
-        console.log(`[RefundWebhook] Received event: ${event.type}`, { eventId: event.id });
+        console.log(`[RefundWebhook] Received event: ${event.type}`, {
+            eventId: event.id
+        });
         try {
-            switch (event.type) {
+            switch(event.type){
                 case 'charge.refunded':
                     await this.handleChargeRefunded(event);
                     break;
@@ -357,11 +370,14 @@ class WebhookController {
                 default:
                     console.log(`[RefundWebhook] Unhandled event type: ${event.type}`);
             }
-            res.json({ received: true });
-        }
-        catch (error) {
+            res.json({
+                received: true
+            });
+        } catch (error) {
             console.error('[RefundWebhook] Error processing webhook:', error);
-            res.status(500).json({ error: 'Webhook processing failed' });
+            res.status(500).json({
+                error: 'Webhook processing failed'
+            });
         }
     }
     // ============================================================================
@@ -370,17 +386,22 @@ class WebhookController {
     async handlePaymentIntentCreated(event) {
         const paymentIntent = event.data.object;
         console.log('[PaymentWebhook] Payment intent created:', paymentIntent.id);
-        // Usually no action needed - booking is created via API
+    // Usually no action needed - booking is created via API
     }
     async handlePaymentIntentSucceeded(event) {
         const paymentIntent = event.data.object;
         console.log('[PaymentWebhook] Payment intent succeeded:', paymentIntent.id);
         // Use transaction to prevent duplicate booking updates
-        await database_1.default.$transaction(async (tx) => {
+        await _database.default.$transaction(async (tx)=>{
             // Check if booking exists
             const booking = await tx.booking.findFirst({
-                where: { paymentIntentId: paymentIntent.id },
-                include: { field: true, user: true }
+                where: {
+                    paymentIntentId: paymentIntent.id
+                },
+                include: {
+                    field: true,
+                    user: true
+                }
             });
             if (!booking) {
                 // Handle case where webhook arrives before booking creation
@@ -393,14 +414,20 @@ class WebhookController {
                             fieldId: metadata.fieldId,
                             date: new Date(metadata.date),
                             timeSlot: metadata.timeSlot,
-                            status: { notIn: ['CANCELLED'] }
+                            status: {
+                                notIn: [
+                                    'CANCELLED'
+                                ]
+                            }
                         }
                     });
                     if (existingBooking) {
                         console.log('[PaymentWebhook] Booking already exists, updating payment intent');
                         if (!existingBooking.paymentIntentId) {
                             await tx.booking.update({
-                                where: { id: existingBooking.id },
+                                where: {
+                                    id: existingBooking.id
+                                },
                                 data: {
                                     paymentIntentId: paymentIntent.id,
                                     status: 'CONFIRMED',
@@ -413,7 +440,7 @@ class WebhookController {
                         return;
                     }
                     // Create new booking from webhook
-                    const [startTime, endTime] = metadata.timeSlot.split(' - ').map((t) => t.trim());
+                    const [startTime, endTime] = metadata.timeSlot.split(' - ').map((t)=>t.trim());
                     const newBooking = await tx.booking.create({
                         data: {
                             fieldId: metadata.fieldId,
@@ -426,7 +453,7 @@ class WebhookController {
                             totalPrice: paymentIntent.amount / 100,
                             platformCommission: parseFloat(metadata.platformCommission || '0'),
                             fieldOwnerAmount: parseFloat(metadata.fieldOwnerAmount || '0'),
-                            bookingId: await booking_model_1.default.generateBookingId(),
+                            bookingId: await _bookingmodel.default.generateBookingId(),
                             status: 'CONFIRMED',
                             paymentStatus: 'PAID',
                             paymentIntentId: paymentIntent.id,
@@ -437,11 +464,12 @@ class WebhookController {
                     // Create lifecycle transaction for new booking
                     await this.createLifecycleTransaction(newBooking, paymentIntent, metadata);
                 }
-            }
-            else if (booking.status !== 'CONFIRMED' || booking.paymentStatus !== 'PAID') {
+            } else if (booking.status !== 'CONFIRMED' || booking.paymentStatus !== 'PAID') {
                 // Update existing booking
                 await tx.booking.update({
-                    where: { id: booking.id },
+                    where: {
+                        id: booking.id
+                    },
                     data: {
                         status: 'CONFIRMED',
                         paymentStatus: 'PAID'
@@ -450,21 +478,25 @@ class WebhookController {
                 // Create lifecycle transaction
                 await this.createLifecycleTransaction(booking, paymentIntent, paymentIntent.metadata);
                 // Send confirmation notification
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: booking.userId,
                     type: 'booking_confirmed',
                     title: 'Booking Confirmed',
                     message: `Your booking for ${booking.field.name} has been confirmed.`,
-                    data: { bookingId: booking.id }
+                    data: {
+                        bookingId: booking.id
+                    }
                 });
                 // Notify field owner
                 if (booking.field.ownerId) {
-                    await (0, notification_controller_1.createNotification)({
+                    await (0, _notificationcontroller.createNotification)({
                         userId: booking.field.ownerId,
                         type: 'new_booking',
                         title: 'New Booking',
                         message: `You have a new booking for ${booking.field.name}.`,
-                        data: { bookingId: booking.id }
+                        data: {
+                            bookingId: booking.id
+                        }
                     });
                 }
                 console.log('[PaymentWebhook] Updated booking:', booking.id);
@@ -472,22 +504,21 @@ class WebhookController {
         });
     }
     /**
-     * Create lifecycle transaction for tracking payment flow
-     */
-    async createLifecycleTransaction(booking, paymentIntent, metadata) {
+   * Create lifecycle transaction for tracking payment flow
+   */ async createLifecycleTransaction(booking, paymentIntent, metadata) {
         try {
             // Get charge ID if available
             let chargeId;
             if (paymentIntent.latest_charge) {
-                chargeId = typeof paymentIntent.latest_charge === 'string'
-                    ? paymentIntent.latest_charge
-                    : paymentIntent.latest_charge.id;
+                chargeId = typeof paymentIntent.latest_charge === 'string' ? paymentIntent.latest_charge : paymentIntent.latest_charge.id;
             }
             // Get connected account ID for field owner
-            const fieldOwnerStripeAccount = await database_1.default.stripeAccount.findFirst({
-                where: { userId: metadata.fieldOwnerId || booking.field?.ownerId }
+            const fieldOwnerStripeAccount = await _database.default.stripeAccount.findFirst({
+                where: {
+                    userId: metadata.fieldOwnerId || booking.field?.ownerId
+                }
             });
-            await transaction_lifecycle_service_1.transactionLifecycleService.createPaymentTransaction({
+            await _transactionlifecycleservice.transactionLifecycleService.createPaymentTransaction({
                 bookingId: booking.id,
                 userId: booking.userId,
                 fieldOwnerId: metadata.fieldOwnerId || booking.field?.ownerId,
@@ -503,51 +534,62 @@ class WebhookController {
                 description: `Payment for booking ${booking.id}`
             });
             console.log('[PaymentWebhook] Created lifecycle transaction for booking:', booking.id);
-        }
-        catch (error) {
+        } catch (error) {
             console.error('[PaymentWebhook] Error creating lifecycle transaction:', error);
-            // Don't fail the webhook if transaction creation fails
+        // Don't fail the webhook if transaction creation fails
         }
     }
     async handlePaymentIntentFailed(event) {
         const paymentIntent = event.data.object;
         console.error('[PaymentWebhook] Payment intent failed:', paymentIntent.id);
-        const booking = await database_1.default.booking.findFirst({
-            where: { paymentIntentId: paymentIntent.id },
-            include: { user: true }
+        const booking = await _database.default.booking.findFirst({
+            where: {
+                paymentIntentId: paymentIntent.id
+            },
+            include: {
+                user: true
+            }
         });
         if (booking) {
-            await database_1.default.booking.update({
-                where: { id: booking.id },
+            await _database.default.booking.update({
+                where: {
+                    id: booking.id
+                },
                 data: {
                     status: 'CANCELLED',
                     paymentStatus: 'FAILED'
                 }
             });
             // Update lifecycle transaction to FAILED
-            await transaction_lifecycle_service_1.transactionLifecycleService.updateFailed({
+            await _transactionlifecycleservice.transactionLifecycleService.updateFailed({
                 stripePaymentIntentId: paymentIntent.id,
                 failureCode: paymentIntent.last_payment_error?.code || 'unknown',
                 failureMessage: paymentIntent.last_payment_error?.message || 'Payment failed'
             });
-            await (0, notification_controller_1.createNotification)({
+            await (0, _notificationcontroller.createNotification)({
                 userId: booking.userId,
                 type: 'payment_failed',
                 title: 'Payment Failed',
                 message: 'Your payment could not be processed. Please try again.',
-                data: { bookingId: booking.id }
+                data: {
+                    bookingId: booking.id
+                }
             });
         }
     }
     async handlePaymentIntentCanceled(event) {
         const paymentIntent = event.data.object;
         console.log('[PaymentWebhook] Payment intent canceled:', paymentIntent.id);
-        const booking = await database_1.default.booking.findFirst({
-            where: { paymentIntentId: paymentIntent.id }
+        const booking = await _database.default.booking.findFirst({
+            where: {
+                paymentIntentId: paymentIntent.id
+            }
         });
         if (booking && booking.status !== 'CANCELLED') {
-            await database_1.default.booking.update({
-                where: { id: booking.id },
+            await _database.default.booking.update({
+                where: {
+                    id: booking.id
+                },
                 data: {
                     status: 'CANCELLED',
                     paymentStatus: 'CANCELLED'
@@ -560,29 +602,25 @@ class WebhookController {
         console.log('[PaymentWebhook] Charge succeeded:', charge.id);
         // Update lifecycle to FUNDS_PENDING with balance transaction ID
         if (charge.payment_intent) {
-            const paymentIntentId = typeof charge.payment_intent === 'string'
-                ? charge.payment_intent
-                : charge.payment_intent.id;
-            const balanceTransactionId = charge.balance_transaction
-                ? (typeof charge.balance_transaction === 'string'
-                    ? charge.balance_transaction
-                    : charge.balance_transaction.id)
-                : undefined;
-            await transaction_lifecycle_service_1.transactionLifecycleService.updateFundsPending(paymentIntentId, balanceTransactionId);
+            const paymentIntentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent.id;
+            const balanceTransactionId = charge.balance_transaction ? typeof charge.balance_transaction === 'string' ? charge.balance_transaction : charge.balance_transaction.id : undefined;
+            await _transactionlifecycleservice.transactionLifecycleService.updateFundsPending(paymentIntentId, balanceTransactionId);
             // ============================================================================
             // Track when funds will be available (Rule 3: Delayed payouts)
             // Stripe typically makes funds available in 2 business days
             // ============================================================================
             if (balanceTransactionId) {
                 try {
-                    const balanceTransaction = await stripe_config_1.stripe.balanceTransactions.retrieve(balanceTransactionId);
+                    const balanceTransaction = await _stripeconfig.stripe.balanceTransactions.retrieve(balanceTransactionId);
                     // available_on is a Unix timestamp
                     if (balanceTransaction.available_on) {
                         const fundsAvailableAt = new Date(balanceTransaction.available_on * 1000);
                         console.log(`[PaymentWebhook] Funds for charge ${charge.id} will be available at: ${fundsAvailableAt.toISOString()}`);
                         // Store the expected availability date in the transaction
-                        await database_1.default.transaction.updateMany({
-                            where: { stripePaymentIntentId: paymentIntentId },
+                        await _database.default.transaction.updateMany({
+                            where: {
+                                stripePaymentIntentId: paymentIntentId
+                            },
                             data: {
                                 metadata: {
                                     expectedFundsAvailableAt: fundsAvailableAt.toISOString(),
@@ -591,8 +629,7 @@ class WebhookController {
                             }
                         });
                     }
-                }
-                catch (error) {
+                } catch (error) {
                     console.error('[PaymentWebhook] Error fetching balance transaction details:', error);
                 }
             }
@@ -614,14 +651,20 @@ class WebhookController {
             detailsSubmitted: account.details_submitted
         });
         // Find and update our record
-        const stripeAccount = await database_1.default.stripeAccount.findFirst({
-            where: { stripeAccountId: account.id },
-            include: { user: true }
+        const stripeAccount = await _database.default.stripeAccount.findFirst({
+            where: {
+                stripeAccountId: account.id
+            },
+            include: {
+                user: true
+            }
         });
         if (stripeAccount) {
             const wasPayoutsEnabled = stripeAccount.payoutsEnabled;
-            await database_1.default.stripeAccount.update({
-                where: { id: stripeAccount.id },
+            await _database.default.stripeAccount.update({
+                where: {
+                    id: stripeAccount.id
+                },
                 data: {
                     chargesEnabled: account.charges_enabled,
                     payoutsEnabled: account.payouts_enabled,
@@ -634,16 +677,18 @@ class WebhookController {
             });
             // Notify user if payouts just became enabled
             if (!wasPayoutsEnabled && account.payouts_enabled) {
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: stripeAccount.userId,
                     type: 'stripe_account_ready',
                     title: 'Stripe Account Ready',
                     message: 'Your Stripe account is now fully set up! You can start receiving payouts for your bookings.',
-                    data: { stripeAccountId: account.id }
+                    data: {
+                        stripeAccountId: account.id
+                    }
                 });
                 // Send email
                 if (stripeAccount.user?.email) {
-                    await email_service_1.emailService.sendEmail({
+                    await _emailservice.emailService.sendEmail({
                         to: stripeAccount.user.email,
                         subject: 'Your Stripe Account is Ready!',
                         template: 'stripe-account-ready',
@@ -657,15 +702,17 @@ class WebhookController {
             if (account.requirements?.currently_due && account.requirements.currently_due.length > 0) {
                 // Check if a similar notification was already sent in the last 30 minutes
                 const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-                const existingNotification = await database_1.default.notification.findFirst({
+                const existingNotification = await _database.default.notification.findFirst({
                     where: {
                         userId: stripeAccount.userId,
                         type: 'stripe_requirements',
-                        createdAt: { gte: thirtyMinutesAgo }
+                        createdAt: {
+                            gte: thirtyMinutesAgo
+                        }
                     }
                 });
                 if (!existingNotification) {
-                    await (0, notification_controller_1.createNotification)({
+                    await (0, _notificationcontroller.createNotification)({
                         userId: stripeAccount.userId,
                         type: 'stripe_requirements',
                         title: 'Action Required',
@@ -675,18 +722,16 @@ class WebhookController {
                             requirements: account.requirements.currently_due
                         }
                     });
-                }
-                else {
+                } else {
                     console.log('[ConnectWebhook] Skipping duplicate stripe_requirements notification for user:', stripeAccount.userId);
                 }
             }
-        }
-        else {
+        } else {
             // Account not in our database - might be from metadata
             const userId = account.metadata?.userId;
             if (userId) {
                 console.log('[ConnectWebhook] Creating new StripeAccount record for user:', userId);
-                await database_1.default.stripeAccount.create({
+                await _database.default.stripeAccount.create({
                     data: {
                         userId,
                         stripeAccountId: account.id,
@@ -710,24 +755,30 @@ class WebhookController {
         const connectedAccountId = event.account;
         console.log('[ConnectWebhook] Account deauthorized:', connectedAccountId);
         if (connectedAccountId) {
-            const stripeAccount = await database_1.default.stripeAccount.findFirst({
-                where: { stripeAccountId: connectedAccountId }
+            const stripeAccount = await _database.default.stripeAccount.findFirst({
+                where: {
+                    stripeAccountId: connectedAccountId
+                }
             });
             if (stripeAccount) {
-                await database_1.default.stripeAccount.update({
-                    where: { id: stripeAccount.id },
+                await _database.default.stripeAccount.update({
+                    where: {
+                        id: stripeAccount.id
+                    },
                     data: {
                         chargesEnabled: false,
                         payoutsEnabled: false,
                         detailsSubmitted: false
                     }
                 });
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: stripeAccount.userId,
                     type: 'stripe_account_disconnected',
                     title: 'Stripe Account Disconnected',
                     message: 'Your Stripe account has been disconnected. You will not receive payouts until you reconnect.',
-                    data: { stripeAccountId: connectedAccountId }
+                    data: {
+                        stripeAccountId: connectedAccountId
+                    }
                 });
             }
         }
@@ -758,9 +809,11 @@ class WebhookController {
         });
         if (connectedAccountId) {
             // Refresh account status
-            const account = await stripe_config_1.stripe.accounts.retrieve(connectedAccountId);
-            await database_1.default.stripeAccount.updateMany({
-                where: { stripeAccountId: connectedAccountId },
+            const account = await _stripeconfig.stripe.accounts.retrieve(connectedAccountId);
+            await _database.default.stripeAccount.updateMany({
+                where: {
+                    stripeAccountId: connectedAccountId
+                },
                 data: {
                     chargesEnabled: account.charges_enabled,
                     payoutsEnabled: account.payouts_enabled
@@ -785,7 +838,7 @@ class WebhookController {
         // Update lifecycle to PAYOUT_INITIATED
         const bookingId = payout.metadata?.bookingId;
         if (bookingId) {
-            await transaction_lifecycle_service_1.transactionLifecycleService.updatePayoutInitiated({
+            await _transactionlifecycleservice.transactionLifecycleService.updatePayoutInitiated({
                 bookingId,
                 stripePayoutId: payout.id
             });
@@ -811,16 +864,20 @@ class WebhookController {
         });
         const payoutRecord = await this.syncPayoutRecord(payout, connectedAccountId);
         // Update lifecycle to PAYOUT_COMPLETED
-        await transaction_lifecycle_service_1.transactionLifecycleService.updatePayoutCompleted(payout.id);
+        await _transactionlifecycleservice.transactionLifecycleService.updatePayoutCompleted(payout.id);
         if (connectedAccountId) {
-            const stripeAccount = await database_1.default.stripeAccount.findFirst({
-                where: { stripeAccountId: connectedAccountId },
-                include: { user: true }
+            const stripeAccount = await _database.default.stripeAccount.findFirst({
+                where: {
+                    stripeAccountId: connectedAccountId
+                },
+                include: {
+                    user: true
+                }
             });
             if (stripeAccount?.user) {
                 // Send notification
                 try {
-                    await (0, notification_controller_1.createNotification)({
+                    await (0, _notificationcontroller.createNotification)({
                         userId: stripeAccount.userId,
                         type: 'payout_completed',
                         title: 'Payout Completed',
@@ -831,44 +888,45 @@ class WebhookController {
                             amount: payout.amount / 100
                         }
                     });
-                }
-                catch (notifError) {
+                } catch (notifError) {
                     console.error('[PayoutWebhook] Failed to send notification:', notifError);
                 }
                 // Update related bookings from metadata
                 const bookingIds = this.extractBookingIds(payout.metadata);
                 if (bookingIds.length > 0) {
                     try {
-                        await database_1.default.booking.updateMany({
-                            where: { id: { in: bookingIds } },
-                            data: { payoutStatus: 'COMPLETED' }
+                        await _database.default.booking.updateMany({
+                            where: {
+                                id: {
+                                    in: bookingIds
+                                }
+                            },
+                            data: {
+                                payoutStatus: 'COMPLETED'
+                            }
                         });
                         console.log(`[PayoutWebhook] Updated ${bookingIds.length} bookings to COMPLETED`);
-                    }
-                    catch (bookingError) {
+                    } catch (bookingError) {
                         console.error('[PayoutWebhook] Failed to update bookings:', bookingError);
                     }
                 }
                 // Send email
                 if (stripeAccount.user.email) {
                     try {
-                        await email_service_1.emailService.sendPayoutCompletedEmail({
+                        await _emailservice.emailService.sendPayoutCompletedEmail({
                             email: stripeAccount.user.email,
                             userName: stripeAccount.user.name || 'Field Owner',
                             amount: (payout.amount / 100).toFixed(2),
                             currency: payout.currency.toUpperCase()
                         });
-                    }
-                    catch (emailError) {
+                    } catch (emailError) {
                         console.error('[PayoutWebhook] Failed to send email:', emailError);
                     }
                 }
-            }
-            else {
+            } else {
                 console.log(`[PayoutWebhook] No user found for connected account: ${connectedAccountId}`);
             }
-        }
-        else {
+        } else {
             console.log(`[PayoutWebhook] Payout paid event has no connected account ID`);
         }
     }
@@ -883,14 +941,18 @@ class WebhookController {
         });
         const payoutRecord = await this.syncPayoutRecord(payout, connectedAccountId);
         if (connectedAccountId) {
-            const stripeAccount = await database_1.default.stripeAccount.findFirst({
-                where: { stripeAccountId: connectedAccountId },
-                include: { user: true }
+            const stripeAccount = await _database.default.stripeAccount.findFirst({
+                where: {
+                    stripeAccountId: connectedAccountId
+                },
+                include: {
+                    user: true
+                }
             });
             // Notify admin only — field owner sees payout as still pending
             try {
                 const ownerName = stripeAccount?.user?.name || stripeAccount?.user?.email || connectedAccountId;
-                await notification_service_1.NotificationService.notifyAdmins('Payout Failed — Action Required', `Payout of £${(payout.amount / 100).toFixed(2)} to ${ownerName} failed. Reason: ${payout.failure_message || payout.failure_code || 'Unknown'}. Please check Stripe balance and retry.`, {
+                await _notificationservice.NotificationService.notifyAdmins('Payout Failed — Action Required', `Payout of £${(payout.amount / 100).toFixed(2)} to ${ownerName} failed. Reason: ${payout.failure_message || payout.failure_code || 'Unknown'}. Please check Stripe balance and retry.`, {
                     payoutId: payoutRecord?.id || payout.id,
                     stripePayoutId: payout.id,
                     connectedAccountId,
@@ -898,8 +960,7 @@ class WebhookController {
                     failureCode: payout.failure_code,
                     failureMessage: payout.failure_message
                 });
-            }
-            catch (notifError) {
+            } catch (notifError) {
                 console.error('[PayoutWebhook] Failed to notify admins:', notifError);
             }
             // Do NOT update booking payoutStatus to FAILED — keep it as PENDING
@@ -923,18 +984,12 @@ class WebhookController {
             destination: transfer.destination
         });
         // Update lifecycle to TRANSFERRED
-        const destinationAccountId = typeof transfer.destination === 'string'
-            ? transfer.destination
-            : transfer.destination?.id;
+        const destinationAccountId = typeof transfer.destination === 'string' ? transfer.destination : transfer.destination?.id;
         if (destinationAccountId) {
             // Try to find the transaction by payment intent from transfer metadata
             const bookingId = transfer.metadata?.bookingId;
-            const paymentIntentId = transfer.source_transaction
-                ? (typeof transfer.source_transaction === 'string'
-                    ? transfer.source_transaction
-                    : transfer.source_transaction.id)
-                : undefined;
-            await transaction_lifecycle_service_1.transactionLifecycleService.updateTransferred({
+            const paymentIntentId = transfer.source_transaction ? typeof transfer.source_transaction === 'string' ? transfer.source_transaction : transfer.source_transaction.id : undefined;
+            await _transactionlifecycleservice.transactionLifecycleService.updateTransferred({
                 bookingId,
                 stripePaymentIntentId: paymentIntentId,
                 stripeTransferId: transfer.id,
@@ -953,17 +1008,25 @@ class WebhookController {
             amount: transfer.amount / 100
         });
         // Update any associated payouts
-        const payoutRecord = await database_1.default.payout.findFirst({
+        const payoutRecord = await _database.default.payout.findFirst({
             where: {
                 OR: [
-                    { stripePayoutId: transfer.id },
-                    { description: { contains: transfer.id } }
+                    {
+                        stripePayoutId: transfer.id
+                    },
+                    {
+                        description: {
+                            contains: transfer.id
+                        }
+                    }
                 ]
             }
         });
         if (payoutRecord) {
-            await database_1.default.payout.update({
-                where: { id: payoutRecord.id },
+            await _database.default.payout.update({
+                where: {
+                    id: payoutRecord.id
+                },
                 data: {
                     status: 'reversed',
                     description: `Transfer ${transfer.id} was reversed`
@@ -972,18 +1035,17 @@ class WebhookController {
         }
     }
     /**
-     * Handle balance.available webhook event
-     *
-     * This is the CORRECT signal to trigger payouts (Rule 1 & 2)
-     * When Stripe notifies us that balance has changed, we check for pending payouts
-     * that can now be processed.
-     */
-    async handleBalanceAvailable(event) {
+   * Handle balance.available webhook event
+   *
+   * This is the CORRECT signal to trigger payouts (Rule 1 & 2)
+   * When Stripe notifies us that balance has changed, we check for pending payouts
+   * that can now be processed.
+   */ async handleBalanceAvailable(event) {
         const balance = event.data.object;
         const connectedAccountId = event.account;
         // Find available balance for GBP
-        const gbpAvailable = balance.available.find(b => b.currency === 'gbp');
-        const gbpPending = balance.pending?.find(b => b.currency === 'gbp');
+        const gbpAvailable = balance.available.find((b)=>b.currency === 'gbp');
+        const gbpPending = balance.pending?.find((b)=>b.currency === 'gbp');
         console.log('[PayoutWebhook] Balance available event:', {
             eventId: event.id,
             connectedAccountId: connectedAccountId || 'platform',
@@ -995,9 +1057,9 @@ class WebhookController {
             console.log('[PayoutWebhook] Platform balance available - checking for pending payouts...');
             try {
                 // Import the auto-payout service dynamically to avoid circular dependencies
-                const { automaticPayoutService } = await Promise.resolve().then(() => __importStar(require('../services/auto-payout.service')));
+                const { automaticPayoutService } = await Promise.resolve().then(()=>/*#__PURE__*/ _interop_require_wildcard(require("../services/auto-payout.service")));
                 // Find bookings that are PENDING due to insufficient balance
-                const pendingBookings = await database_1.default.booking.findMany({
+                const pendingBookings = await _database.default.booking.findMany({
                     where: {
                         payoutStatus: 'PENDING',
                         payoutHeldReason: {
@@ -1006,24 +1068,25 @@ class WebhookController {
                         status: 'CONFIRMED',
                         paymentStatus: 'PAID'
                     },
-                    take: 10, // Process in batches to avoid overwhelming the system
-                    orderBy: { createdAt: 'asc' } // Process oldest first
+                    take: 10,
+                    orderBy: {
+                        createdAt: 'asc'
+                    } // Process oldest first
                 });
                 if (pendingBookings.length > 0) {
                     console.log(`[PayoutWebhook] Found ${pendingBookings.length} bookings pending due to balance issues`);
                     // Process each booking (balance will be re-checked in the service)
-                    for (const booking of pendingBookings) {
+                    for (const booking of pendingBookings){
                         try {
                             await automaticPayoutService.processBookingPayoutAfterCancellationWindow(booking.id);
                             console.log(`[PayoutWebhook] Processed pending payout for booking: ${booking.id}`);
-                        }
-                        catch (error) {
+                        } catch (error) {
                             console.error(`[PayoutWebhook] Failed to process booking ${booking.id}:`, error);
                         }
                     }
                 }
                 // Also process bookings waiting for funds availability
-                const fundsWaitingBookings = await database_1.default.booking.findMany({
+                const fundsWaitingBookings = await _database.default.booking.findMany({
                     where: {
                         payoutStatus: 'PENDING',
                         payoutHeldReason: {
@@ -1033,40 +1096,43 @@ class WebhookController {
                         paymentStatus: 'PAID'
                     },
                     take: 10,
-                    orderBy: { createdAt: 'asc' }
+                    orderBy: {
+                        createdAt: 'asc'
+                    }
                 });
                 if (fundsWaitingBookings.length > 0) {
                     console.log(`[PayoutWebhook] Found ${fundsWaitingBookings.length} bookings waiting for funds availability`);
-                    for (const booking of fundsWaitingBookings) {
+                    for (const booking of fundsWaitingBookings){
                         try {
                             await automaticPayoutService.processBookingPayoutAfterCancellationWindow(booking.id);
                             console.log(`[PayoutWebhook] Processed funds-waiting payout for booking: ${booking.id}`);
-                        }
-                        catch (error) {
+                        } catch (error) {
                             console.error(`[PayoutWebhook] Failed to process booking ${booking.id}:`, error);
                         }
                     }
                 }
                 // Update transactions that were in FUNDS_PENDING to FUNDS_AVAILABLE
                 // This is done by checking which transactions now have available funds
-                const pendingTransactions = await database_1.default.transaction.findMany({
+                const pendingTransactions = await _database.default.transaction.findMany({
                     where: {
                         lifecycleStage: 'FUNDS_PENDING',
-                        stripeChargeId: { not: null }
+                        stripeChargeId: {
+                            not: null
+                        }
                     },
                     take: 20
                 });
-                for (const transaction of pendingTransactions) {
+                for (const transaction of pendingTransactions){
                     try {
-                        const charge = await stripe_config_1.stripe.charges.retrieve(transaction.stripeChargeId);
+                        const charge = await _stripeconfig.stripe.charges.retrieve(transaction.stripeChargeId);
                         if (charge.balance_transaction) {
-                            const balanceTransactionId = typeof charge.balance_transaction === 'string'
-                                ? charge.balance_transaction
-                                : charge.balance_transaction.id;
-                            const balanceTransaction = await stripe_config_1.stripe.balanceTransactions.retrieve(balanceTransactionId);
+                            const balanceTransactionId = typeof charge.balance_transaction === 'string' ? charge.balance_transaction : charge.balance_transaction.id;
+                            const balanceTransaction = await _stripeconfig.stripe.balanceTransactions.retrieve(balanceTransactionId);
                             if (balanceTransaction.status === 'available') {
-                                await database_1.default.transaction.update({
-                                    where: { id: transaction.id },
+                                await _database.default.transaction.update({
+                                    where: {
+                                        id: transaction.id
+                                    },
                                     data: {
                                         lifecycleStage: 'FUNDS_AVAILABLE',
                                         fundsAvailableAt: new Date()
@@ -1075,13 +1141,11 @@ class WebhookController {
                                 console.log(`[PayoutWebhook] Updated transaction ${transaction.id} to FUNDS_AVAILABLE`);
                             }
                         }
-                    }
-                    catch (error) {
+                    } catch (error) {
                         console.error(`[PayoutWebhook] Error checking transaction ${transaction.id}:`, error);
                     }
                 }
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('[PayoutWebhook] Error processing pending payouts on balance available:', error);
             }
         }
@@ -1096,14 +1160,18 @@ class WebhookController {
             console.warn('[RefundWebhook] Charge has no payment_intent');
             return;
         }
-        const paymentIntentId = typeof charge.payment_intent === 'string'
-            ? charge.payment_intent
-            : charge.payment_intent.id;
-        const booking = await database_1.default.booking.findFirst({
-            where: { paymentIntentId },
+        const paymentIntentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent.id;
+        const booking = await _database.default.booking.findFirst({
+            where: {
+                paymentIntentId
+            },
             include: {
                 user: true,
-                field: { include: { owner: true } },
+                field: {
+                    include: {
+                        owner: true
+                    }
+                },
                 payment: true
             }
         });
@@ -1114,8 +1182,10 @@ class WebhookController {
         const refundAmount = charge.amount_refunded / 100;
         const isFullRefund = charge.refunded;
         // Update booking status
-        await database_1.default.booking.update({
-            where: { id: booking.id },
+        await _database.default.booking.update({
+            where: {
+                id: booking.id
+            },
             data: {
                 status: 'CANCELLED',
                 paymentStatus: 'REFUNDED',
@@ -1124,8 +1194,10 @@ class WebhookController {
         });
         // Update payment record
         if (booking.payment) {
-            await database_1.default.payment.update({
-                where: { id: booking.payment.id },
+            await _database.default.payment.update({
+                where: {
+                    id: booking.payment.id
+                },
                 data: {
                     status: 'refunded',
                     refundAmount,
@@ -1134,10 +1206,17 @@ class WebhookController {
             });
         }
         // Cancel pending payouts
-        await database_1.default.payout.updateMany({
+        await _database.default.payout.updateMany({
             where: {
-                bookingIds: { has: booking.id },
-                status: { in: ['pending', 'processing'] }
+                bookingIds: {
+                    has: booking.id
+                },
+                status: {
+                    in: [
+                        'pending',
+                        'processing'
+                    ]
+                }
             },
             data: {
                 status: 'canceled',
@@ -1145,27 +1224,34 @@ class WebhookController {
             }
         });
         // Update lifecycle transaction to REFUNDED
-        await transaction_lifecycle_service_1.transactionLifecycleService.updateRefunded({
+        await _transactionlifecycleservice.transactionLifecycleService.updateRefunded({
             stripePaymentIntentId: paymentIntentId,
             stripeRefundId: charge.id,
             refundAmount
         });
         // Notify user
-        await (0, notification_controller_1.createNotification)({
+        await (0, _notificationcontroller.createNotification)({
             userId: booking.userId,
             type: 'refund_processed',
             title: 'Refund Processed',
             message: `Your refund of £${refundAmount.toFixed(2)} for ${booking.field.name} has been processed.`,
-            data: { bookingId: booking.id, refundAmount, isFullRefund }
+            data: {
+                bookingId: booking.id,
+                refundAmount,
+                isFullRefund
+            }
         });
         // Notify field owner
         if (booking.field.ownerId) {
-            await (0, notification_controller_1.createNotification)({
+            await (0, _notificationcontroller.createNotification)({
                 userId: booking.field.ownerId,
                 type: 'booking_refunded',
                 title: 'Booking Refunded',
                 message: `A booking for ${booking.field.name} was refunded (£${refundAmount.toFixed(2)}).`,
-                data: { bookingId: booking.id, refundAmount }
+                data: {
+                    bookingId: booking.id,
+                    refundAmount
+                }
             });
         }
         console.log(`[RefundWebhook] Processed refund for booking ${booking.id}`);
@@ -1182,12 +1268,18 @@ class WebhookController {
         console.log('[RefundWebhook] Refund updated:', refund.id, 'Status:', refund.status);
         const bookingId = refund.metadata?.bookingId;
         if (bookingId) {
-            const payment = await database_1.default.payment.findFirst({
-                where: { booking: { id: bookingId } }
+            const payment = await _database.default.payment.findFirst({
+                where: {
+                    booking: {
+                        id: bookingId
+                    }
+                }
             });
             if (payment) {
-                await database_1.default.payment.update({
-                    where: { id: payment.id },
+                await _database.default.payment.update({
+                    where: {
+                        id: payment.id
+                    },
                     data: {
                         stripeRefundId: refund.id,
                         refundAmount: refund.amount / 100
@@ -1201,12 +1293,16 @@ class WebhookController {
         console.error('[RefundWebhook] Refund FAILED:', refund.id, 'Reason:', refund.failure_reason);
         const bookingId = refund.metadata?.bookingId;
         if (bookingId) {
-            const booking = await database_1.default.booking.findUnique({
-                where: { id: bookingId },
-                include: { user: true }
+            const booking = await _database.default.booking.findUnique({
+                where: {
+                    id: bookingId
+                },
+                include: {
+                    user: true
+                }
             });
             if (booking) {
-                await (0, notification_controller_1.createNotification)({
+                await (0, _notificationcontroller.createNotification)({
                     userId: booking.userId,
                     type: 'refund_failed',
                     title: 'Refund Failed',
@@ -1228,13 +1324,17 @@ class WebhookController {
         try {
             const bookingIds = this.extractBookingIds(payout.metadata);
             // First try to find existing record
-            let payoutRecord = await database_1.default.payout.findFirst({
-                where: { stripePayoutId: payout.id }
+            let payoutRecord = await _database.default.payout.findFirst({
+                where: {
+                    stripePayoutId: payout.id
+                }
             });
             if (payoutRecord) {
                 // Update existing record
-                payoutRecord = await database_1.default.payout.update({
-                    where: { id: payoutRecord.id },
+                payoutRecord = await _database.default.payout.update({
+                    where: {
+                        id: payoutRecord.id
+                    },
                     data: {
                         status: payout.status,
                         arrivalDate: payout.arrival_date ? new Date(payout.arrival_date * 1000) : null,
@@ -1243,17 +1343,20 @@ class WebhookController {
                     }
                 });
                 console.log(`[PayoutWebhook] Updated payout ${payoutRecord.id} to: ${payout.status}`);
-            }
-            else if (connectedAccountId) {
+            } else if (connectedAccountId) {
                 // Need to create new record
-                const stripeAccount = await database_1.default.stripeAccount.findFirst({
-                    where: { stripeAccountId: connectedAccountId }
+                const stripeAccount = await _database.default.stripeAccount.findFirst({
+                    where: {
+                        stripeAccountId: connectedAccountId
+                    }
                 });
                 if (stripeAccount) {
                     try {
                         // Use upsert to handle race conditions where another webhook may have created the record
-                        payoutRecord = await database_1.default.payout.upsert({
-                            where: { stripePayoutId: payout.id },
+                        payoutRecord = await _database.default.payout.upsert({
+                            where: {
+                                stripePayoutId: payout.id
+                            },
                             update: {
                                 status: payout.status,
                                 arrivalDate: payout.arrival_date ? new Date(payout.arrival_date * 1000) : null,
@@ -1274,18 +1377,21 @@ class WebhookController {
                             }
                         });
                         console.log(`[PayoutWebhook] Upserted payout record ${payoutRecord.id} with status: ${payout.status}`);
-                    }
-                    catch (upsertError) {
+                    } catch (upsertError) {
                         // If upsert fails (e.g., race condition), try to fetch the existing record
                         if (upsertError.code === 'P2002') {
                             console.log(`[PayoutWebhook] Race condition detected, fetching existing record for: ${payout.id}`);
-                            payoutRecord = await database_1.default.payout.findFirst({
-                                where: { stripePayoutId: payout.id }
+                            payoutRecord = await _database.default.payout.findFirst({
+                                where: {
+                                    stripePayoutId: payout.id
+                                }
                             });
                             if (payoutRecord) {
                                 // Update the existing record
-                                payoutRecord = await database_1.default.payout.update({
-                                    where: { id: payoutRecord.id },
+                                payoutRecord = await _database.default.payout.update({
+                                    where: {
+                                        id: payoutRecord.id
+                                    },
                                     data: {
                                         status: payout.status,
                                         arrivalDate: payout.arrival_date ? new Date(payout.arrival_date * 1000) : null,
@@ -1295,45 +1401,41 @@ class WebhookController {
                                 });
                                 console.log(`[PayoutWebhook] Updated existing record after race condition: ${payoutRecord.id}`);
                             }
-                        }
-                        else {
+                        } else {
                             throw upsertError;
                         }
                     }
-                }
-                else {
+                } else {
                     console.log(`[PayoutWebhook] No StripeAccount found for connected account: ${connectedAccountId}`);
                 }
-            }
-            else {
+            } else {
                 console.log(`[PayoutWebhook] No payout record found and no connected account ID provided for payout: ${payout.id}`);
             }
             return payoutRecord;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`[PayoutWebhook] Error syncing payout record:`, error);
             // Return null instead of throwing - we don't want to fail the webhook
             return null;
         }
     }
     extractBookingIds(metadata) {
-        if (!metadata)
-            return [];
+        if (!metadata) return [];
         if (metadata.bookingId) {
-            return [metadata.bookingId];
+            return [
+                metadata.bookingId
+            ];
         }
         if (metadata.bookingIds) {
             try {
                 const parsed = JSON.parse(metadata.bookingIds);
-                if (Array.isArray(parsed))
-                    return parsed.filter(Boolean);
-            }
-            catch {
-                return metadata.bookingIds.split(',').map(id => id.trim()).filter(Boolean);
+                if (Array.isArray(parsed)) return parsed.filter(Boolean);
+            } catch  {
+                return metadata.bookingIds.split(',').map((id)=>id.trim()).filter(Boolean);
             }
         }
         return [];
     }
 }
-exports.WebhookController = WebhookController;
-exports.webhookController = new WebhookController();
+const webhookController = new WebhookController();
+
+//# sourceMappingURL=webhook.controller.js.map

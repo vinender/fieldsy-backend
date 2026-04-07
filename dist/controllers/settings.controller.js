@@ -1,22 +1,47 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifySiteAccess = exports.getPublicSettings = exports.updatePlatformImages = exports.updateSystemSettings = exports.getSystemSettings = void 0;
-const database_1 = __importDefault(require("../config/database"));
-const settings_cache_1 = require("../config/settings-cache");
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get getPublicSettings () {
+        return getPublicSettings;
+    },
+    get getSystemSettings () {
+        return getSystemSettings;
+    },
+    get updatePlatformImages () {
+        return updatePlatformImages;
+    },
+    get updateSystemSettings () {
+        return updateSystemSettings;
+    },
+    get verifySiteAccess () {
+        return verifySiteAccess;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+const _settingscache = require("../config/settings-cache");
+const _jsonwebtoken = /*#__PURE__*/ _interop_require_default(require("jsonwebtoken"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
-// (Removed DEFAULT_TERMS)
-// Get system settings
-const getSystemSettings = async (req, res) => {
+const getSystemSettings = async (req, res)=>{
     try {
         // Get the first settings record or create one with defaults
-        let settings = await database_1.default.systemSettings.findFirst();
+        let settings = await _database.default.systemSettings.findFirst();
         if (!settings) {
             // Create default settings if none exist
-            settings = await database_1.default.systemSettings.create({
+            settings = await _database.default.systemSettings.create({
                 data: {
                     defaultCommissionRate: 20,
                     cancellationWindowHours: 12,
@@ -41,8 +66,7 @@ const getSystemSettings = async (req, res) => {
             success: true,
             data: settings
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching system settings:', error);
         res.status(500).json({
             success: false,
@@ -50,11 +74,9 @@ const getSystemSettings = async (req, res) => {
         });
     }
 };
-exports.getSystemSettings = getSystemSettings;
-// Update system settings (Admin only)
-const updateSystemSettings = async (req, res) => {
+const updateSystemSettings = async (req, res)=>{
     try {
-        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, heroBackgroundImage, heroBackgroundImages, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, aboutSectionTitle, aboutSectionSubtitle, aboutSectionMainText, aboutSectionSecondaryText, aboutSectionTrustedTitle, aboutSectionTrustedSubtitle, bypassUsername, bypassPassword, howItWorksTitle, howItWorksSteps, howItWorksHeroTitle, howItWorksHeroHeading, howItWorksHeroDescription, forDogOwnersSectionTitle, forDogOwnersSteps, landownersSectionTitle, landownersSectionDescription, landownersSectionImage, landownersOptionCard1Title, landownersOptionCard1Description, landownersOptionCard2Title, landownersOptionCard2Description, whyChooseFieldsyFeatures, } = req.body;
+        const { defaultCommissionRate, cancellationWindowHours, maxAdvanceBookingDays, maxBookingsPerUser, minimumFieldOperatingHours, payoutReleaseSchedule, siteName, siteUrl, supportEmail, adminEmail, maintenanceMode, enableNotifications, enableEmailNotifications, enableSmsNotifications, bannerText, highlightedText, heroBackgroundImage, heroBackgroundImages, isLive, aboutTitle, aboutDogImage, aboutFamilyImage, aboutDogIcons, aboutSectionTitle, aboutSectionSubtitle, aboutSectionMainText, aboutSectionSecondaryText, aboutSectionTrustedTitle, aboutSectionTrustedSubtitle, bypassUsername, bypassPassword, howItWorksTitle, howItWorksSteps, howItWorksHeroTitle, howItWorksHeroHeading, howItWorksHeroDescription, forDogOwnersSectionTitle, forDogOwnersSteps, landownersSectionTitle, landownersSectionDescription, landownersSectionImage, landownersOptionCard1Title, landownersOptionCard1Description, landownersOptionCard2Title, landownersOptionCard2Description, whyChooseFieldsyFeatures } = req.body;
         // Validate maxAdvanceBookingDays is between 30 and 60
         if (maxAdvanceBookingDays !== undefined) {
             if (maxAdvanceBookingDays < 30 || maxAdvanceBookingDays > 60) {
@@ -75,10 +97,10 @@ const updateSystemSettings = async (req, res) => {
             }
         }
         // Get existing settings or create if not exists
-        let settings = await database_1.default.systemSettings.findFirst();
+        let settings = await _database.default.systemSettings.findFirst();
         if (!settings) {
             // Create with provided values
-            settings = await database_1.default.systemSettings.create({
+            settings = await _database.default.systemSettings.create({
                 data: {
                     defaultCommissionRate: defaultCommissionRate || 20,
                     cancellationWindowHours: cancellationWindowHours || 12,
@@ -104,73 +126,173 @@ const updateSystemSettings = async (req, res) => {
                     aboutDogIcons: aboutDogIcons || []
                 }
             });
-        }
-        else {
+        } else {
             // Update existing settings
-            settings = await database_1.default.systemSettings.update({
-                where: { id: settings.id },
+            settings = await _database.default.systemSettings.update({
+                where: {
+                    id: settings.id
+                },
                 data: {
-                    ...(defaultCommissionRate !== undefined && { defaultCommissionRate }),
-                    ...(payoutReleaseSchedule !== undefined && { payoutReleaseSchedule }),
-                    ...(cancellationWindowHours !== undefined && { cancellationWindowHours }),
-                    ...(maxAdvanceBookingDays !== undefined && { maxAdvanceBookingDays }),
-                    ...(maxBookingsPerUser !== undefined && { maxBookingsPerUser }),
-                    ...(minimumFieldOperatingHours !== undefined && { minimumFieldOperatingHours }),
-                    ...(siteName !== undefined && { siteName }),
-                    ...(siteUrl !== undefined && { siteUrl }),
-                    ...(supportEmail !== undefined && { supportEmail }),
-                    ...(adminEmail !== undefined && { adminEmail }),
-                    ...(maintenanceMode !== undefined && { maintenanceMode }),
-                    ...(enableNotifications !== undefined && { enableNotifications }),
-                    ...(enableEmailNotifications !== undefined && { enableEmailNotifications }),
-                    ...(enableSmsNotifications !== undefined && { enableSmsNotifications }),
-                    ...(bannerText !== undefined && { bannerText }),
-                    ...(highlightedText !== undefined && { highlightedText }),
-                    ...(heroBackgroundImage !== undefined && { heroBackgroundImage }),
-                    ...(heroBackgroundImages !== undefined && { heroBackgroundImages }),
-                    ...(isLive !== undefined && { isLive }),
-                    ...(bypassUsername !== undefined && { bypassUsername }),
-                    ...(bypassPassword !== undefined && { bypassPassword }),
-                    ...(aboutTitle !== undefined && { aboutTitle }),
-                    ...(aboutDogImage !== undefined && { aboutDogImage }),
-                    ...(aboutFamilyImage !== undefined && { aboutFamilyImage }),
-                    ...(aboutDogIcons !== undefined && { aboutDogIcons }),
-                    ...(aboutSectionTitle !== undefined && { aboutSectionTitle }),
-                    ...(aboutSectionSubtitle !== undefined && { aboutSectionSubtitle }),
-                    ...(aboutSectionMainText !== undefined && { aboutSectionMainText }),
-                    ...(aboutSectionSecondaryText !== undefined && { aboutSectionSecondaryText }),
-                    ...(aboutSectionTrustedTitle !== undefined && { aboutSectionTrustedTitle }),
-                    ...(aboutSectionTrustedSubtitle !== undefined && { aboutSectionTrustedSubtitle }),
-                    ...(req.body.platformDogOwnersImage !== undefined && { platformDogOwnersImage: req.body.platformDogOwnersImage }),
-                    ...(req.body.platformFieldOwnersImage !== undefined && { platformFieldOwnersImage: req.body.platformFieldOwnersImage }),
-                    ...(req.body.platformWaveImage !== undefined && { platformWaveImage: req.body.platformWaveImage }),
-                    ...(req.body.platformHoverImage !== undefined && { platformHoverImage: req.body.platformHoverImage }),
-                    ...(howItWorksTitle !== undefined && { howItWorksTitle }),
-                    ...(howItWorksSteps !== undefined && { howItWorksSteps }),
-                    ...(howItWorksHeroTitle !== undefined && { howItWorksHeroTitle }),
-                    ...(howItWorksHeroHeading !== undefined && { howItWorksHeroHeading }),
-                    ...(howItWorksHeroDescription !== undefined && { howItWorksHeroDescription }),
-                    ...(forDogOwnersSectionTitle !== undefined && { forDogOwnersSectionTitle }),
-                    ...(forDogOwnersSteps !== undefined && { forDogOwnersSteps }),
-                    ...(landownersSectionTitle !== undefined && { landownersSectionTitle }),
-                    ...(landownersSectionDescription !== undefined && { landownersSectionDescription }),
-                    ...(landownersSectionImage !== undefined && { landownersSectionImage }),
-                    ...(landownersOptionCard1Title !== undefined && { landownersOptionCard1Title }),
-                    ...(landownersOptionCard1Description !== undefined && { landownersOptionCard1Description }),
-                    ...(landownersOptionCard2Title !== undefined && { landownersOptionCard2Title }),
-                    ...(landownersOptionCard2Description !== undefined && { landownersOptionCard2Description }),
-                    ...(whyChooseFieldsyFeatures !== undefined && { whyChooseFieldsyFeatures }),
+                    ...defaultCommissionRate !== undefined && {
+                        defaultCommissionRate
+                    },
+                    ...payoutReleaseSchedule !== undefined && {
+                        payoutReleaseSchedule
+                    },
+                    ...cancellationWindowHours !== undefined && {
+                        cancellationWindowHours
+                    },
+                    ...maxAdvanceBookingDays !== undefined && {
+                        maxAdvanceBookingDays
+                    },
+                    ...maxBookingsPerUser !== undefined && {
+                        maxBookingsPerUser
+                    },
+                    ...minimumFieldOperatingHours !== undefined && {
+                        minimumFieldOperatingHours
+                    },
+                    ...siteName !== undefined && {
+                        siteName
+                    },
+                    ...siteUrl !== undefined && {
+                        siteUrl
+                    },
+                    ...supportEmail !== undefined && {
+                        supportEmail
+                    },
+                    ...adminEmail !== undefined && {
+                        adminEmail
+                    },
+                    ...maintenanceMode !== undefined && {
+                        maintenanceMode
+                    },
+                    ...enableNotifications !== undefined && {
+                        enableNotifications
+                    },
+                    ...enableEmailNotifications !== undefined && {
+                        enableEmailNotifications
+                    },
+                    ...enableSmsNotifications !== undefined && {
+                        enableSmsNotifications
+                    },
+                    ...bannerText !== undefined && {
+                        bannerText
+                    },
+                    ...highlightedText !== undefined && {
+                        highlightedText
+                    },
+                    ...heroBackgroundImage !== undefined && {
+                        heroBackgroundImage
+                    },
+                    ...heroBackgroundImages !== undefined && {
+                        heroBackgroundImages
+                    },
+                    ...isLive !== undefined && {
+                        isLive
+                    },
+                    ...bypassUsername !== undefined && {
+                        bypassUsername
+                    },
+                    ...bypassPassword !== undefined && {
+                        bypassPassword
+                    },
+                    ...aboutTitle !== undefined && {
+                        aboutTitle
+                    },
+                    ...aboutDogImage !== undefined && {
+                        aboutDogImage
+                    },
+                    ...aboutFamilyImage !== undefined && {
+                        aboutFamilyImage
+                    },
+                    ...aboutDogIcons !== undefined && {
+                        aboutDogIcons
+                    },
+                    ...aboutSectionTitle !== undefined && {
+                        aboutSectionTitle
+                    },
+                    ...aboutSectionSubtitle !== undefined && {
+                        aboutSectionSubtitle
+                    },
+                    ...aboutSectionMainText !== undefined && {
+                        aboutSectionMainText
+                    },
+                    ...aboutSectionSecondaryText !== undefined && {
+                        aboutSectionSecondaryText
+                    },
+                    ...aboutSectionTrustedTitle !== undefined && {
+                        aboutSectionTrustedTitle
+                    },
+                    ...aboutSectionTrustedSubtitle !== undefined && {
+                        aboutSectionTrustedSubtitle
+                    },
+                    ...req.body.platformDogOwnersImage !== undefined && {
+                        platformDogOwnersImage: req.body.platformDogOwnersImage
+                    },
+                    ...req.body.platformFieldOwnersImage !== undefined && {
+                        platformFieldOwnersImage: req.body.platformFieldOwnersImage
+                    },
+                    ...req.body.platformWaveImage !== undefined && {
+                        platformWaveImage: req.body.platformWaveImage
+                    },
+                    ...req.body.platformHoverImage !== undefined && {
+                        platformHoverImage: req.body.platformHoverImage
+                    },
+                    ...howItWorksTitle !== undefined && {
+                        howItWorksTitle
+                    },
+                    ...howItWorksSteps !== undefined && {
+                        howItWorksSteps
+                    },
+                    ...howItWorksHeroTitle !== undefined && {
+                        howItWorksHeroTitle
+                    },
+                    ...howItWorksHeroHeading !== undefined && {
+                        howItWorksHeroHeading
+                    },
+                    ...howItWorksHeroDescription !== undefined && {
+                        howItWorksHeroDescription
+                    },
+                    ...forDogOwnersSectionTitle !== undefined && {
+                        forDogOwnersSectionTitle
+                    },
+                    ...forDogOwnersSteps !== undefined && {
+                        forDogOwnersSteps
+                    },
+                    ...landownersSectionTitle !== undefined && {
+                        landownersSectionTitle
+                    },
+                    ...landownersSectionDescription !== undefined && {
+                        landownersSectionDescription
+                    },
+                    ...landownersSectionImage !== undefined && {
+                        landownersSectionImage
+                    },
+                    ...landownersOptionCard1Title !== undefined && {
+                        landownersOptionCard1Title
+                    },
+                    ...landownersOptionCard1Description !== undefined && {
+                        landownersOptionCard1Description
+                    },
+                    ...landownersOptionCard2Title !== undefined && {
+                        landownersOptionCard2Title
+                    },
+                    ...landownersOptionCard2Description !== undefined && {
+                        landownersOptionCard2Description
+                    },
+                    ...whyChooseFieldsyFeatures !== undefined && {
+                        whyChooseFieldsyFeatures
+                    }
                 }
             });
         }
-        (0, settings_cache_1.invalidateSettingsCache)();
+        (0, _settingscache.invalidateSettingsCache)();
         res.json({
             success: true,
             data: settings,
             message: 'System settings updated successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating system settings:', error);
         res.status(500).json({
             success: false,
@@ -178,16 +300,14 @@ const updateSystemSettings = async (req, res) => {
         });
     }
 };
-exports.updateSystemSettings = updateSystemSettings;
-// Update platform section (Admin only)
-const updatePlatformImages = async (req, res) => {
+const updatePlatformImages = async (req, res)=>{
     try {
         const { platformDogOwnersImage, platformFieldOwnersImage, platformTitle, platformDogOwnersSubtitle, platformDogOwnersTitle, platformDogOwnersBullets, platformFieldOwnersSubtitle, platformFieldOwnersTitle, platformFieldOwnersBullets } = req.body;
         // Get existing settings or create if not exists
-        let settings = await database_1.default.systemSettings.findFirst();
+        let settings = await _database.default.systemSettings.findFirst();
         if (!settings) {
             // Create with provided values
-            settings = await database_1.default.systemSettings.create({
+            settings = await _database.default.systemSettings.create({
                 data: {
                     defaultCommissionRate: 20,
                     cancellationWindowHours: 24,
@@ -206,32 +326,61 @@ const updatePlatformImages = async (req, res) => {
                     platformTitle: platformTitle || 'One Platform, Two Tail-Wagging Experiences',
                     platformDogOwnersSubtitle: platformDogOwnersSubtitle || 'For Dog Owners',
                     platformDogOwnersTitle: platformDogOwnersTitle || 'Find & Book Private Dog Walking Fields in Seconds',
-                    platformDogOwnersBullets: platformDogOwnersBullets || ["Stress-free walks for reactive or energetic dogs", "Fully fenced, secure spaces -- yours alone during your booking", "GPS-powered search to find fields near you", "Instant hourly bookings with no back-and-forth"],
+                    platformDogOwnersBullets: platformDogOwnersBullets || [
+                        "Stress-free walks for reactive or energetic dogs",
+                        "Fully fenced, secure spaces -- yours alone during your booking",
+                        "GPS-powered search to find fields near you",
+                        "Instant hourly bookings with no back-and-forth"
+                    ],
                     platformFieldOwnersSubtitle: platformFieldOwnersSubtitle || 'For Field Owners',
                     platformFieldOwnersTitle: platformFieldOwnersTitle || "Turn Your Land into a Dog's Favourite Place -- and Earn",
-                    platformFieldOwnersBullets: platformFieldOwnersBullets || ["Earn recurring income while helping dogs and their owners", "Host on your terms with full control over availability", "Set your own pricing -- adjust any time", "List your field for free, no upfront costs"]
+                    platformFieldOwnersBullets: platformFieldOwnersBullets || [
+                        "Earn recurring income while helping dogs and their owners",
+                        "Host on your terms with full control over availability",
+                        "Set your own pricing -- adjust any time",
+                        "List your field for free, no upfront costs"
+                    ]
                 }
             });
-        }
-        else {
+        } else {
             // Update existing settings
-            settings = await database_1.default.systemSettings.update({
-                where: { id: settings.id },
+            settings = await _database.default.systemSettings.update({
+                where: {
+                    id: settings.id
+                },
                 data: {
-                    ...(platformDogOwnersImage !== undefined && { platformDogOwnersImage }),
-                    ...(platformFieldOwnersImage !== undefined && { platformFieldOwnersImage }),
-                    ...(platformTitle !== undefined && { platformTitle }),
-                    ...(platformDogOwnersSubtitle !== undefined && { platformDogOwnersSubtitle }),
-                    ...(platformDogOwnersTitle !== undefined && { platformDogOwnersTitle }),
-                    ...(platformDogOwnersBullets !== undefined && { platformDogOwnersBullets }),
-                    ...(platformFieldOwnersSubtitle !== undefined && { platformFieldOwnersSubtitle }),
-                    ...(platformFieldOwnersTitle !== undefined && { platformFieldOwnersTitle }),
-                    ...(platformFieldOwnersBullets !== undefined && { platformFieldOwnersBullets })
+                    ...platformDogOwnersImage !== undefined && {
+                        platformDogOwnersImage
+                    },
+                    ...platformFieldOwnersImage !== undefined && {
+                        platformFieldOwnersImage
+                    },
+                    ...platformTitle !== undefined && {
+                        platformTitle
+                    },
+                    ...platformDogOwnersSubtitle !== undefined && {
+                        platformDogOwnersSubtitle
+                    },
+                    ...platformDogOwnersTitle !== undefined && {
+                        platformDogOwnersTitle
+                    },
+                    ...platformDogOwnersBullets !== undefined && {
+                        platformDogOwnersBullets
+                    },
+                    ...platformFieldOwnersSubtitle !== undefined && {
+                        platformFieldOwnersSubtitle
+                    },
+                    ...platformFieldOwnersTitle !== undefined && {
+                        platformFieldOwnersTitle
+                    },
+                    ...platformFieldOwnersBullets !== undefined && {
+                        platformFieldOwnersBullets
+                    }
                 }
             });
         }
         // Invalidate cache so clients get fresh data
-        (0, settings_cache_1.invalidateSettingsCache)();
+        (0, _settingscache.invalidateSettingsCache)();
         res.json({
             success: true,
             data: {
@@ -247,8 +396,7 @@ const updatePlatformImages = async (req, res) => {
             },
             message: 'Platform section updated successfully'
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error updating platform section:', error);
         res.status(500).json({
             success: false,
@@ -256,11 +404,9 @@ const updatePlatformImages = async (req, res) => {
         });
     }
 };
-exports.updatePlatformImages = updatePlatformImages;
-// Get public settings (for frontend use, no auth required)
-const getPublicSettings = async (req, res) => {
+const getPublicSettings = async (req, res)=>{
     try {
-        let settings = await database_1.default.systemSettings.findFirst({
+        let settings = await _database.default.systemSettings.findFirst({
             select: {
                 defaultCommissionRate: true,
                 cancellationWindowHours: true,
@@ -309,7 +455,7 @@ const getPublicSettings = async (req, res) => {
                 landownersOptionCard1Description: true,
                 landownersOptionCard2Title: true,
                 landownersOptionCard2Description: true,
-                whyChooseFieldsyFeatures: true,
+                whyChooseFieldsyFeatures: true
             }
         });
         if (!settings) {
@@ -332,7 +478,7 @@ const getPublicSettings = async (req, res) => {
                 aboutFamilyImage: '',
                 aboutDogImage: '',
                 aboutFamilyImage: '',
-                aboutDogIcons: [],
+                aboutDogIcons: []
             };
         }
         // Check access: token-based (device-level) first, then IP fallback
@@ -341,13 +487,12 @@ const getPublicSettings = async (req, res) => {
         const accessToken = req.headers['x-access-token'];
         if (accessToken) {
             try {
-                const decoded = jsonwebtoken_1.default.verify(accessToken, JWT_SECRET);
+                const decoded = _jsonwebtoken.default.verify(accessToken, JWT_SECRET);
                 if (decoded.type === 'site_access') {
                     hasAccess = true;
                 }
-            }
-            catch {
-                // Invalid/expired token — fall through to IP check
+            } catch  {
+            // Invalid/expired token — fall through to IP check
             }
         }
         // 2. Fallback: IP whitelist check
@@ -355,8 +500,10 @@ const getPublicSettings = async (req, res) => {
             const forwarded = req.headers['x-forwarded-for'];
             const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
             if (ip) {
-                const allowedIp = await database_1.default.allowedIp.findUnique({
-                    where: { ip }
+                const allowedIp = await _database.default.allowedIp.findUnique({
+                    where: {
+                        ip
+                    }
                 });
                 if (allowedIp) {
                     hasAccess = true;
@@ -370,8 +517,7 @@ const getPublicSettings = async (req, res) => {
                 hasAccess
             }
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error fetching public settings:', error);
         res.status(500).json({
             success: false,
@@ -379,9 +525,7 @@ const getPublicSettings = async (req, res) => {
         });
     }
 };
-exports.getPublicSettings = getPublicSettings;
-// Verify site password and whitelist IP
-const verifySiteAccess = async (req, res) => {
+const verifySiteAccess = async (req, res)=>{
     try {
         const { username, password } = req.body;
         if (!username || !password) {
@@ -390,7 +534,7 @@ const verifySiteAccess = async (req, res) => {
                 message: 'Username and password are required'
             });
         }
-        const settings = await database_1.default.systemSettings.findFirst();
+        const settings = await _database.default.systemSettings.findFirst();
         if (!settings) {
             return res.status(500).json({
                 success: false,
@@ -416,23 +560,30 @@ const verifySiteAccess = async (req, res) => {
             });
         }
         // Add IP to whitelist (fallback)
-        await database_1.default.allowedIp.upsert({
-            where: { ip },
-            update: { updatedAt: new Date() },
+        await _database.default.allowedIp.upsert({
+            where: {
+                ip
+            },
+            update: {
+                updatedAt: new Date()
+            },
             create: {
                 ip,
                 label: 'User Bypass'
             }
         });
         // Generate a device-level access token (survives IP changes)
-        const accessToken = jsonwebtoken_1.default.sign({ type: 'site_access' }, JWT_SECRET, { expiresIn: '90d' });
+        const accessToken = _jsonwebtoken.default.sign({
+            type: 'site_access'
+        }, JWT_SECRET, {
+            expiresIn: '90d'
+        });
         res.json({
             success: true,
             message: 'Access granted',
             accessToken
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Error verifying site access:', error);
         res.status(500).json({
             success: false,
@@ -440,4 +591,5 @@ const verifySiteAccess = async (req, res) => {
         });
     }
 };
-exports.verifySiteAccess = verifySiteAccess;
+
+//# sourceMappingURL=settings.controller.js.map

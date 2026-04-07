@@ -1,15 +1,21 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.emailService = void 0;
 //@ts-nocheck
-const brevo_1 = require("@getbrevo/brevo");
-const dotenv_1 = require("dotenv");
-const constants_1 = require("../config/constants");
-(0, dotenv_1.config)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "emailService", {
+    enumerable: true,
+    get: function() {
+        return emailService;
+    }
+});
+const _brevo = require("@getbrevo/brevo");
+const _dotenv = require("dotenv");
+const _constants = require("../config/constants");
+(0, _dotenv.config)();
 // Format a booking ID for display in emails: #1234 for human-readable IDs, #ABCD1234 for legacy ObjectIDs
 function formatBookingDisplayId(id) {
-    if (!id)
-        return '#N/A';
+    if (!id) return '#N/A';
     // Short numeric IDs (human-readable sequential booking IDs)
     if (/^\d+$/.test(id)) {
         return `#${id}`;
@@ -27,15 +33,16 @@ const EMAIL_FROM = process.env.EMAIL_FROM || 'info@fieldsy.co.uk';
 let brevoClient = null;
 let emailReady = false;
 if (BREVO_API_KEY) {
-    brevoClient = new brevo_1.BrevoClient({ apiKey: BREVO_API_KEY });
+    brevoClient = new _brevo.BrevoClient({
+        apiKey: BREVO_API_KEY
+    });
     emailReady = true;
     console.log('[EmailService] Brevo initialized successfully');
-}
-else {
+} else {
     console.warn('[EmailService] Disabled - BREVO_API_KEY not configured');
 }
 // Email templates
-const getOtpEmailTemplate = (otp, name) => {
+const getOtpEmailTemplate = (otp, name)=>{
     return `
     <!DOCTYPE html>
     <html>
@@ -125,7 +132,7 @@ const getOtpEmailTemplate = (otp, name) => {
     </html>
   `;
 };
-const getEmailChangeOtpTemplate = (otp, newEmail, name) => {
+const getEmailChangeOtpTemplate = (otp, newEmail, name)=>{
     return `
     <!DOCTYPE html>
     <html>
@@ -206,7 +213,7 @@ const getEmailChangeOtpTemplate = (otp, newEmail, name) => {
     </html>
   `;
 };
-const getFieldClaimStatusTemplate = (statusData) => {
+const getFieldClaimStatusTemplate = (statusData)=>{
     const isApproved = statusData.status === 'APPROVED';
     const statusColor = isApproved ? '#4CAF50' : '#f44336';
     const statusText = isApproved ? 'Approved' : 'Rejected';
@@ -362,14 +369,12 @@ const getFieldClaimStatusTemplate = (statusData) => {
               <h3>Your Submitted Documents:</h3>
               <p style="margin-bottom: 10px; color: #666;">For your reference, these were the documents you submitted:</p>
               <ul style="margin: 10px 0; padding-left: 20px;">
-                ${statusData.documents.map((doc, index) => {
+                ${statusData.documents.map((doc, index)=>{
         const fileName = doc.split('/').pop() || `Document ${index + 1}`;
         const isFullUrl = doc.startsWith('http://') || doc.startsWith('https://');
         return `
                     <li style="margin: 8px 0;">
-                      ${isFullUrl ?
-            `<a href="${doc}" style="color: #4CAF50; text-decoration: none; font-weight: 500;" target="_blank">${fileName}</a>` :
-            `<span style="color: #555;">${fileName}</span>`}
+                      ${isFullUrl ? `<a href="${doc}" style="color: #4CAF50; text-decoration: none; font-weight: 500;" target="_blank">${fileName}</a>` : `<span style="color: #555;">${fileName}</span>`}
                     </li>
                   `;
     }).join('')}
@@ -413,7 +418,7 @@ const getFieldClaimStatusTemplate = (statusData) => {
     </html>
   `;
 };
-const getFieldClaimTemplate = (claimData) => {
+const getFieldClaimTemplate = (claimData)=>{
     const formattedDate = new Date(claimData.submittedAt).toLocaleDateString('en-GB', {
         year: 'numeric',
         month: 'long',
@@ -549,16 +554,14 @@ const getFieldClaimTemplate = (claimData) => {
               <h3>Submitted Documents:</h3>
               <p style="margin-bottom: 10px; color: #666;">The following ownership documents were submitted with your claim:</p>
               <ul style="margin: 10px 0; padding-left: 20px;">
-                ${claimData.documents.map((doc, index) => {
+                ${claimData.documents.map((doc, index)=>{
         // Extract filename from URL or path
         const fileName = doc.split('/').pop() || `Document ${index + 1}`;
         // Check if it's a full URL or just a path
         const isFullUrl = doc.startsWith('http://') || doc.startsWith('https://');
         return `
                     <li style="margin: 8px 0;">
-                      ${isFullUrl ?
-            `<a href="${doc}" style="color: #4CAF50; text-decoration: none; font-weight: 500;" target="_blank">${fileName}</a>` :
-            `<span style="color: #555;">${fileName}</span>`}
+                      ${isFullUrl ? `<a href="${doc}" style="color: #4CAF50; text-decoration: none; font-weight: 500;" target="_blank">${fileName}</a>` : `<span style="color: #555;">${fileName}</span>`}
                     </li>
                   `;
     }).join('')}
@@ -595,7 +598,7 @@ const getFieldClaimTemplate = (claimData) => {
     </html>
   `;
 };
-const getPasswordResetTemplate = (otp, name) => {
+const getPasswordResetTemplate = (otp, name)=>{
     return `
     <!DOCTYPE html>
     <html>
@@ -676,7 +679,7 @@ const getPasswordResetTemplate = (otp, name) => {
     </html>
   `;
 };
-const getBookingConfirmationTemplate = (bookingData) => {
+const getBookingConfirmationTemplate = (bookingData)=>{
     const formattedDate = new Date(bookingData.date).toLocaleDateString('en-GB', {
         weekday: 'long',
         year: 'numeric',
@@ -825,7 +828,7 @@ const getBookingConfirmationTemplate = (bookingData) => {
     </html>
   `;
 };
-const getNewBookingNotificationTemplate = (bookingData) => {
+const getNewBookingNotificationTemplate = (bookingData)=>{
     const formattedDate = new Date(bookingData.date).toLocaleDateString('en-GB', {
         weekday: 'long',
         year: 'numeric',
@@ -988,7 +991,7 @@ const getNewBookingNotificationTemplate = (bookingData) => {
     </html>
   `;
 };
-const getFieldSubmissionTemplate = (data) => {
+const getFieldSubmissionTemplate = (data)=>{
     const formattedDate = new Date(data.submittedAt).toLocaleDateString('en-GB', {
         year: 'numeric',
         month: 'long',
@@ -1135,7 +1138,7 @@ const getFieldSubmissionTemplate = (data) => {
     </html>
   `;
 };
-const getFieldApprovalTemplate = (data) => {
+const getFieldApprovalTemplate = (data)=>{
     const formattedDate = new Date().toLocaleDateString('en-GB', {
         year: 'numeric',
         month: 'long',
@@ -1300,7 +1303,7 @@ const getFieldApprovalTemplate = (data) => {
     </html>
   `;
 };
-const getBookingStatusChangeTemplate = (emailData) => {
+const getBookingStatusChangeTemplate = (emailData)=>{
     const formattedDate = new Date(emailData.date).toLocaleDateString('en-GB', {
         weekday: 'long',
         year: 'numeric',
@@ -1452,7 +1455,7 @@ const getBookingStatusChangeTemplate = (emailData) => {
   `;
 };
 // Recurring booking email template for dog owner
-const getRecurringBookingCreatedTemplateDogOwner = (data) => {
+const getRecurringBookingCreatedTemplateDogOwner = (data)=>{
     const formattedDate = new Date(data.bookingDate).toLocaleDateString('en-GB', {
         weekday: 'long',
         year: 'numeric',
@@ -1598,7 +1601,7 @@ const getRecurringBookingCreatedTemplateDogOwner = (data) => {
             </div>
 
             <p style="text-align: center;">
-              <a href="${constants_1.FRONTEND_URL}/user/my-bookings" class="button">View Booking</a>
+              <a href="${_constants.FRONTEND_URL}/user/my-bookings" class="button">View Booking</a>
             </p>
 
             <p>See you at the field! 🐕‍🦺</p>
@@ -1616,7 +1619,7 @@ const getRecurringBookingCreatedTemplateDogOwner = (data) => {
   `;
 };
 // Recurring booking email template for field owner
-const getRecurringBookingCreatedTemplateFieldOwner = (data) => {
+const getRecurringBookingCreatedTemplateFieldOwner = (data)=>{
     const formattedDate = new Date(data.bookingDate).toLocaleDateString('en-GB', {
         weekday: 'long',
         year: 'numeric',
@@ -1778,7 +1781,7 @@ const getRecurringBookingCreatedTemplateFieldOwner = (data) => {
             </ul>
 
             <p style="text-align: center;">
-              <a href="${constants_1.FRONTEND_URL}/field-owner/preview" class="button">View Booking</a>
+              <a href="${_constants.FRONTEND_URL}/field-owner/preview" class="button">View Booking</a>
             </p>
 
             <p>Thank you for hosting with Fieldsy! 🏞️</p>
@@ -1792,7 +1795,7 @@ const getRecurringBookingCreatedTemplateFieldOwner = (data) => {
     </html>
   `;
 };
-const getSubscriptionCancelledTemplate = (data) => {
+const getSubscriptionCancelledTemplate = (data)=>{
     const formattedDate = new Date(data.cancelledAt).toLocaleDateString('en-GB', {
         weekday: 'long',
         year: 'numeric',
@@ -1805,8 +1808,7 @@ const getSubscriptionCancelledTemplate = (data) => {
     let mainMessage = '';
     if (data.isFieldOwner) {
         mainMessage = `We're writing to inform you that the <span class="highlight">${data.interval}</span> recurring booking for <span class="highlight">${data.fieldName}</span> has been cancelled by ${data.dogOwnerName || 'the dog owner'}.`;
-    }
-    else {
+    } else {
         mainMessage = `Your <span class="highlight">${data.interval}</span> recurring booking subscription for <span class="highlight">${data.fieldName}</span> has been cancelled successfully.`;
     }
     return `
@@ -1932,16 +1934,22 @@ class EmailService {
         try {
             console.log('📧 [sendMail] Sending email via Brevo...');
             const response = await brevoClient.transactionalEmails.sendTransacEmail({
-                sender: { email: EMAIL_FROM, name: 'Fieldsy' },
-                to: [{ email: to }],
+                sender: {
+                    email: EMAIL_FROM,
+                    name: 'Fieldsy'
+                },
+                to: [
+                    {
+                        email: to
+                    }
+                ],
                 subject,
-                htmlContent: html,
+                htmlContent: html
             });
             console.log('✅ Email sent successfully!');
             console.log('✅ Message ID:', response.messageId);
             return true;
-        }
-        catch (error) {
+        } catch (error) {
             console.error('❌ Failed to send email:', error.message);
             if (error.body) {
                 console.error('❌ Brevo error body:', error.body);
@@ -1952,7 +1960,7 @@ class EmailService {
     async sendOtpEmail(email, otp, type, name) {
         let subject;
         let html;
-        switch (type) {
+        switch(type){
             case 'RESET_PASSWORD':
                 subject = 'Password Reset - Fieldsy';
                 html = getPasswordResetTemplate(otp, name);
@@ -1977,8 +1985,7 @@ class EmailService {
             const result = await this.sendMail(claimData.email, subject, html);
             console.log(`✅ Field claim confirmation email sent to ${claimData.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send field claim email to ${claimData.email}:`, error);
             // Don't throw error to prevent claim submission from failing
             return false;
@@ -2013,8 +2020,7 @@ class EmailService {
             const result = await this.sendMail(statusData.email, subject, html);
             console.log(`✅ Field claim ${statusText.toLowerCase()} email sent to ${statusData.email}, result:`, result);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send field claim status email to ${statusData.email}:`, error?.message || error);
             // Re-throw to let the caller know about the failure
             throw error;
@@ -2027,8 +2033,7 @@ class EmailService {
             const result = await this.sendMail(bookingData.email, subject, html);
             console.log(`✅ Booking confirmation email sent to ${bookingData.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send booking confirmation email to ${bookingData.email}:`, error);
             return false;
         }
@@ -2040,8 +2045,7 @@ class EmailService {
             const result = await this.sendMail(bookingData.email, subject, html);
             console.log(`✅ New booking notification email sent to ${bookingData.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send new booking notification email to ${bookingData.email}:`, error);
             return false;
         }
@@ -2053,8 +2057,7 @@ class EmailService {
             const result = await this.sendMail(emailData.email, subject, html);
             console.log(`✅ Booking status change email sent to ${emailData.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send booking status change email to ${emailData.email}:`, error);
             return false;
         }
@@ -2066,8 +2069,7 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Field submission email sent to ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send field submission email to ${data.email}:`, error);
             return false;
         }
@@ -2084,8 +2086,7 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Field approval email sent to ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send field approval email to ${data.email}:`, error);
             return false;
         }
@@ -2097,8 +2098,7 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Recurring booking email sent to dog owner ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send recurring booking email to ${data.email}:`, error);
             return false;
         }
@@ -2110,8 +2110,7 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Recurring booking email sent to field owner ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send recurring booking email to ${data.email}:`, error);
             return false;
         }
@@ -2144,7 +2143,7 @@ class EmailService {
             ownerEmail: data.ownerEmail,
             previousAddress: data.previousAddress,
             newAddress: data.newAddress,
-            changeDate: data.changeDate,
+            changeDate: data.changeDate
         });
         try {
             console.log('🚀 Attempting to send email...');
@@ -2154,16 +2153,14 @@ class EmailService {
                 console.log('   - Status: DELIVERED');
                 console.log('   - Recipient:', data.adminEmail);
                 console.log('   - Sender:', EMAIL_FROM);
-            }
-            else {
+            } else {
                 console.log('⚠️ EMAIL SEND RETURNED FALSE');
                 console.log('   - Status: FAILED (sendMail returned false)');
                 console.log('   - This may indicate email service is disabled or misconfigured');
             }
             console.log('═══════════════════════════════════════════════════════════════');
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.log('❌ EMAIL SEND FAILED WITH ERROR');
             console.log('   - Status: ERROR');
             console.log('   - Recipient:', data.adminEmail);
@@ -2180,8 +2177,7 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Booking reminder email sent to ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send booking reminder email to ${data.email}:`, error);
             return false;
         }
@@ -2193,8 +2189,7 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Payout completed email sent to ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send payout completed email to ${data.email}:`, error);
             return false;
         }
@@ -2206,8 +2201,7 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Payout failed email sent to ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send payout failed email to ${data.email}:`, error);
             return false;
         }
@@ -2219,8 +2213,7 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Subscription cancellation email sent to ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send subscription cancellation email to ${data.email}:`, error);
             return false;
         }
@@ -2232,15 +2225,14 @@ class EmailService {
             const result = await this.sendMail(data.email, subject, html);
             console.log(`✅ Entry code update notification sent to ${data.email}`);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             console.error(`❌ Failed to send entry code update notification to ${data.email}:`, error);
             return false;
         }
     }
 }
 // Email template for booking reminder
-const getBookingReminderTemplate = (data) => {
+const getBookingReminderTemplate = (data)=>{
     const formattedDate = new Date(data.bookingDate).toLocaleDateString('en-GB', {
         weekday: 'long',
         year: 'numeric',
@@ -2248,9 +2240,7 @@ const getBookingReminderTemplate = (data) => {
         day: 'numeric',
         timeZone: 'Europe/London'
     });
-    const reminderText = data.hoursUntilBooking >= 2
-        ? `in ${data.hoursUntilBooking} hours`
-        : 'very soon';
+    const reminderText = data.hoursUntilBooking >= 2 ? `in ${data.hoursUntilBooking} hours` : 'very soon';
     return `
     <!DOCTYPE html>
     <html>
@@ -2407,7 +2397,7 @@ const getBookingReminderTemplate = (data) => {
             </div>
 
             <div style="text-align: center;">
-              <a href="${constants_1.FRONTEND_URL}/user/my-bookings?bookingId=${data.bookingId}" class="cta-button" style="color: #ffffff; display: inline-block; background-color: #4CAF50; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${_constants.FRONTEND_URL}/user/my-bookings?bookingId=${data.bookingId}" class="cta-button" style="color: #ffffff; display: inline-block; background-color: #4CAF50; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 View Booking Details
               </a>
             </div>
@@ -2426,11 +2416,11 @@ const getBookingReminderTemplate = (data) => {
     </html>
   `;
 };
-const getFieldAddressChangeNotificationTemplate = (data) => {
+const getFieldAddressChangeNotificationTemplate = (data)=>{
     const formattedDate = new Intl.DateTimeFormat('en-GB', {
         dateStyle: 'medium',
         timeStyle: 'short',
-        timeZone: 'Europe/London',
+        timeZone: 'Europe/London'
     }).format(new Date(data.changeDate));
     return `
     <!DOCTYPE html>
@@ -2528,7 +2518,7 @@ const getFieldAddressChangeNotificationTemplate = (data) => {
   `;
 };
 // Commission change notification templates
-const getDefaultCommissionChangeTemplate = (data) => {
+const getDefaultCommissionChangeTemplate = (data)=>{
     return `
     <!DOCTYPE html>
     <html>
@@ -2594,10 +2584,8 @@ const getDefaultCommissionChangeTemplate = (data) => {
     </html>
   `;
 };
-const getCustomCommissionChangeTemplate = (data) => {
-    const rateDescription = data.useDefault
-        ? `Your commission rate has been changed to use the platform default rate of ${data.newRate}%.`
-        : `A custom commission rate of ${data.newRate}% has been set for your account.`;
+const getCustomCommissionChangeTemplate = (data)=>{
+    const rateDescription = data.useDefault ? `Your commission rate has been changed to use the platform default rate of ${data.newRate}%.` : `A custom commission rate of ${data.newRate}% has been set for your account.`;
     return `
     <!DOCTYPE html>
     <html>
@@ -2672,43 +2660,41 @@ const getCustomCommissionChangeTemplate = (data) => {
   `;
 };
 // Add methods to EmailService class for commission notifications
-EmailService.prototype.sendDefaultCommissionChangeEmail = async function (data) {
+EmailService.prototype.sendDefaultCommissionChangeEmail = async function(data) {
     const subject = 'Platform Commission Rate Updated - Fieldsy';
     const html = getDefaultCommissionChangeTemplate({
         ownerName: data.ownerName,
         previousRate: data.previousRate,
-        newRate: data.newRate,
+        newRate: data.newRate
     });
     try {
         const result = await this.sendMail(data.email, subject, html);
         console.log(`✅ Default commission change email sent to ${data.email}`);
         return result;
-    }
-    catch (error) {
+    } catch (error) {
         console.error(`❌ Failed to send default commission change email to ${data.email}:`, error);
         return false;
     }
 };
-EmailService.prototype.sendCustomCommissionChangeEmail = async function (data) {
+EmailService.prototype.sendCustomCommissionChangeEmail = async function(data) {
     const subject = 'Your Commission Rate Has Been Updated - Fieldsy';
     const html = getCustomCommissionChangeTemplate({
         ownerName: data.ownerName,
         previousRate: data.previousRate,
         newRate: data.newRate,
-        useDefault: data.useDefault,
+        useDefault: data.useDefault
     });
     try {
         const result = await this.sendMail(data.email, subject, html);
         console.log(`✅ Custom commission change email sent to ${data.email}`);
         return result;
-    }
-    catch (error) {
+    } catch (error) {
         console.error(`❌ Failed to send custom commission change email to ${data.email}:`, error);
         return false;
     }
 };
 // Email template for payout completed
-const getPayoutCompletedTemplate = (data) => {
+const getPayoutCompletedTemplate = (data)=>{
     return `
     <!DOCTYPE html>
     <html>
@@ -2800,7 +2786,7 @@ const getPayoutCompletedTemplate = (data) => {
 
             <p class="message">The funds should appear in your account within 1-2 business days, depending on your bank.</p>
 
-            <a href="${constants_1.FRONTEND_URL}/field-owner/payouts" class="cta-button">
+            <a href="${_constants.FRONTEND_URL}/field-owner/payouts" class="cta-button">
               View Payout History
             </a>
           </div>
@@ -2815,7 +2801,7 @@ const getPayoutCompletedTemplate = (data) => {
   `;
 };
 // Email template for payout failed
-const getPayoutFailedTemplate = (data) => {
+const getPayoutFailedTemplate = (data)=>{
     return `
     <!DOCTYPE html>
     <html>
@@ -2918,7 +2904,7 @@ const getPayoutFailedTemplate = (data) => {
 
             <p class="message">Please check your bank account details in your Stripe dashboard and try again. If the problem persists, please contact our support team.</p>
 
-            <a href="${constants_1.FRONTEND_URL}/field-owner/payouts" class="cta-button">
+            <a href="${_constants.FRONTEND_URL}/field-owner/payouts" class="cta-button">
               Check Payout Settings
             </a>
           </div>
@@ -2932,16 +2918,14 @@ const getPayoutFailedTemplate = (data) => {
     </html>
   `;
 };
-const getEntryCodeUpdateTemplate = (data) => {
-    const formattedDates = data.upcomingBookingDates
-        .map(date => new Date(date).toLocaleDateString('en-GB', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'Europe/London'
-    }))
-        .slice(0, 5); // Show max 5 dates
+const getEntryCodeUpdateTemplate = (data)=>{
+    const formattedDates = data.upcomingBookingDates.map((date)=>new Date(date).toLocaleDateString('en-GB', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'Europe/London'
+        })).slice(0, 5); // Show max 5 dates
     const hasMoreDates = data.upcomingBookingDates.length > 5;
     return `
     <!DOCTYPE html>
@@ -3081,7 +3065,7 @@ const getEntryCodeUpdateTemplate = (data) => {
             <div class="booking-info">
               <h4>📋 Your Upcoming Bookings</h4>
               <ul class="booking-dates">
-                ${formattedDates.map(date => `<li>${date}</li>`).join('')}
+                ${formattedDates.map((date)=>`<li>${date}</li>`).join('')}
                 ${hasMoreDates ? `<li style="color: #999;">...and ${data.upcomingBookingDates.length - 5} more</li>` : ''}
               </ul>
             </div>
@@ -3106,4 +3090,6 @@ const getEntryCodeUpdateTemplate = (data) => {
     </html>
   `;
 };
-exports.emailService = new EmailService();
+const emailService = new EmailService();
+
+//# sourceMappingURL=email.service.js.map

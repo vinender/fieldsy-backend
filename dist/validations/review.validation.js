@@ -1,34 +1,62 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getReviewsQuerySchema = exports.respondToReviewSchema = exports.updateReviewSchema = exports.createReviewSchema = void 0;
 //@ts-nocheck
-const zod_1 = require("zod");
-exports.createReviewSchema = zod_1.z.object({
-    body: zod_1.z.object({
-        rating: zod_1.z.number().min(1).max(5),
-        title: zod_1.z.string().optional(),
-        comment: zod_1.z.string().min(10).max(1000),
-        images: zod_1.z.array(zod_1.z.string().url()).optional().default([]),
-    }),
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
 });
-exports.updateReviewSchema = zod_1.z.object({
-    body: zod_1.z.object({
-        rating: zod_1.z.number().min(1).max(5).optional(),
-        title: zod_1.z.string().optional(),
-        comment: zod_1.z.string().min(10).max(1000).optional(),
-        images: zod_1.z.array(zod_1.z.string().url()).optional(),
-    }),
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get createReviewSchema () {
+        return createReviewSchema;
+    },
+    get getReviewsQuerySchema () {
+        return getReviewsQuerySchema;
+    },
+    get respondToReviewSchema () {
+        return respondToReviewSchema;
+    },
+    get updateReviewSchema () {
+        return updateReviewSchema;
+    }
 });
-exports.respondToReviewSchema = zod_1.z.object({
-    body: zod_1.z.object({
-        response: zod_1.z.string().min(10).max(500),
-    }),
+const _zod = require("zod");
+const createReviewSchema = _zod.z.object({
+    body: _zod.z.object({
+        rating: _zod.z.number().min(1).max(5),
+        title: _zod.z.string().optional(),
+        comment: _zod.z.string().min(10).max(1000),
+        images: _zod.z.array(_zod.z.string().url()).optional().default([])
+    })
 });
-exports.getReviewsQuerySchema = zod_1.z.object({
-    query: zod_1.z.object({
-        page: zod_1.z.string().optional(),
-        limit: zod_1.z.string().optional(),
-        sortBy: zod_1.z.enum(['recent', 'helpful', 'rating_high', 'rating_low']).optional(),
-        rating: zod_1.z.string().optional(),
-    }),
+const updateReviewSchema = _zod.z.object({
+    body: _zod.z.object({
+        rating: _zod.z.number().min(1).max(5).optional(),
+        title: _zod.z.string().optional(),
+        comment: _zod.z.string().min(10).max(1000).optional(),
+        images: _zod.z.array(_zod.z.string().url()).optional()
+    })
 });
+const respondToReviewSchema = _zod.z.object({
+    body: _zod.z.object({
+        response: _zod.z.string().min(10).max(500)
+    })
+});
+const getReviewsQuerySchema = _zod.z.object({
+    query: _zod.z.object({
+        page: _zod.z.string().optional(),
+        limit: _zod.z.string().optional(),
+        sortBy: _zod.z.enum([
+            'recent',
+            'helpful',
+            'rating_high',
+            'rating_low'
+        ]).optional(),
+        rating: _zod.z.string().optional()
+    })
+});
+
+//# sourceMappingURL=review.validation.js.map

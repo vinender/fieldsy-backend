@@ -1,30 +1,46 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.payoutProcessorJob = exports.PayoutProcessorJob = void 0;
 // DEPRECATED: Replaced by @fieldsy/stripe-auto-payout engine.
 // Payout processing is now handled via payoutEngine.startScheduler() in server.ts.
 // This file is kept for reference only. Safe to delete once integration is verified.
 //@ts-nocheck
-const node_cron_1 = __importDefault(require("node-cron"));
-const auto_payout_service_1 = require("../services/auto-payout.service");
-const notification_controller_1 = require("../controllers/notification.controller");
-const database_1 = __importDefault(require("../config/database"));
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get PayoutProcessorJob () {
+        return PayoutProcessorJob;
+    },
+    get payoutProcessorJob () {
+        return payoutProcessorJob;
+    }
+});
+const _nodecron = /*#__PURE__*/ _interop_require_default(require("node-cron"));
+const _autopayoutservice = require("../services/auto-payout.service");
+const _notificationcontroller = require("../controllers/notification.controller");
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 class PayoutProcessorJob {
     cronJob = null;
     /**
-     * Initialize the payout processor job
-     * Runs every hour to check for eligible payouts
-     */
-    start() {
+   * Initialize the payout processor job
+   * Runs every hour to check for eligible payouts
+   */ start() {
         // Run every hour at minute 0
-        this.cronJob = node_cron_1.default.schedule('0 * * * *', async () => {
+        this.cronJob = _nodecron.default.schedule('0 * * * *', async ()=>{
             console.log('🏦 Starting automatic payout processing job...');
             try {
                 const startTime = Date.now();
-                const results = await auto_payout_service_1.automaticPayoutService.processEligiblePayouts();
+                const results = await _autopayoutservice.automaticPayoutService.processEligiblePayouts();
                 const duration = ((Date.now() - startTime) / 1000).toFixed(2);
                 console.log(`✅ Payout processing completed in ${duration}s`);
                 console.log(`   Processed: ${results.processed}`);
@@ -32,11 +48,13 @@ class PayoutProcessorJob {
                 console.log(`   Failed: ${results.failed}`);
                 // If there were any failures, notify admins
                 if (results.failed > 0) {
-                    const adminUsers = await database_1.default.user.findMany({
-                        where: { role: 'ADMIN' }
+                    const adminUsers = await _database.default.user.findMany({
+                        where: {
+                            role: 'ADMIN'
+                        }
                     });
-                    for (const admin of adminUsers) {
-                        await (0, notification_controller_1.createNotification)({
+                    for (const admin of adminUsers){
+                        await (0, _notificationcontroller.createNotification)({
                             userId: admin.id,
                             type: 'PAYOUT_JOB_ALERT',
                             title: 'Payout Processing Alert',
@@ -45,28 +63,26 @@ class PayoutProcessorJob {
                                 processed: results.processed,
                                 skipped: results.skipped,
                                 failed: results.failed,
-                                failedBookings: results.details.filter(d => d.status === 'failed')
+                                failedBookings: results.details.filter((d)=>d.status === 'failed')
                             }
                         });
                     }
                 }
                 // Log successful payouts for audit
                 if (results.processed > 0) {
-                    console.log('📊 Successful payouts:', results.details
-                        .filter(d => d.status === 'processed')
-                        .map(d => `Booking ${d.bookingId}: £${d.amount}`)
-                        .join(', '));
+                    console.log('📊 Successful payouts:', results.details.filter((d)=>d.status === 'processed').map((d)=>`Booking ${d.bookingId}: £${d.amount}`).join(', '));
                 }
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('❌ Error in payout processing job:', error);
                 // Notify admins about job failure
                 try {
-                    const adminUsers = await database_1.default.user.findMany({
-                        where: { role: 'ADMIN' }
+                    const adminUsers = await _database.default.user.findMany({
+                        where: {
+                            role: 'ADMIN'
+                        }
                     });
-                    for (const admin of adminUsers) {
-                        await (0, notification_controller_1.createNotification)({
+                    for (const admin of adminUsers){
+                        await (0, _notificationcontroller.createNotification)({
                             userId: admin.id,
                             type: 'PAYOUT_JOB_ERROR',
                             title: 'Payout Processing Job Failed',
@@ -77,8 +93,7 @@ class PayoutProcessorJob {
                             }
                         });
                     }
-                }
-                catch (notifyError) {
+                } catch (notifyError) {
                     console.error('Failed to notify admins about job error:', notifyError);
                 }
             }
@@ -88,10 +103,9 @@ class PayoutProcessorJob {
         this.setupDailySummaryJob();
     }
     /**
-     * Set up a daily summary job that runs at 9 AM
-     */
-    setupDailySummaryJob() {
-        node_cron_1.default.schedule('0 9 * * *', async () => {
+   * Set up a daily summary job that runs at 9 AM
+   */ setupDailySummaryJob() {
+        _nodecron.default.schedule('0 9 * * *', async ()=>{
             console.log('📊 Generating daily payout summary...');
             try {
                 // Get yesterday's date range
@@ -101,7 +115,7 @@ class PayoutProcessorJob {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 // Get all payouts from yesterday
-                const yesterdaysPayouts = await database_1.default.payout.findMany({
+                const yesterdaysPayouts = await _database.default.payout.findMany({
                     where: {
                         createdAt: {
                             gte: yesterday,
@@ -118,9 +132,9 @@ class PayoutProcessorJob {
                 });
                 // Calculate totals
                 const totalPayouts = yesterdaysPayouts.length;
-                const totalAmount = yesterdaysPayouts.reduce((sum, p) => sum + p.amount, 0);
+                const totalAmount = yesterdaysPayouts.reduce((sum, p)=>sum + p.amount, 0);
                 // Group by field owner
-                const payoutsByOwner = yesterdaysPayouts.reduce((acc, payout) => {
+                const payoutsByOwner = yesterdaysPayouts.reduce((acc, payout)=>{
                     const ownerId = payout.stripeAccount.userId;
                     if (!acc[ownerId]) {
                         acc[ownerId] = {
@@ -134,24 +148,24 @@ class PayoutProcessorJob {
                     return acc;
                 }, {});
                 // Notify admins with daily summary
-                const adminUsers = await database_1.default.user.findMany({
-                    where: { role: 'ADMIN' }
+                const adminUsers = await _database.default.user.findMany({
+                    where: {
+                        role: 'ADMIN'
+                    }
                 });
                 const summaryMessage = `
-Daily Payout Summary for ${yesterday.toLocaleDateString('en-GB', { timeZone: 'Europe/London' })}:
+Daily Payout Summary for ${yesterday.toLocaleDateString('en-GB', {
+                    timeZone: 'Europe/London'
+                })}:
 - Total Payouts: ${totalPayouts}
 - Total Amount: £${totalAmount.toFixed(2)}
 - Field Owners Paid: ${Object.keys(payoutsByOwner).length}
 
 Top Recipients:
-${Object.entries(payoutsByOwner)
-                    .sort((a, b) => b[1].total - a[1].total)
-                    .slice(0, 5)
-                    .map(([_, data]) => `- ${data.ownerName}: £${data.total.toFixed(2)} (${data.count} payouts)`)
-                    .join('\n')}
+${Object.entries(payoutsByOwner).sort((a, b)=>b[1].total - a[1].total).slice(0, 5).map(([_, data])=>`- ${data.ownerName}: £${data.total.toFixed(2)} (${data.count} payouts)`).join('\n')}
         `.trim();
-                for (const admin of adminUsers) {
-                    await (0, notification_controller_1.createNotification)({
+                for (const admin of adminUsers){
+                    await (0, _notificationcontroller.createNotification)({
                         userId: admin.id,
                         type: 'PAYOUT_DAILY_SUMMARY',
                         title: '📊 Daily Payout Summary',
@@ -165,29 +179,27 @@ ${Object.entries(payoutsByOwner)
                     });
                 }
                 console.log('✅ Daily payout summary sent to admins');
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error generating daily payout summary:', error);
             }
         });
         console.log('✅ Daily payout summary job initialized (runs at 9 AM)');
     }
     /**
-     * Stop the cron job
-     */
-    stop() {
+   * Stop the cron job
+   */ stop() {
         if (this.cronJob) {
             this.cronJob.stop();
             console.log('⏹️ Payout processor job stopped');
         }
     }
     /**
-     * Manually trigger payout processing (for testing or admin use)
-     */
-    async triggerManually() {
+   * Manually trigger payout processing (for testing or admin use)
+   */ async triggerManually() {
         console.log('🔄 Manually triggering payout processing...');
-        return await auto_payout_service_1.automaticPayoutService.processEligiblePayouts();
+        return await _autopayoutservice.automaticPayoutService.processEligiblePayouts();
     }
 }
-exports.PayoutProcessorJob = PayoutProcessorJob;
-exports.payoutProcessorJob = new PayoutProcessorJob();
+const payoutProcessorJob = new PayoutProcessorJob();
+
+//# sourceMappingURL=payout-processor.job.js.map

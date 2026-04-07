@@ -1,29 +1,41 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const review_controller_1 = __importDefault(require("../controllers/review.controller"));
-const auth_middleware_1 = require("../middleware/auth.middleware");
-const validation_middleware_1 = require("../middleware/validation.middleware");
-const review_validation_1 = require("../validations/review.validation");
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _reviewcontroller = /*#__PURE__*/ _interop_require_default(require("../controllers/review.controller"));
+const _authmiddleware = require("../middleware/auth.middleware");
+const _validationmiddleware = require("../middleware/validation.middleware");
+const _reviewvalidation = require("../validations/review.validation");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = (0, _express.Router)();
 // Public routes
-router.get('/field/:fieldId', (0, validation_middleware_1.validateRequest)(review_validation_1.getReviewsQuerySchema), review_controller_1.default.getFieldReviews);
+router.get('/field/:fieldId', (0, _validationmiddleware.validateRequest)(_reviewvalidation.getReviewsQuerySchema), _reviewcontroller.default.getFieldReviews);
 // Protected routes
-router.use(auth_middleware_1.protect);
+router.use(_authmiddleware.protect);
 // Create a review
-router.post('/field/:fieldId', (0, validation_middleware_1.validateRequest)(review_validation_1.createReviewSchema), review_controller_1.default.createReview);
+router.post('/field/:fieldId', (0, _validationmiddleware.validateRequest)(_reviewvalidation.createReviewSchema), _reviewcontroller.default.createReview);
 // Update a review
-router.put('/:reviewId', (0, validation_middleware_1.validateRequest)(review_validation_1.updateReviewSchema), review_controller_1.default.updateReview);
+router.put('/:reviewId', (0, _validationmiddleware.validateRequest)(_reviewvalidation.updateReviewSchema), _reviewcontroller.default.updateReview);
 // Delete a review
-router.delete('/:reviewId', review_controller_1.default.deleteReview);
+router.delete('/:reviewId', _reviewcontroller.default.deleteReview);
 // Mark review as helpful
-router.post('/:reviewId/helpful', review_controller_1.default.markHelpful);
+router.post('/:reviewId/helpful', _reviewcontroller.default.markHelpful);
 // Field owner response
-router.post('/:reviewId/response', (0, validation_middleware_1.validateRequest)(review_validation_1.respondToReviewSchema), review_controller_1.default.respondToReview);
+router.post('/:reviewId/response', (0, _validationmiddleware.validateRequest)(_reviewvalidation.respondToReviewSchema), _reviewcontroller.default.respondToReview);
 // Get user's reviews
-router.get('/user/:userId?', review_controller_1.default.getUserReviews);
-exports.default = router;
+router.get('/user/:userId?', _reviewcontroller.default.getUserReviews);
+const _default = router;
+
+//# sourceMappingURL=review.routes.js.map

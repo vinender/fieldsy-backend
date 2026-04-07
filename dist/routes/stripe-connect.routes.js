@@ -1,25 +1,37 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 //@ts-nocheck
-const express_1 = require("express");
-const auth_middleware_1 = require("../middleware/auth.middleware");
-const stripe_connect_controller_1 = __importDefault(require("../controllers/stripe-connect.controller"));
-const router = (0, express_1.Router)();
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _authmiddleware = require("../middleware/auth.middleware");
+const _stripeconnectcontroller = /*#__PURE__*/ _interop_require_default(require("../controllers/stripe-connect.controller"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const router = (0, _express.Router)();
 // All routes require authentication and field owner role
-router.use(auth_middleware_1.protect);
-router.use((0, auth_middleware_1.restrictTo)('FIELD_OWNER'));
+router.use(_authmiddleware.protect);
+router.use((0, _authmiddleware.restrictTo)('FIELD_OWNER'));
 // Stripe Connect account management
-router.post('/create-account', stripe_connect_controller_1.default.createConnectAccount);
-router.post('/onboarding-link', stripe_connect_controller_1.default.getOnboardingLink);
-router.get('/account-status', stripe_connect_controller_1.default.getAccountStatus);
-router.get('/balance', stripe_connect_controller_1.default.getBalance);
+router.post('/create-account', _stripeconnectcontroller.default.createConnectAccount);
+router.post('/onboarding-link', _stripeconnectcontroller.default.getOnboardingLink);
+router.get('/account-status', _stripeconnectcontroller.default.getAccountStatus);
+router.get('/balance', _stripeconnectcontroller.default.getBalance);
 // Bank account management  
-router.post('/update-bank', stripe_connect_controller_1.default.updateBankAccount);
-router.delete('/disconnect', stripe_connect_controller_1.default.disconnectAccount);
+router.post('/update-bank', _stripeconnectcontroller.default.updateBankAccount);
+router.delete('/disconnect', _stripeconnectcontroller.default.disconnectAccount);
 // Payouts
-router.post('/payout', stripe_connect_controller_1.default.createPayout);
-router.get('/payout-history', stripe_connect_controller_1.default.getPayoutHistory);
-exports.default = router;
+router.post('/payout', _stripeconnectcontroller.default.createPayout);
+router.get('/payout-history', _stripeconnectcontroller.default.getPayoutHistory);
+const _default = router;
+
+//# sourceMappingURL=stripe-connect.routes.js.map

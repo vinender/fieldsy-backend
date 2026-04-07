@@ -1,12 +1,22 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.userReportController = void 0;
-const database_1 = __importDefault(require("../config/database"));
-exports.userReportController = {
-    async createReport(req, res) {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "userReportController", {
+    enumerable: true,
+    get: function() {
+        return userReportController;
+    }
+});
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const userReportController = {
+    async createReport (req, res) {
         try {
             const reporterId = req.user?.id;
             const { reportedUserId, reportOption, reason } = req.body;
@@ -22,8 +32,10 @@ exports.userReportController = {
                     message: 'Missing required fields'
                 });
             }
-            const reporter = await database_1.default.user.findUnique({
-                where: { id: reporterId }
+            const reporter = await _database.default.user.findUnique({
+                where: {
+                    id: reporterId
+                }
             });
             if (!reporter) {
                 return res.status(404).json({
@@ -31,8 +43,10 @@ exports.userReportController = {
                     message: 'Reporter not found'
                 });
             }
-            const reportedUser = await database_1.default.user.findUnique({
-                where: { id: reportedUserId }
+            const reportedUser = await _database.default.user.findUnique({
+                where: {
+                    id: reportedUserId
+                }
             });
             if (!reportedUser) {
                 return res.status(404).json({
@@ -47,7 +61,7 @@ exports.userReportController = {
                     message: 'You cannot report yourself'
                 });
             }
-            const existingReport = await database_1.default.userReport.findFirst({
+            const existingReport = await _database.default.userReport.findFirst({
                 where: {
                     reporterId,
                     reportedUserId,
@@ -60,7 +74,7 @@ exports.userReportController = {
                     message: 'You have already reported this user'
                 });
             }
-            const report = await database_1.default.userReport.create({
+            const report = await _database.default.userReport.create({
                 data: {
                     reporterId,
                     reportedUserId,
@@ -68,17 +82,20 @@ exports.userReportController = {
                     reason
                 }
             });
-            await database_1.default.user.update({
-                where: { id: reportedUserId },
-                data: { isReported: true }
+            await _database.default.user.update({
+                where: {
+                    id: reportedUserId
+                },
+                data: {
+                    isReported: true
+                }
             });
             res.status(201).json({
                 success: true,
                 message: 'Report submitted successfully',
                 data: report
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Create report error:', error);
             res.status(500).json({
                 success: false,
@@ -86,21 +103,18 @@ exports.userReportController = {
             });
         }
     },
-    async getReports(req, res) {
+    async getReports (req, res) {
         try {
             const { status, reporterId, reportedUserId } = req.query;
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const skip = (page - 1) * limit;
             const where = {};
-            if (status)
-                where.status = status;
-            if (reporterId)
-                where.reporterId = reporterId;
-            if (reportedUserId)
-                where.reportedUserId = reportedUserId;
+            if (status) where.status = status;
+            if (reporterId) where.reporterId = reporterId;
+            if (reportedUserId) where.reportedUserId = reportedUserId;
             const [reports, total] = await Promise.all([
-                database_1.default.userReport.findMany({
+                _database.default.userReport.findMany({
                     where,
                     include: {
                         reporter: {
@@ -129,7 +143,9 @@ exports.userReportController = {
                     skip,
                     take: limit
                 }),
-                database_1.default.userReport.count({ where })
+                _database.default.userReport.count({
+                    where
+                })
             ]);
             res.json({
                 success: true,
@@ -141,8 +157,7 @@ exports.userReportController = {
                     totalPages: Math.ceil(total / limit)
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Get reports error:', error);
             res.status(500).json({
                 success: false,
@@ -150,11 +165,13 @@ exports.userReportController = {
             });
         }
     },
-    async getReportDetails(req, res) {
+    async getReportDetails (req, res) {
         try {
             const { reportId } = req.params;
-            const report = await database_1.default.userReport.findUnique({
-                where: { id: reportId },
+            const report = await _database.default.userReport.findUnique({
+                where: {
+                    id: reportId
+                },
                 include: {
                     reporter: {
                         select: {
@@ -188,8 +205,7 @@ exports.userReportController = {
                 success: true,
                 data: report
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Get report details error:', error);
             res.status(500).json({
                 success: false,
@@ -197,13 +213,15 @@ exports.userReportController = {
             });
         }
     },
-    async updateReportStatus(req, res) {
+    async updateReportStatus (req, res) {
         try {
             const { reportId } = req.params;
             const { status, reviewNotes } = req.body;
             const reviewedBy = req.user?.id;
-            const user = await database_1.default.user.findUnique({
-                where: { id: reviewedBy }
+            const user = await _database.default.user.findUnique({
+                where: {
+                    id: reviewedBy
+                }
             });
             if (user?.role !== 'ADMIN') {
                 return res.status(403).json({
@@ -211,8 +229,10 @@ exports.userReportController = {
                     message: 'Only admins can update report status'
                 });
             }
-            const report = await database_1.default.userReport.update({
-                where: { id: reportId },
+            const report = await _database.default.userReport.update({
+                where: {
+                    id: reportId
+                },
                 data: {
                     status,
                     reviewNotes,
@@ -225,16 +245,20 @@ exports.userReportController = {
                 }
             });
             if (status === 'resolved' || status === 'dismissed') {
-                const allPendingReports = await database_1.default.userReport.count({
+                const allPendingReports = await _database.default.userReport.count({
                     where: {
                         reportedUserId: report.reportedUserId,
                         status: 'pending'
                     }
                 });
                 if (allPendingReports === 0) {
-                    await database_1.default.user.update({
-                        where: { id: report.reportedUserId },
-                        data: { isReported: false }
+                    await _database.default.user.update({
+                        where: {
+                            id: report.reportedUserId
+                        },
+                        data: {
+                            isReported: false
+                        }
                     });
                 }
             }
@@ -243,8 +267,7 @@ exports.userReportController = {
                 message: 'Report status updated successfully',
                 data: report
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Update report status error:', error);
             res.status(500).json({
                 success: false,
@@ -252,7 +275,7 @@ exports.userReportController = {
             });
         }
     },
-    async getMyReportsMade(req, res) {
+    async getMyReportsMade (req, res) {
         try {
             const reporterId = req.user?.id;
             const page = parseInt(req.query.page) || 1;
@@ -265,8 +288,10 @@ exports.userReportController = {
                 });
             }
             const [reports, total] = await Promise.all([
-                database_1.default.userReport.findMany({
-                    where: { reporterId },
+                _database.default.userReport.findMany({
+                    where: {
+                        reporterId
+                    },
                     include: {
                         reportedUser: {
                             select: {
@@ -284,7 +309,11 @@ exports.userReportController = {
                     skip,
                     take: limit
                 }),
-                database_1.default.userReport.count({ where: { reporterId } })
+                _database.default.userReport.count({
+                    where: {
+                        reporterId
+                    }
+                })
             ]);
             res.json({
                 success: true,
@@ -296,8 +325,7 @@ exports.userReportController = {
                     totalPages: Math.ceil(total / limit)
                 }
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Get my reports made error:', error);
             res.status(500).json({
                 success: false,
@@ -306,3 +334,5 @@ exports.userReportController = {
         }
     }
 };
+
+//# sourceMappingURL=user-report.controller.js.map

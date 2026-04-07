@@ -1,17 +1,27 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const amenity_controller_1 = require("../controllers/amenity.controller");
-const admin_middleware_1 = require("../middleware/admin.middleware");
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _express = require("express");
+const _amenitycontroller = require("../controllers/amenity.controller");
+const _adminmiddleware = require("../middleware/admin.middleware");
 console.log('🔍 Amenity routes file loaded');
-const router = (0, express_1.Router)();
+const router = (0, _express.Router)();
 console.log('🔍 Amenity router created');
 // Public routes
-router.get('/', amenity_controller_1.getAmenities); // Get all amenities (with optional activeOnly filter)
-router.get('/:id', amenity_controller_1.getAmenityById); // Get single amenity
+router.get('/', _amenitycontroller.getAmenities); // Get all amenities (with optional activeOnly filter)
+router.get('/:id', _amenitycontroller.getAmenityById); // Get single amenity
 // Admin routes
-router.post('/', admin_middleware_1.authenticateAdmin, amenity_controller_1.createAmenity); // Create amenity
-router.put('/:id', admin_middleware_1.authenticateAdmin, amenity_controller_1.updateAmenity); // Update amenity
-router.delete('/:id', admin_middleware_1.authenticateAdmin, amenity_controller_1.deleteAmenity); // Delete amenity
-router.post('/reorder', admin_middleware_1.authenticateAdmin, amenity_controller_1.reorderAmenities); // Reorder amenities
-exports.default = router;
+router.post('/', _adminmiddleware.authenticateAdmin, _amenitycontroller.createAmenity); // Create amenity
+router.put('/:id', _adminmiddleware.authenticateAdmin, _amenitycontroller.updateAmenity); // Update amenity
+router.delete('/:id', _adminmiddleware.authenticateAdmin, _amenitycontroller.deleteAmenity); // Delete amenity
+router.post('/reorder', _adminmiddleware.authenticateAdmin, _amenitycontroller.reorderAmenities); // Reorder amenities
+const _default = router;
+
+//# sourceMappingURL=amenity.routes.js.map

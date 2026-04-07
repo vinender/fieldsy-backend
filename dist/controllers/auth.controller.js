@@ -1,74 +1,87 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const user_model_1 = __importDefault(require("../models/user.model"));
-const constants_1 = require("../config/constants");
-const asyncHandler_1 = require("../utils/asyncHandler");
-const AppError_1 = require("../utils/AppError");
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _jsonwebtoken = /*#__PURE__*/ _interop_require_default(require("jsonwebtoken"));
+const _usermodel = /*#__PURE__*/ _interop_require_default(require("../models/user.model"));
+const _constants = require("../config/constants");
+const _asyncHandler = require("../utils/asyncHandler");
+const _AppError = require("../utils/AppError");
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 class AuthController {
     // Register new user
-    register = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    register = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         console.log('Registration request body:', req.body);
         const { name, email, password, role, phone } = req.body;
         // Validate input
         if (!name || !email || !password) {
-            throw new AppError_1.AppError('Missing required fields', 400);
+            throw new _AppError.AppError('Missing required fields', 400);
         }
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            throw new AppError_1.AppError('Invalid email format', 400);
+            throw new _AppError.AppError('Invalid email format', 400);
         }
         // Validate password strength
         if (password.length < 8) {
-            throw new AppError_1.AppError('Password must be at least 8 characters long', 400);
+            throw new _AppError.AppError('Password must be at least 8 characters long', 400);
         }
         // Check if user already exists with same email (regardless of role)
         const userRole = role || 'DOG_OWNER';
-        const existingUser = await user_model_1.default.findByEmail(email);
+        const existingUser = await _usermodel.default.findByEmail(email);
         if (existingUser) {
             // Check if the existing user has a different role
             if (existingUser.role !== userRole) {
-                throw new AppError_1.AppError(`An account already exists with this email.`, 409);
+                throw new _AppError.AppError(`An account already exists with this email.`, 409);
             }
             // Check if user has OAuth accounts
-            const hasOAuthAccount = await user_model_1.default.hasOAuthAccount(existingUser.id);
+            const hasOAuthAccount = await _usermodel.default.hasOAuthAccount(existingUser.id);
             const hasPassword = !!existingUser.password;
             if (hasOAuthAccount && !hasPassword) {
                 // User exists with OAuth only
-                throw new AppError_1.AppError('This account is already registered with Google/Apple. Please sign in using the social login option.', 409);
-            }
-            else if (hasPassword) {
+                throw new _AppError.AppError('This account is already registered with Google/Apple. Please sign in using the social login option.', 409);
+            } else if (hasPassword) {
                 // User exists with email/password
-                throw new AppError_1.AppError(`An account with this email already exists. Please sign in instead.`, 409);
-            }
-            else {
+                throw new _AppError.AppError(`An account with this email already exists. Please sign in instead.`, 409);
+            } else {
                 // Generic message
-                throw new AppError_1.AppError(`User already exists with this email`, 409);
+                throw new _AppError.AppError(`User already exists with this email`, 409);
             }
         }
         // Check if phone number already exists
         if (phone) {
-            const existingUserByPhone = await user_model_1.default.findByPhone(phone);
+            const existingUserByPhone = await _usermodel.default.findByPhone(phone);
             if (existingUserByPhone) {
-                throw new AppError_1.AppError('This phone number is already registered with another account. Please use a different phone number or sign in to your existing account.', 409);
+                throw new _AppError.AppError('This phone number is already registered with another account. Please use a different phone number or sign in to your existing account.', 409);
             }
         }
         // Validate role
-        const validRoles = ['DOG_OWNER', 'FIELD_OWNER', 'ADMIN'];
+        const validRoles = [
+            'DOG_OWNER',
+            'FIELD_OWNER',
+            'ADMIN'
+        ];
         if (role && !validRoles.includes(role)) {
-            throw new AppError_1.AppError('Invalid role specified', 400);
+            throw new _AppError.AppError('Invalid role specified', 400);
         }
         // Create user
-        const user = await user_model_1.default.create({
+        const user = await _usermodel.default.create({
             name,
             email,
             password,
             role: userRole,
-            phone,
+            phone
         });
         // NOTE: Empty field creation removed - fields are now created dynamically
         // when the field owner first saves their field details.
@@ -95,62 +108,61 @@ class AuthController {
         //   }
         // }
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({
+        const token = _jsonwebtoken.default.sign({
             id: user.id,
             email: user.email,
             role: user.role
-        }, constants_1.JWT_SECRET, {
-            expiresIn: constants_1.JWT_EXPIRES_IN
+        }, _constants.JWT_SECRET, {
+            expiresIn: _constants.JWT_EXPIRES_IN
         });
         res.status(201).json({
             success: true,
             message: 'Registration successful',
             data: {
-                user: user_model_1.default.stripInternalId(user),
-                token,
-            },
+                user: _usermodel.default.stripInternalId(user),
+                token
+            }
         });
     });
     // Login user
-    login = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    login = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { email, password, role } = req.body;
         // Validate input
         if (!email || !password) {
-            throw new AppError_1.AppError('Email and password are required', 400);
+            throw new _AppError.AppError('Email and password are required', 400);
         }
         // Find user by email only (since email is unique across all roles now)
-        const user = await user_model_1.default.findByEmail(email);
+        const user = await _usermodel.default.findByEmail(email);
         if (!user) {
-            throw new AppError_1.AppError('Invalid email or password', 401);
+            throw new _AppError.AppError('Invalid email or password', 401);
         }
         // If role is specified, verify it matches the user's role
         if (role && user.role !== role) {
-            throw new AppError_1.AppError(`This account is registered as a ${user.role.replace('_', ' ').toLowerCase()}. Please use the correct login form.`, 401);
+            throw new _AppError.AppError(`This account is registered as a ${user.role.replace('_', ' ').toLowerCase()}. Please use the correct login form.`, 401);
         }
         // Check if user has password (they might only have OAuth)
         if (!user.password) {
-            const hasOAuthAccount = await user_model_1.default.hasOAuthAccount(user.id);
+            const hasOAuthAccount = await _usermodel.default.hasOAuthAccount(user.id);
             if (hasOAuthAccount) {
-                const providers = await user_model_1.default.getOAuthProviders(user.id);
-                const providerList = providers.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' or ');
-                throw new AppError_1.AppError(`This account uses ${providerList} sign-in. Please use the social login button to sign in.`, 401);
-            }
-            else {
-                throw new AppError_1.AppError('Invalid email or password', 401);
+                const providers = await _usermodel.default.getOAuthProviders(user.id);
+                const providerList = providers.map((p)=>p.charAt(0).toUpperCase() + p.slice(1)).join(' or ');
+                throw new _AppError.AppError(`This account uses ${providerList} sign-in. Please use the social login button to sign in.`, 401);
+            } else {
+                throw new _AppError.AppError('Invalid email or password', 401);
             }
         }
         // Verify password
-        const isPasswordValid = await user_model_1.default.verifyPassword(password, user.password);
+        const isPasswordValid = await _usermodel.default.verifyPassword(password, user.password);
         if (!isPasswordValid) {
-            throw new AppError_1.AppError('Invalid email or password', 401);
+            throw new _AppError.AppError('Invalid email or password', 401);
         }
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({
+        const token = _jsonwebtoken.default.sign({
             id: user.id,
             email: user.email,
             role: user.role
-        }, constants_1.JWT_SECRET, {
-            expiresIn: constants_1.JWT_EXPIRES_IN
+        }, _constants.JWT_SECRET, {
+            expiresIn: _constants.JWT_EXPIRES_IN
         });
         // Remove password from response
         const { password: _, ...userWithoutPassword } = user;
@@ -158,20 +170,20 @@ class AuthController {
             success: true,
             message: 'Login successful',
             data: {
-                user: user_model_1.default.stripInternalId(userWithoutPassword),
-                token,
-            },
+                user: _usermodel.default.stripInternalId(userWithoutPassword),
+                token
+            }
         });
     });
     // Get current user
-    getMe = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    getMe = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user?.id;
         if (!userId) {
-            throw new AppError_1.AppError('User not authenticated', 401);
+            throw new _AppError.AppError('User not authenticated', 401);
         }
-        const user = await user_model_1.default.findById(userId);
+        const user = await _usermodel.default.findById(userId);
         if (!user) {
-            throw new AppError_1.AppError('User not found', 404);
+            throw new _AppError.AppError('User not found', 404);
         }
         // Prevent browser from caching auth state — stale 304s cause ghost sessions after logout
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -179,60 +191,61 @@ class AuthController {
         res.set('Expires', '0');
         res.json({
             success: true,
-            data: user_model_1.default.stripInternalId(user),
+            data: _usermodel.default.stripInternalId(user)
         });
     });
     // Logout (if using sessions/cookies)
-    logout = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    logout = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         // If using cookies, clear them here
         res.clearCookie('token');
         res.json({
             success: true,
-            message: 'Logout successful',
+            message: 'Logout successful'
         });
     });
     // Refresh token
-    refreshToken = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    refreshToken = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { refreshToken } = req.body;
         if (!refreshToken) {
-            throw new AppError_1.AppError('Refresh token is required', 400);
+            throw new _AppError.AppError('Refresh token is required', 400);
         }
         try {
             // Verify refresh token
-            const decoded = jsonwebtoken_1.default.verify(refreshToken, constants_1.JWT_SECRET);
+            const decoded = _jsonwebtoken.default.verify(refreshToken, _constants.JWT_SECRET);
             // SECURITY FIX: Verify user still exists and is active
-            const user = await user_model_1.default.findById(decoded.id);
+            const user = await _usermodel.default.findById(decoded.id);
             if (!user) {
-                throw new AppError_1.AppError('User no longer exists', 401);
+                throw new _AppError.AppError('User no longer exists', 401);
             }
             // Check if user account is blocked or deleted
             if (user.isBlocked) {
-                throw new AppError_1.AppError('Your account has been blocked', 403);
+                throw new _AppError.AppError('Your account has been blocked', 403);
             }
             // Generate new access token with current user data (in case role changed)
-            const newToken = jsonwebtoken_1.default.sign({
+            const newToken = _jsonwebtoken.default.sign({
                 id: user.id,
                 email: user.email,
                 role: user.role
-            }, constants_1.JWT_SECRET, { expiresIn: constants_1.JWT_EXPIRES_IN });
+            }, _constants.JWT_SECRET, {
+                expiresIn: _constants.JWT_EXPIRES_IN
+            });
             res.json({
                 success: true,
                 data: {
-                    token: newToken,
-                },
+                    token: newToken
+                }
             });
-        }
-        catch (error) {
-            if (error instanceof AppError_1.AppError) {
+        } catch (error) {
+            if (error instanceof _AppError.AppError) {
                 throw error;
             }
-            throw new AppError_1.AppError('Invalid refresh token', 401);
+            throw new _AppError.AppError('Invalid refresh token', 401);
         }
     });
     // Social login (Google/Apple)
     // For Google: requires idToken to be verified server-side
     // For Apple: use the dedicated appleSignIn endpoint instead
-    socialLogin = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    socialLogin = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { email, name, image, provider, providerId, role, idToken } = req.body;
         // Comprehensive logging for social login payload
         console.log('==================== SOCIAL LOGIN PAYLOAD ====================');
@@ -247,10 +260,13 @@ class AuthController {
         console.log('  - Role:', role);
         console.log('==============================================================');
         // Validate provider first
-        const validProviders = ['google', 'apple'];
+        const validProviders = [
+            'google',
+            'apple'
+        ];
         if (!provider || !validProviders.includes(provider)) {
             console.log('❌ VALIDATION FAILED: Invalid provider -', provider);
-            throw new AppError_1.AppError('Invalid provider', 400);
+            throw new _AppError.AppError('Invalid provider', 400);
         }
         console.log('✅ Provider validation passed:', provider);
         // For Google, we MUST verify the ID token server-side
@@ -263,7 +279,7 @@ class AuthController {
             // Google requires idToken verification
             if (!idToken) {
                 console.log('❌ VALIDATION FAILED: Google login requires idToken');
-                throw new AppError_1.AppError('Google ID token is required for Google login', 400);
+                throw new _AppError.AppError('Google ID token is required for Google login', 400);
             }
             try {
                 // Verify the Google ID token
@@ -283,18 +299,16 @@ class AuthController {
                 if (email && email !== verifiedEmail) {
                     console.log('⚠️ Email mismatch - using verified email from token');
                 }
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('❌ Google token verification failed:', error.message);
-                throw new AppError_1.AppError(error.message || 'Invalid Google ID token', 401);
+                throw new _AppError.AppError(error.message || 'Invalid Google ID token', 401);
             }
-        }
-        else if (provider === 'apple') {
+        } else if (provider === 'apple') {
             // SECURITY FIX: Apple Sign-In must provide idToken for verification
             // Do not allow unverified providerId/email (prevents account takeover)
             if (!idToken) {
                 console.log('❌ VALIDATION FAILED: Apple login missing idToken');
-                throw new AppError_1.AppError('Apple Sign In requires idToken for verification. Please use the /auth/apple endpoint', 400);
+                throw new _AppError.AppError('Apple Sign In requires idToken for verification. Please use the /auth/apple endpoint', 400);
             }
             try {
                 // Verify the Apple ID token
@@ -308,8 +322,7 @@ class AuthController {
                 // Priority: 1) name from request body, 2) name from Apple token, 3) email prefix
                 if (name) {
                     verifiedName = name;
-                }
-                else if (appleUser.name) {
+                } else if (appleUser.name) {
                     const firstName = appleUser.name.firstName || '';
                     const lastName = appleUser.name.lastName || '';
                     verifiedName = `${firstName} ${lastName}`.trim();
@@ -328,27 +341,29 @@ class AuthController {
                 if (email && email !== verifiedEmail) {
                     console.log('⚠️ Email mismatch - using verified email from token');
                 }
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('❌ Apple token verification failed:', error.message);
-                throw new AppError_1.AppError(error.message || 'Invalid Apple ID token', 401);
+                throw new _AppError.AppError(error.message || 'Invalid Apple ID token', 401);
             }
         }
         // Validate that we have required fields after verification
         if (!verifiedEmail || !verifiedProviderId) {
             console.log('❌ VALIDATION FAILED: Missing required fields after verification');
-            throw new AppError_1.AppError('Missing required fields', 400);
+            throw new _AppError.AppError('Missing required fields', 400);
         }
         // Validate role if provided
-        const validRoles = ['DOG_OWNER', 'FIELD_OWNER'];
+        const validRoles = [
+            'DOG_OWNER',
+            'FIELD_OWNER'
+        ];
         if (role && !validRoles.includes(role)) {
             console.log('❌ VALIDATION FAILED: Invalid role -', role);
-            throw new AppError_1.AppError('Invalid role specified', 400);
+            throw new _AppError.AppError('Invalid role specified', 400);
         }
         console.log('✅ Role validation passed:', role || 'DOG_OWNER (default)');
         // Check if user already exists AND is verified (using verified email)
         console.log('🔍 Checking for existing user with email:', verifiedEmail);
-        const existingUser = await user_model_1.default.findByEmail(verifiedEmail);
+        const existingUser = await _usermodel.default.findByEmail(verifiedEmail);
         if (existingUser && existingUser.emailVerified) {
             console.log('✅ Existing verified user found');
             console.log('  - User ID:', existingUser.id);
@@ -365,26 +380,26 @@ class AuthController {
                 };
                 const errorMessage = `This email is already registered as a ${roleNames[existingUser.role]}. Please select ${roleNames[existingUser.role]} to continue.`;
                 console.log('❌ Role mismatch:', errorMessage);
-                throw new AppError_1.AppError(errorMessage, 400);
+                throw new _AppError.AppError(errorMessage, 400);
             }
             // User exists, is verified, and role matches - log them in immediately
             console.log('✅ Role matches - logging in immediately');
-            const token = jsonwebtoken_1.default.sign({
+            const token = _jsonwebtoken.default.sign({
                 id: existingUser.id,
                 email: existingUser.email,
                 role: existingUser.role,
                 provider: existingUser.provider
-            }, constants_1.JWT_SECRET, {
-                expiresIn: constants_1.JWT_EXPIRES_IN
+            }, _constants.JWT_SECRET, {
+                expiresIn: _constants.JWT_EXPIRES_IN
             });
             console.log('✅ Token generated for existing user');
             return res.json({
                 success: true,
                 message: 'Social login successful',
                 data: {
-                    user: user_model_1.default.stripInternalId(existingUser),
-                    token,
-                },
+                    user: _usermodel.default.stripInternalId(existingUser),
+                    token
+                }
             });
         }
         // Create or update user (AUTOMATICALLY VERIFIED for social logins)
@@ -396,13 +411,13 @@ class AuthController {
         console.log('  - Provider:', provider);
         console.log('  - Provider ID (verified):', verifiedProviderId);
         console.log('  - Role:', role || 'DOG_OWNER');
-        const user = await user_model_1.default.createOrUpdateSocialUser({
+        const user = await _usermodel.default.createOrUpdateSocialUser({
             email: verifiedEmail,
             name: verifiedName,
             image: verifiedImage,
             provider,
             providerId: verifiedProviderId,
-            role: role || 'DOG_OWNER',
+            role: role || 'DOG_OWNER'
         });
         console.log('✅ User created/updated successfully');
         console.log('  - User ID:', user.id);
@@ -413,71 +428,74 @@ class AuthController {
         // Social login users are automatically verified - no OTP needed
         // Generate token and log them in immediately
         console.log('✅ Social login user - auto-verifying and logging in');
-        const token = jsonwebtoken_1.default.sign({
+        const token = _jsonwebtoken.default.sign({
             id: user.id,
             email: user.email,
             role: user.role,
             provider: user.provider
-        }, constants_1.JWT_SECRET, {
-            expiresIn: constants_1.JWT_EXPIRES_IN
+        }, _constants.JWT_SECRET, {
+            expiresIn: _constants.JWT_EXPIRES_IN
         });
         console.log('✅ Token generated for new social user');
         res.status(200).json({
             success: true,
             message: 'Social login successful',
             data: {
-                user: user_model_1.default.stripInternalId(user),
-                token,
-            },
+                user: _usermodel.default.stripInternalId(user),
+                token
+            }
         });
         console.log('==================== SOCIAL LOGIN COMPLETE ====================');
     });
     // Update user role (for OAuth users who selected role after account creation)
-    updateRole = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    updateRole = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { email, role } = req.body;
         const userId = req.user?.id;
         // Validate input
         if (!email || !role) {
-            throw new AppError_1.AppError('Email and role are required', 400);
+            throw new _AppError.AppError('Email and role are required', 400);
         }
         // Validate role
-        const validRoles = ['DOG_OWNER', 'FIELD_OWNER'];
+        const validRoles = [
+            'DOG_OWNER',
+            'FIELD_OWNER'
+        ];
         if (!validRoles.includes(role)) {
-            throw new AppError_1.AppError('Invalid role specified', 400);
+            throw new _AppError.AppError('Invalid role specified', 400);
         }
         // Verify the user is updating their own role
-        const user = await user_model_1.default.findByEmail(email);
+        const user = await _usermodel.default.findByEmail(email);
         if (!user) {
-            throw new AppError_1.AppError('User not found', 404);
+            throw new _AppError.AppError('User not found', 404);
         }
         if (user.id !== userId) {
-            throw new AppError_1.AppError('You can only update your own role', 403);
+            throw new _AppError.AppError('You can only update your own role', 403);
         }
         // Update the user's role
-        const updatedUser = await user_model_1.default.updateRole(user.id, role);
+        const updatedUser = await _usermodel.default.updateRole(user.id, role);
         // NOTE: Empty field creation removed - fields are now created dynamically
         // when the field owner first saves their field details.
         // See comment in register method for more details.
         // Generate new token with updated role
-        const token = jsonwebtoken_1.default.sign({
+        const token = _jsonwebtoken.default.sign({
             id: updatedUser.id,
             email: updatedUser.email,
             role: updatedUser.role
-        }, constants_1.JWT_SECRET, {
-            expiresIn: constants_1.JWT_EXPIRES_IN
+        }, _constants.JWT_SECRET, {
+            expiresIn: _constants.JWT_EXPIRES_IN
         });
         res.json({
             success: true,
             message: 'Role updated successfully',
             data: {
-                user: user_model_1.default.stripInternalId(updatedUser),
-                token,
-            },
+                user: _usermodel.default.stripInternalId(updatedUser),
+                token
+            }
         });
     });
     // Apple Sign In - Mobile & Web friendly
     // Handles Apple ID token verification on backend
-    appleSignIn = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+    appleSignIn = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { idToken, name, role, clientId: providedClientId, source } = req.body;
         const timestamp = new Date().toISOString();
         console.log('\n');
@@ -504,7 +522,7 @@ class AuthController {
         if (!idToken) {
             console.log('\n❌ VALIDATION FAILED: Missing ID token');
             console.log('   The mobile app must send the identityToken from Apple Sign In');
-            throw new AppError_1.AppError('Apple ID token is required', 400);
+            throw new _AppError.AppError('Apple ID token is required', 400);
         }
         // Log token preview (safely)
         console.log('\n🔑 TOKEN PREVIEW:');
@@ -512,10 +530,13 @@ class AuthController {
         console.log(`   First 50 chars: ${idToken.substring(0, 50)}...`);
         console.log(`   Last 20 chars: ...${idToken.substring(idToken.length - 20)}`);
         // Validate role if provided
-        const validRoles = ['DOG_OWNER', 'FIELD_OWNER'];
+        const validRoles = [
+            'DOG_OWNER',
+            'FIELD_OWNER'
+        ];
         if (role && !validRoles.includes(role)) {
             console.log(`\n❌ VALIDATION FAILED: Invalid role - ${role}`);
-            throw new AppError_1.AppError('Invalid role specified', 400);
+            throw new _AppError.AppError('Invalid role specified', 400);
         }
         console.log(`\n✅ Input validation passed`);
         console.log(`   Role to use: ${role || 'DOG_OWNER (default)'}`);
@@ -532,7 +553,7 @@ class AuthController {
             console.log('  - Email Verified:', appleUser.emailVerified);
             // Check if user already exists AND is verified
             console.log('🔍 Checking for existing user with email:', appleUser.email);
-            const existingUser = await user_model_1.default.findByEmail(appleUser.email);
+            const existingUser = await _usermodel.default.findByEmail(appleUser.email);
             if (existingUser && existingUser.emailVerified) {
                 console.log('✅ Existing verified user found');
                 console.log('  - User ID:', existingUser.id);
@@ -548,26 +569,26 @@ class AuthController {
                     };
                     const errorMessage = `This email is already registered as a ${roleNames[existingUser.role]}. Please select ${roleNames[existingUser.role]} to continue.`;
                     console.log('❌ Role mismatch:', errorMessage);
-                    throw new AppError_1.AppError(errorMessage, 400);
+                    throw new _AppError.AppError(errorMessage, 400);
                 }
                 // User exists, is verified, and role matches - log them in immediately
                 console.log('✅ Role matches - logging in immediately');
-                const token = jsonwebtoken_1.default.sign({
+                const token = _jsonwebtoken.default.sign({
                     id: existingUser.id,
                     email: existingUser.email,
                     role: existingUser.role,
                     provider: 'apple'
-                }, constants_1.JWT_SECRET, {
-                    expiresIn: constants_1.JWT_EXPIRES_IN
+                }, _constants.JWT_SECRET, {
+                    expiresIn: _constants.JWT_EXPIRES_IN
                 });
                 console.log('✅ Token generated for existing user');
                 return res.json({
                     success: true,
                     message: 'Apple sign in successful',
                     data: {
-                        user: user_model_1.default.stripInternalId(existingUser),
-                        token,
-                    },
+                        user: _usermodel.default.stripInternalId(existingUser),
+                        token
+                    }
                 });
             }
             // Create or update user (AUTO-VERIFIED - Apple already verified the email)
@@ -590,13 +611,13 @@ class AuthController {
             console.log('  - Name to save:', userName);
             console.log('  - Provider ID:', appleUser.sub);
             console.log('  - Role:', role || 'DOG_OWNER');
-            const user = await user_model_1.default.createOrUpdateSocialUser({
+            const user = await _usermodel.default.createOrUpdateSocialUser({
                 email: appleUser.email,
                 name: userName,
-                image: undefined, // Apple doesn't provide profile images
+                image: undefined,
                 provider: 'apple',
                 providerId: appleUser.sub,
-                role: role || 'DOG_OWNER',
+                role: role || 'DOG_OWNER'
             });
             console.log('  ✅ User saved with name:', user.name);
             console.log('✅ User created/updated successfully');
@@ -605,13 +626,13 @@ class AuthController {
             // Apple Sign In users are AUTO-VERIFIED (Apple already verified their email)
             // No OTP needed - log them in immediately (same as Google Sign In)
             console.log('✅ Apple Sign In - Auto-verifying user (Apple verified email)');
-            const token = jsonwebtoken_1.default.sign({
+            const token = _jsonwebtoken.default.sign({
                 id: user.id,
                 email: user.email,
                 role: user.role,
                 provider: 'apple'
-            }, constants_1.JWT_SECRET, {
-                expiresIn: constants_1.JWT_EXPIRES_IN
+            }, _constants.JWT_SECRET, {
+                expiresIn: _constants.JWT_EXPIRES_IN
             });
             console.log('✅ Token generated for new Apple user');
             console.log('\n📤 Sending response - Login successful (no OTP required)');
@@ -619,16 +640,15 @@ class AuthController {
                 success: true,
                 message: 'Apple sign in successful',
                 data: {
-                    user: user_model_1.default.stripInternalId(user),
-                    token,
-                },
+                    user: _usermodel.default.stripInternalId(user),
+                    token
+                }
             });
             console.log('╔══════════════════════════════════════════════════════════════════╗');
             console.log('║              APPLE SIGN IN ENDPOINT - COMPLETE                   ║');
             console.log('╚══════════════════════════════════════════════════════════════════╝');
             console.log('\n');
-        }
-        catch (error) {
+        } catch (error) {
             console.log('\n');
             console.log('╔══════════════════════════════════════════════════════════════════╗');
             console.log('║              APPLE SIGN IN ENDPOINT - ERROR                      ║');
@@ -652,19 +672,19 @@ class AuthController {
                 console.log('     - Or add APPLE_BUNDLE_ID=<your-bundle-id> to .env');
                 console.log('     - Ensure mobile app sends token immediately after receiving it');
                 console.log('     - Check that device time is synchronized');
-                throw new AppError_1.AppError('Invalid or expired Apple ID token. Check server logs for details.', 401);
+                throw new _AppError.AppError('Invalid or expired Apple ID token. Check server logs for details.', 401);
             }
             if (error.message && error.message.includes('expired')) {
                 console.log('   Issue: Token has expired');
                 console.log('   Apple ID tokens are only valid for about 5-10 minutes');
                 console.log('   Ensure the mobile app sends the token immediately');
-                throw new AppError_1.AppError('Apple ID token has expired. Please try signing in again.', 401);
+                throw new _AppError.AppError('Apple ID token has expired. Please try signing in again.', 401);
             }
             if (error.message && (error.message.includes('audience') || error.message.includes('aud'))) {
                 console.log('   Issue: Client ID / Audience mismatch');
                 console.log('   The token was issued for a different app identifier');
                 console.log('   Mobile apps use Bundle ID, web apps use Service ID');
-                throw new AppError_1.AppError('Apple ID token audience mismatch. Check APPLE_MOBILE_CLIENT_ID configuration.', 401);
+                throw new _AppError.AppError('Apple ID token audience mismatch. Check APPLE_MOBILE_CLIENT_ID configuration.', 401);
             }
             console.log('\n');
             // Re-throw other errors
@@ -672,4 +692,6 @@ class AuthController {
         }
     });
 }
-exports.default = new AuthController();
+const _default = new AuthController();
+
+//# sourceMappingURL=auth.controller.js.map

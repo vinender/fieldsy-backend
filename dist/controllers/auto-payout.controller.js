@@ -1,21 +1,31 @@
+//@ts-nocheck
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const payout_services_1 = require("../config/payout-services");
-const automaticPayoutService = (0, payout_services_1.getAutoPayoutService)();
-const asyncHandler_1 = require("../utils/asyncHandler");
-const AppError_1 = require("../utils/AppError");
-const database_1 = __importDefault(require("../config/database"));
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "default", {
+    enumerable: true,
+    get: function() {
+        return _default;
+    }
+});
+const _payoutservices = require("../config/payout-services");
+const _asyncHandler = require("../utils/asyncHandler");
+const _AppError = require("../utils/AppError");
+const _database = /*#__PURE__*/ _interop_require_default(require("../config/database"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const automaticPayoutService = (0, _payoutservices.getAutoPayoutService)();
 class AutoPayoutController {
     /**
-     * Manually trigger payout processing (Admin only)
-     */
-    triggerPayoutProcessing = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+   * Manually trigger payout processing (Admin only)
+   */ triggerPayoutProcessing = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userRole = req.user.role;
         if (userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only admins can trigger manual payout processing', 403);
+            throw new _AppError.AppError('Only admins can trigger manual payout processing', 403);
         }
         const results = await automaticPayoutService.processEligiblePayouts();
         res.json({
@@ -30,13 +40,12 @@ class AutoPayoutController {
         });
     });
     /**
-     * Get payout summary for field owner
-     */
-    getPayoutSummary = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+   * Get payout summary for field owner
+   */ getPayoutSummary = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userId = req.user.id;
         const userRole = req.user.role;
         if (userRole !== 'FIELD_OWNER' && userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only field owners can view payout summary', 403);
+            throw new _AppError.AppError('Only field owners can view payout summary', 403);
         }
         const summary = await automaticPayoutService.getPayoutSummary(userId);
         res.json({
@@ -45,13 +54,12 @@ class AutoPayoutController {
         });
     });
     /**
-     * Process a specific booking payout (Admin only)
-     */
-    processBookingPayout = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+   * Process a specific booking payout (Admin only)
+   */ processBookingPayout = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const userRole = req.user.role;
         const { bookingId } = req.params;
         if (userRole !== 'ADMIN') {
-            throw new AppError_1.AppError('Only admins can manually process payouts', 403);
+            throw new _AppError.AppError('Only admins can manually process payouts', 403);
         }
         const payout = await automaticPayoutService.processBookingPayoutAfterCancellationWindow(bookingId);
         if (!payout) {
@@ -67,9 +75,8 @@ class AutoPayoutController {
         });
     });
     /**
-     * Process refund with fee adjustment
-     */
-    processRefundWithFees = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
+   * Process refund with fee adjustment
+   */ processRefundWithFees = (0, _asyncHandler.asyncHandler)(async (req, res, next)=>{
         const { bookingId } = req.params;
         const { reason } = req.body;
         const userId = req.user.id;
@@ -77,14 +84,16 @@ class AutoPayoutController {
         // Verify authorization
         if (userRole !== 'ADMIN') {
             // If not admin, verify the user owns the booking
-            const booking = await database_1.default.booking.findUnique({
-                where: { id: bookingId }
+            const booking = await _database.default.booking.findUnique({
+                where: {
+                    id: bookingId
+                }
             });
             if (!booking) {
-                throw new AppError_1.AppError('Booking not found', 404);
+                throw new _AppError.AppError('Booking not found', 404);
             }
             if (booking.userId !== userId) {
-                throw new AppError_1.AppError('You are not authorized to refund this booking', 403);
+                throw new _AppError.AppError('You are not authorized to refund this booking', 403);
             }
         }
         const refund = await automaticPayoutService.processRefundWithFeeAdjustment(bookingId, reason || 'Customer requested refund');
@@ -95,4 +104,6 @@ class AutoPayoutController {
         });
     });
 }
-exports.default = new AutoPayoutController();
+const _default = new AutoPayoutController();
+
+//# sourceMappingURL=auto-payout.controller.js.map
